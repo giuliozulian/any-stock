@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Stock {
+  id        String          @id @default(cuid())
+  symbol    String          @unique
+  name      String
+  exchange  String
+  addedAt   DateTime        @default(now())
+  snapshots PriceSnapshot[]
+  news      NewsItem[]
+}
+
+model PriceSnapshot {
+  id         String   @id @default(cuid())
+  stockId    String
+  stock      Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  price      Float
+  changePct  Float
+  volume     BigInt?
+  marketCap  Float?
+  peRatio    Float?
+  week52High Float?
+  week52Low  Float?
+  timestamp  DateTime @default(now())
+
+  @@index([stockId, timestamp])
+}
+
+model NewsItem {
+  id          String   @id @default(cuid())
+  stockId     String
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  headline    String
+  url         String   @unique
+  source      String
+  summary     String?
+  publishedAt DateTime
+
+  @@index([stockId, publishedAt])
+}
