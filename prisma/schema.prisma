@@ -16,6 +16,10 @@ model Stock {
   sellPrice        Float?
   entryTriggeredAt DateTime?
   sellTriggeredAt  DateTime?
+  nextEarningsDate        DateTime?
+  nextEarningsHour        String?
+  nextEarningsEpsEstimate Float?
+  earningsCheckedAt       DateTime?
   snapshots       PriceSnapshot[]
   news            NewsItem[]
   recommendations AnalystRecommendation[]

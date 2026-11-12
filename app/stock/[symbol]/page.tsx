@@ -7,6 +7,7 @@ import { PriceChart } from '@/components/PriceChart'
 import { PriceHistoryChart } from '@/components/PriceHistoryChart'
 import { AnalystTrendChart } from '@/components/AnalystTrendChart'
 import { InfoTip } from '@/components/InfoTip'
+import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
 import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
@@ -170,6 +171,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
       </div>
       {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
+      <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
 
       <div className={styles.hero}>
         {latest && (

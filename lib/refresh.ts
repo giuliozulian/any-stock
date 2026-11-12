@@ -1,7 +1,7 @@
 import { prisma } from './db'
 import { analyzePendingNews } from './news-analysis'
 import { refreshStockInsight } from './stock-insight'
-import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from './finnhub'
+import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from './finnhub'
 import { notifyTargets } from './alert-runner'
 
 export interface RefreshResult {
@@ -89,6 +89,21 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
       await refreshStockInsight(stock.id)
     } catch (err) {
       logFailure('Stock insight', symbol, err)
+    }
+
+    try {
+      const earnings = await getNextEarnings(symbol)
+      await prisma.stock.update({
+        where: { id: stock.id },
+        data: {
+          nextEarningsDate: earnings ? new Date(`${earnings.date}T00:00:00Z`) : null,
+          nextEarningsHour: earnings?.hour ?? null,
+          nextEarningsEpsEstimate: earnings?.epsEstimate ?? null,
+          earningsCheckedAt: new Date(),
+        },
+      })
+    } catch (err) {
+      logFailure('Earnings refresh', symbol, err)
     }
 
     try {

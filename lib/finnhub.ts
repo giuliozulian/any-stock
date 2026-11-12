@@ -148,6 +148,25 @@ export async function getCompanyNews(symbol: string, fromDate: string, toDate: s
   }))
 }
 
+export interface NextEarnings {
+  date: string
+  hour: string | null
+  epsEstimate: number | null
+}
+
+export async function getNextEarnings(symbol: string, today: Date = new Date()): Promise<NextEarnings | null> {
+  const from = today.toISOString().slice(0, 10)
+  const to = new Date(today.getTime() + 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const data = await finnhubFetch<{
+    earningsCalendar?: Array<{ date: string; hour?: string; epsEstimate?: number | null }>
+  }>('/calendar/earnings', { symbol, from, to })
+  const upcoming = (data.earningsCalendar ?? [])
+    .filter((e) => e.date >= from)
+    .sort((a, b) => a.date.localeCompare(b.date))[0]
+  if (!upcoming) return null
+  return { date: upcoming.date, hour: upcoming.hour || null, epsEstimate: upcoming.epsEstimate ?? null }
+}
+
 export interface InsiderTransaction {
   name: string
   change: number

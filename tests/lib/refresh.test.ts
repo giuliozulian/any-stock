@@ -54,6 +54,7 @@ describe('refreshStock', () => {
     vi.spyOn(finnhub, 'getRecommendationTrend').mockResolvedValue([
       { period: '2026-11-01', strongBuy: 11, buy: 19, hold: 15, sell: 3, strongSell: 1 },
     ])
+    vi.spyOn(finnhub, 'getNextEarnings').mockResolvedValue({ date: '2026-11-17', hour: 'amc', epsEstimate: 2.5 })
 
     const result = await refreshStock('AAPL')
     expect(result).toEqual({ symbol: 'AAPL', ok: true })
@@ -71,6 +72,11 @@ describe('refreshStock', () => {
     expect(recs).toHaveLength(1)
     expect(recs[0].strongBuy).toBe(11)
     expect(recs[0].period).toEqual(new Date('2026-11-01'))
+
+    const updated = await prisma.stock.findUniqueOrThrow({ where: { id: stock.id } })
+    expect(updated.nextEarningsDate).toEqual(new Date('2026-11-17T00:00:00Z'))
+    expect(updated.nextEarningsHour).toBe('amc')
+    expect(updated.nextEarningsEpsEstimate).toBe(2.5)
   })
 
   it('emails once when the sell target is reached and marks it triggered only after a successful send', async () => {

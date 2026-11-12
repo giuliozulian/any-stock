@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from '@/lib/finnhub'
+import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from '@/lib/finnhub'
 
 function mockFetchOnce(body: unknown, ok = true) {
   vi.stubGlobal(
@@ -129,5 +129,21 @@ describe('finnhub client', () => {
     delete process.env.FINNHUB_API_KEY
     mockFetchOnce({ c: 1, dp: 1, h: 1, l: 1, o: 1, pc: 1 })
     await expect(getQuote('AAPL')).rejects.toThrow('FINNHUB_API_KEY is not set')
+  })
+  it('getNextEarnings returns the earliest upcoming date and ignores past ones', async () => {
+    mockFetchOnce({
+      earningsCalendar: [
+        { date: '2027-02-23', hour: 'amc', epsEstimate: 2.8 },
+        { date: '2026-11-17', hour: 'amc', epsEstimate: 2.52 },
+        { date: '2026-08-01', hour: '', epsEstimate: 1 },
+      ],
+    })
+    const next = await getNextEarnings('NVDA', new Date('2026-11-12T10:00:00Z'))
+    expect(next).toEqual({ date: '2026-11-17', hour: 'amc', epsEstimate: 2.52 })
+  })
+
+  it('getNextEarnings returns null when nothing is scheduled', async () => {
+    mockFetchOnce({ earningsCalendar: [] })
+    expect(await getNextEarnings('XYZ', new Date('2026-11-12T10:00:00Z'))).toBeNull()
   })
 })
