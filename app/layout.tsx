@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
+import { SiteNav } from "@/components/SiteNav";
 
 const plex = IBM_Plex_Sans({
   variable: "--font-ui",
@@ -16,7 +18,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${plex.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          <SiteNav />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }

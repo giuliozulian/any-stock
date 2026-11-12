@@ -120,11 +120,7 @@ export default function WatchlistPage() {
     <main className={styles.shell}>
       <header className={styles.masthead}>
         <div>
-          <p className={styles.wordmark}>Any Stock</p>
           <h1 className={styles.title}>La tua watchlist</h1>
-          <Link href="/mercato" className={styles.marketLink}>
-            Mercato: movimenti forti, trimestrali e IPO →
-          </Link>
         </div>
         <AddStockForm />
       </header>

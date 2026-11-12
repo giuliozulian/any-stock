@@ -3,7 +3,7 @@ import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { getIpoCalendar, type IpoEvent } from '@/lib/finnhub'
-import { bigMovers, BIG_MOVE_THRESHOLD_PCT } from '@/lib/market'
+import { getMarketBigMovers, BIG_MOVE_THRESHOLD_PCT, type MarketMover } from '@/lib/market'
 import { InfoTip } from '@/components/InfoTip'
 import styles from './page.module.css'
 
@@ -22,29 +22,37 @@ function formatMoney(n: number): string {
 
 async function BigMovers() {
   await connection()
-  const stocks = await prisma.stock.findMany({
-    include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 1 } },
-  })
-  const movers = bigMovers(
-    stocks.filter((s) => s.snapshots[0]).map((s) => ({ symbol: s.symbol, name: s.name, changePct: s.snapshots[0].changePct, price: s.snapshots[0].price }))
-  )
+  const [watched, marketResult] = await Promise.all([
+    prisma.stock.findMany({ select: { symbol: true } }),
+    getMarketBigMovers().then(
+      (movers) => ({ movers, failed: false }),
+      (err) => {
+        console.error('Market movers failed:', err instanceof Error ? err.message : err)
+        return { movers: [] as MarketMover[], failed: true }
+      }
+    ),
+  ])
+  const watchedSymbols = new Set(watched.map((s) => s.symbol))
+  const { movers, failed } = marketResult
   return (
     <section className={styles.section}>
       <h2 className={styles.heading}>
         Movimenti forti
         <InfoTip
           label="Cos’è questa sezione"
-          source="Ultima rilevazione di prezzo salvata per ogni titolo della watchlist (Finnhub, /quote)"
-          formula={`Compare un titolo se la variazione giornaliera è almeno ±${BIG_MOVE_THRESHOLD_PCT}%`}
+          source="Yahoo Finance, classifiche pubbliche dei titoli USA che salgono e scendono di più oggi"
+          formula={`Compare un titolo se la variazione giornaliera è almeno ±${BIG_MOVE_THRESHOLD_PCT}% e il prezzo è almeno 1 $`}
         >
           <strong>Movimenti forti</strong>
-          <span>I titoli della tua watchlist che nell’ultima rilevazione hanno guadagnato o perso almeno il {BIG_MOVE_THRESHOLD_PCT}% in una giornata.</span>
-          <span>Finnhub gratuito non offre una classifica dell’intero mercato, quindi il controllo vale solo per i titoli che segui.</span>
+          <span>Tutti i titoli USA che oggi hanno guadagnato o perso almeno il {BIG_MOVE_THRESHOLD_PCT}%, non solo quelli che segui.</span>
+          <span>Ho escluso i titoli sotto 1 $ perché sono quasi sempre rumore. Le classifiche mostrano i primi 100 per direzione.</span>
         </InfoTip>
       </h2>
-      <p className={styles.lead}>Titoli che si sono mossi di almeno il {BIG_MOVE_THRESHOLD_PCT}% in un giorno. Più piccoli di così non vengono segnalati.</p>
-      {movers.length === 0 ? (
-        <p className={styles.empty}>Nessun titolo della watchlist ha superato ±{BIG_MOVE_THRESHOLD_PCT}% nell’ultima rilevazione.</p>
+      <p className={styles.lead}>Titoli di tutto il mercato USA che oggi si sono mossi di almeno il {BIG_MOVE_THRESHOLD_PCT}%. Quelli in watchlist sono segnati.</p>
+      {failed ? (
+        <p className={styles.empty}>Non riesco a scaricare le classifiche del mercato in questo momento. Riprova tra qualche minuto.</p>
+      ) : movers.length === 0 ? (
+        <p className={styles.empty}>Oggi nessun titolo ha superato ±{BIG_MOVE_THRESHOLD_PCT}%.</p>
       ) : (
         <ul className={styles.list}>
           {movers.map((m) => (
@@ -54,10 +62,16 @@ async function BigMovers() {
                 {Math.abs(m.changePct).toFixed(2)}%
               </span>
               <span className={styles.main}>
-                <Link href={`/stock/${m.symbol}`}>{m.symbol}</Link>
-                <span className={styles.sub}>{m.name}</span>
+                {watchedSymbols.has(m.symbol) ? <Link href={`/stock/${m.symbol}`}>{m.symbol}</Link> : m.symbol}
+                <span className={styles.sub}>
+                  {m.name}
+                  {watchedSymbols.has(m.symbol) ? ' · in watchlist' : ''}
+                </span>
               </span>
-              <span className={styles.side}>${m.price.toFixed(2)}</span>
+              <span className={styles.side}>
+                ${m.price.toFixed(2)}
+                {m.marketCap ? ` · cap ${formatMoney(m.marketCap)}` : ''}
+              </span>
             </li>
           ))}
         </ul>
