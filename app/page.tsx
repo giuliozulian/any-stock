@@ -8,7 +8,7 @@ import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
 import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
 import { getIntradayHistory } from '@/lib/history'
-import { getSector } from '@/lib/sector'
+import { getSector, sectorHue } from '@/lib/sector'
 import styles from './page.module.css'
 
 async function WatchlistTable() {
@@ -86,7 +86,7 @@ async function WatchlistTable() {
                   sellTriggered={stock.sellTriggeredAt !== null}
                 />
               </div>
-              <div className={styles.sectorCell}>{sector ? <span className={styles.sectorTag}>{sector}</span> : <span className={styles.dash}>—</span>}</div>
+              <div className={styles.sectorCell}>{sector ? <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span> : <span className={styles.dash}>—</span>}</div>
               <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
                 <span className={styles.price}>{latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}</span>
                 {ext && extPct !== null && (
@@ -107,7 +107,7 @@ async function WatchlistTable() {
                 </time>
               </div>
               <div className={`${styles.num} ${styles.trend} ${changeTone}`}>
-                <PriceChart snapshots={stock.snapshots} width={88} height={28} strokeWidth={1.5} compact />
+                <PriceChart snapshots={stock.snapshots} width={88} height={22} strokeWidth={1.5} compact />
               </div>
               <div className={styles.actions}>
                 <RemoveStockButton symbol={stock.symbol} />
