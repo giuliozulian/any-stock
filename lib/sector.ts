@@ -54,3 +54,10 @@ export async function getSector(symbol: string): Promise<string | null> {
     return hit?.sector ?? null
   }
 }
+
+// Stable hue per sector, so the same sector always gets the same colour.
+export function sectorHue(sector: string): number {
+  let h = 0
+  for (const ch of sector.toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) % 360
+  return h
+}
