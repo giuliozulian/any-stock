@@ -7,6 +7,7 @@ import { PriceChart } from '@/components/PriceChart'
 import { PriceHistoryChart } from '@/components/PriceHistoryChart'
 import { AnalystTrendChart } from '@/components/AnalystTrendChart'
 import { InfoTip } from '@/components/InfoTip'
+import { InsightPanel } from '@/components/InsightPanel'
 import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
@@ -17,6 +18,9 @@ import { LiveChange, LivePrice, LiveStamp } from '@/components/live-quotes'
 import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
+import { StockTabs } from '@/components/StockTabs'
+import { FinancialAnalysis } from '@/components/FinancialAnalysis'
+import { getAnnualFinancials } from '@/lib/fundamentals'
 import { CongressPanel } from '@/components/CongressPanel'
 import { getCongressTrades } from '@/lib/congress'
 import { getInsiderData } from '@/lib/insider-data'
@@ -53,6 +57,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         include: { analysis: true },
       },
       recommendations: { orderBy: { period: 'desc' }, take: 6 },
+      insight: true,
     },
   })
 
@@ -70,7 +75,14 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const [history, intraday, videos, insiders, congress] = await Promise.all([getPriceHistory(stock.symbol), getIntradayHistory(stock.symbol), getRecentVideos(stock.symbol, stock.name), getInsiderData(stock.symbol), getCongressTrades(stock.symbol)])
+  const [history, intraday, videos, insiders, congress, financials] = await Promise.all([
+    getPriceHistory(stock.symbol),
+    getIntradayHistory(stock.symbol),
+    getRecentVideos(stock.symbol, stock.name),
+    getInsiderData(stock.symbol),
+    getCongressTrades(stock.symbol),
+    getAnnualFinancials(stock.symbol),
+  ])
 
   const evaluation = latest
     ? evaluateStock({
@@ -155,13 +167,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       </header>
 
       <div className={styles.alerts}>
-        <AlertTargets
-          symbol={stock.symbol}
-          entryPrice={stock.entryPrice}
-          sellPrice={stock.sellPrice}
-          entryTriggered={stock.entryTriggeredAt !== null}
-          sellTriggered={stock.sellTriggeredAt !== null}
-        />
+        <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
       </div>
       {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
 
@@ -262,51 +268,87 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         {evaluation && <VerdictCard evaluation={evaluation} />}
       </div>
 
-      {evaluation && <ReasonsSection evaluation={evaluation} />}
+      <StockTabs
+        tabs={[
+          {
+            id: 'valutazione',
+            label: 'Valutazione',
+            content: (
+              <>
+                {stock.insight && <InsightPanel insight={stock.insight} />}
+                {evaluation && <ReasonsSection evaluation={evaluation} />}
 
-      <div className={styles.layout}>
-        {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
-        {evaluation && <FundamentalsGrid details={evaluation.details} />}
-      </div>
+                <div className={styles.layout}>
+                  {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
+                  {evaluation && <FundamentalsGrid details={evaluation.details} />}
+                </div>
+              </>
+            ),
+          },
+          {
+            id: 'bilanci',
+            label: 'Bilanci',
+            content: (
+              <>
+                <FinancialAnalysis years={financials} marketCapMillions={latest?.marketCap ?? null} />
+              </>
+            ),
+          },
+          {
+            id: 'insider',
+            label: 'Insider e politici',
+            content: (
+              <>
+                <InsiderPanel data={insiders} />
 
-      <InsiderPanel data={insiders} />
+                <CongressPanel trades={congress} />
+              </>
+            ),
+          },
+          {
+            id: 'notizie',
+            label: 'Notizie e video',
+            content: (
+              <>
+                <section className={styles.news}>
+                  <h2 className={styles.sectionTitle}>
+                    Notizie recenti
+                    <InfoTip
+                      label="Come leggere le notizie"
+                      source="Finnhub (/company-news) per i titoli reali; analisi di impatto fatta da un modello IA (Google Gemini, gemini-3.5-flash-lite) e salvata nel database; senza risposta del modello, parole chiave (lib/news-impact.ts)"
+                      formula="il modello restituisce direzione, intensità 1-5, orizzonte e confidenza. Nel verdetto contano solo le notizie con confidenza alta, intensità ≥ 3 e degli ultimi 7 giorni: +1 per positiva, −1 per negativa; saldo ≥ +2 aggiunge 1 punto, ≤ −2 ne toglie 1"
+                    >
+                      <strong>Notizie e impatto stimato</strong>
+                      <span>Le ultime notizie sul titolo. Il colore indica l’impatto probabile: verde positivo, rosso negativo, ambra neutro. Sotto trovi la motivazione dell’IA.</span>
+                      <span>“Sul titolo” = parla direttamente dell’azienda; “indiretto” = riguarda concorrenti o il settore. È una stima di un modello, può sbagliare: non è una previsione.</span>
+                    </InfoTip>
+                  </h2>
+                  <p className={styles.newsHint}>Impatto stimato da un’IA che legge ogni notizia, non è una previsione.</p>
+                  <NewsList news={stock.news} stock={{ symbol: stock.symbol, name: stock.name }} />
+                </section>
 
-      <CongressPanel trades={congress} />
-
-      <section className={styles.news}>
-        <h2 className={styles.sectionTitle}>
-          Notizie recenti
-          <InfoTip
-            label="Come leggere le notizie"
-            source="Finnhub (/company-news) per i titoli reali; analisi di impatto fatta da un modello IA (Google Gemini, gemini-3.5-flash-lite) e salvata nel database; senza risposta del modello, parole chiave (lib/news-impact.ts)"
-            formula="il modello restituisce direzione, intensità 1-5, orizzonte e confidenza. Nel verdetto contano solo le notizie con confidenza alta, intensità ≥ 3 e degli ultimi 7 giorni: +1 per positiva, −1 per negativa; saldo ≥ +2 aggiunge 1 punto, ≤ −2 ne toglie 1"
-          >
-            <strong>Notizie e impatto stimato</strong>
-            <span>Le ultime notizie sul titolo. Il colore indica l’impatto probabile: verde positivo, rosso negativo, ambra neutro. Sotto trovi la motivazione dell’IA.</span>
-            <span>“Sul titolo” = parla direttamente dell’azienda; “indiretto” = riguarda concorrenti o il settore. È una stima di un modello, può sbagliare: non è una previsione.</span>
-          </InfoTip>
-        </h2>
-        <p className={styles.newsHint}>Impatto stimato da un’IA che legge ogni notizia, non è una previsione.</p>
-        <NewsList news={stock.news} stock={{ symbol: stock.symbol, name: stock.name }} />
-      </section>
-
-      {isYoutubeConfigured() && (
-        <section className={styles.news}>
-          <h2 className={styles.sectionTitle}>
-            Video recenti
-            <InfoTip
-              label="Come leggere i video"
-              source="YouTube Data API v3 (search.list), ricerca “nome azienda + ticker + stock”, solo video pubblicati negli ultimi 7 giorni, ordinati per rilevanza"
-              formula="filtro: publishedAfter = adesso − 7 giorni; massimo 6 risultati; cache di 6 ore per titolo"
-            >
-              <strong>Video degli ultimi 7 giorni</strong>
-              <span>Analisi e commenti pubblicati su YouTube negli ultimi giorni su questo titolo. Sono opinioni di terzi: non sono verificati e non entrano nel giudizio.</span>
-              <span>Serve a farti un’idea del dibattito in corso e a trovare approfondimenti da guardare.</span>
-            </InfoTip>
-          </h2>
-          <VideoList videos={videos} />
-        </section>
-      )}
+                {isYoutubeConfigured() && (
+                  <section className={styles.news}>
+                    <h2 className={styles.sectionTitle}>
+                      Video recenti
+                      <InfoTip
+                        label="Come leggere i video"
+                        source="YouTube Data API v3 (search.list), ricerca “nome azienda + ticker + stock”, solo video pubblicati negli ultimi 7 giorni, ordinati per rilevanza; prima i risultati di una ricerca in italiano (relevanceLanguage=it), poi quelli generici"
+                        formula="filtro: publishedAfter = adesso − 7 giorni; massimo 6 risultati, italiani per primi; cache di 6 ore per titolo"
+                      >
+                        <strong>Video degli ultimi 7 giorni</strong>
+                        <span>Analisi e commenti pubblicati su YouTube negli ultimi giorni su questo titolo. Sono opinioni di terzi: non sono verificati e non entrano nel giudizio.</span>
+                        <span>Serve a farti un’idea del dibattito in corso e a trovare approfondimenti da guardare.</span>
+                      </InfoTip>
+                    </h2>
+                    <VideoList videos={videos} />
+                  </section>
+                )}
+              </>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }

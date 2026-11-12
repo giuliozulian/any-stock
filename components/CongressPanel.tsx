@@ -7,7 +7,7 @@ const short = (v: number) => (v >= 1_000_000 ? `${v / 1_000_000}M` : v >= 1_000 
 const range = (t: CongressTrade) => (t.amountHigh > 0 ? `$${short(t.amountLow)} – $${short(t.amountHigh)}` : '—')
 
 export function CongressPanel({ trades }: { trades: CongressTrade[] | null }) {
-  const shown = trades?.slice(0, 10) ?? []
+  const shown = trades?.slice(0, 25) ?? []
   const buys = trades?.filter((t) => t.side === 'buy').length ?? 0
   const sells = (trades?.length ?? 0) - buys
 
@@ -17,8 +17,8 @@ export function CongressPanel({ trades }: { trades: CongressTrade[] | null }) {
         Politici americani: chi compra e chi vende
         <InfoTip
           label="Come leggere le operazioni dei politici"
-          source="Bargo (API gratuita), che raccoglie le dichiarazioni obbligatorie (STOCK Act) di deputati e senatori USA alla House Clerk e al Senate eFD"
-          formula="solo acquisti e vendite degli ultimi ~3 mesi; le operazioni identiche ripetute sono contate una volta. Gli importi sono fasce, non cifre esatte; le dichiarazioni arrivano con un ritardo fino a 45 giorni"
+          source="Financial Modeling Prep (storico completo, se configurata) oppure Bargo (API gratuita, ultimi ~3 mesi), che raccolgono le dichiarazioni obbligatorie (STOCK Act) di deputati e senatori USA alla House Clerk e al Senate eFD"
+          formula="solo acquisti e vendite (le 25 più recenti); le operazioni identiche ripetute sono contate una volta. Gli importi sono fasce, non cifre esatte; le dichiarazioni arrivano con un ritardo fino a 45 giorni"
         >
           <strong>Operazioni dei membri del Congresso</strong>
           <span>Deputati e senatori devono dichiarare le loro operazioni in titoli entro 45 giorni. L’importo è una fascia (ad esempio $1k – $15k).</span>
@@ -29,7 +29,7 @@ export function CongressPanel({ trades }: { trades: CongressTrade[] | null }) {
       {trades === null ? (
         <p className={styles.empty}>Dati sui politici non disponibili al momento.</p>
       ) : trades.length === 0 ? (
-        <p className={styles.empty}>Nessuna operazione di politici dichiarata negli ultimi 3 mesi.</p>
+        <p className={styles.empty}>Nessuna operazione di politici dichiarata.</p>
       ) : (
         <>
           <p className={styles.counts}>

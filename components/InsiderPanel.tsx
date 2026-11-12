@@ -1,4 +1,8 @@
+'use client'
+
+import { useState } from 'react'
 import type { InsiderData } from '@/lib/insider-data'
+import { daysAgoISO, summarizeTrades } from '@/lib/insiders'
 import { InfoTip } from './InfoTip'
 import styles from './InsiderPanel.module.css'
 
@@ -12,8 +16,24 @@ const money = (v: number) => (v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(1)}M`
 const date = (iso: string) => new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short' })
 const monthName = (year: number, month: number) => new Date(year, month - 1, 1).toLocaleDateString('it-IT', { month: 'short' })
 
+const RANGES = [
+  { key: '6M', label: '6 mesi', days: 183 },
+  { key: '1Y', label: '1 anno', days: 365 },
+  { key: '3Y', label: '3 anni', days: 1095 },
+  { key: 'ALL', label: 'Tutto', days: null },
+] as const
+const PAGE_SIZE = 25
+
 export function InsiderPanel({ data }: { data: InsiderData | null }) {
-  const shown = data?.trades.slice(0, 10) ?? []
+  const [range, setRange] = useState<(typeof RANGES)[number]['key']>('ALL')
+  const [page, setPage] = useState(0)
+  const days = RANGES.find((r) => r.key === range)!.days
+  const since = days === null ? '' : daysAgoISO(days)
+  const trades = (data?.trades ?? []).filter((t) => t.date >= since)
+  const summary = summarizeTrades(trades)
+  const pages = Math.max(1, Math.ceil(trades.length / PAGE_SIZE))
+  const current = Math.min(page, pages - 1)
+  const shown = trades.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
   const maxValue = Math.max(1, ...shown.map((t) => t.value))
   return (
     <section className={styles.panel}>
@@ -22,7 +42,7 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
         <InfoTip
           label="Come leggere gli insider"
           source="Finnhub (/stock/insider-transactions e /stock/insider-sentiment), dati dei moduli SEC Form 4"
-          formula="si contano solo acquisti (P) e vendite (S) sul mercato degli ultimi 6 mesi; sono esclusi regali, premi azionari, opzioni e tasse. “Comprano” se il valore acquistato ≥ valore venduto; “vendono” se le vendite superano il doppio degli acquisti. MSPR: indice mensile da −100 (solo vendite) a +100 (solo acquisti)"
+          formula="si contano solo acquisti (P) e vendite (S) sul mercato, ogni deposito è una riga, ultimi 10 anni; ruolo letto dall’ultimo Form 4 dell’insider su SEC EDGAR; sono esclusi regali, premi azionari, opzioni e tasse. “Comprano” se il valore acquistato ≥ valore venduto; “vendono” se le vendite superano il doppio degli acquisti. MSPR: indice mensile da −100 (solo vendite) a +100 (solo acquisti)"
         >
           <strong>Insider = dirigenti e membri del CdA</strong>
           <span>Un acquisto sul mercato con soldi propri è il segnale più forte: chi conosce meglio l’azienda ci scommette.</span>
@@ -31,16 +51,32 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
       </h2>
 
       {!data || data.trades.length === 0 ? (
-        <p className={styles.empty}>{data ? 'Nessun acquisto o vendita degli insider negli ultimi 6 mesi.' : 'Dati sugli insider non disponibili al momento.'}</p>
+        <p className={styles.empty}>{data ? 'Nessun acquisto o vendita degli insider negli ultimi 10 anni.' : 'Dati sugli insider non disponibili al momento.'}</p>
       ) : (
         <>
-          <p className={`${styles.mood} ${styles[MOODS[data.summary.mood].tone]}`}>{MOODS[data.summary.mood].label}</p>
+          <div className={styles.ranges} role="group" aria-label="Periodo">
+            {RANGES.map((r) => (
+              <button
+                key={r.key}
+                type="button"
+                className={styles.range}
+                aria-pressed={range === r.key}
+                onClick={() => {
+                  setRange(r.key)
+                  setPage(0)
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <p className={`${styles.mood} ${styles[MOODS[summary.mood].tone]}`}>{MOODS[summary.mood].label}</p>
           <p className={styles.counts}>
             <span>
-              <strong className={styles.gain}>{data.summary.buys}</strong> acquisti · {money(data.summary.buyValue)}
+              <strong className={styles.gain}>{summary.buys}</strong> acquisti · {money(summary.buyValue)}
             </span>
             <span>
-              <strong className={styles.loss}>{data.summary.sells}</strong> vendite · {money(data.summary.sellValue)}
+              <strong className={styles.loss}>{summary.sells}</strong> vendite · {money(summary.sellValue)}
             </span>
           </p>
 
@@ -67,12 +103,15 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
                 <tr>
                   <th scope="col">Data</th>
                   <th scope="col">Insider</th>
+                  <th scope="col" className={styles.roleCol}>
+                    Ruolo
+                  </th>
                   <th scope="col">Operazione</th>
                   <th scope="col" className={styles.num}>
                     Azioni
                   </th>
                   <th scope="col" className={`${styles.num} ${styles.priceCol}`}>
-                    Prezzo medio
+                    Prezzo
                   </th>
                   <th scope="col" className={styles.num}>
                     Valore
@@ -80,7 +119,7 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
                 </tr>
               </thead>
               <tbody>
-                {data.trades.slice(0, 10).map((t, i) => (
+                {shown.map((t, i) => (
                   <tr key={`${t.name}-${t.date}-${t.side}-${i}`}>
                     <td className={styles.date}>
                       <time dateTime={t.date}>{date(t.date)}</time>
@@ -88,6 +127,7 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
                     <th scope="row" className={styles.who}>
                       {t.name}
                     </th>
+                    <td className={styles.roleCol}>{t.role ?? '—'}</td>
                     <td>
                       <span className={`${styles.side} ${t.side === 'buy' ? styles.gainBg : styles.lossBg}`}>{t.side === 'buy' ? 'Acquisto' : 'Vendita'}</span>
                     </td>
@@ -103,6 +143,19 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
                 ))}
               </tbody>
             </table>
+          </div>
+          <div className={styles.pager}>
+            <span>{trades.length === 0 ? 'Nessuna operazione nel periodo' : `${current * PAGE_SIZE + 1}–${current * PAGE_SIZE + shown.length} di ${trades.length} operazioni`}</span>
+            {pages > 1 && (
+              <span className={styles.pagerBtns}>
+                <button type="button" disabled={current === 0} onClick={() => setPage(current - 1)}>
+                  Precedenti
+                </button>
+                <button type="button" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>
+                  Successive
+                </button>
+              </span>
+            )}
           </div>
         </>
       )}

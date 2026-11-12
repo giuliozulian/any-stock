@@ -65,3 +65,23 @@ describe('parseCongressTrades', () => {
     expect(parseCongressTrades({ error: 'x' })).toEqual([])
   })
 })
+
+describe('toTrades without grouping', () => {
+  it('keeps every filing as its own row', () => {
+    expect(toTrades([tx({ code: 'S', change: -100, id: 'a' }), tx({ code: 'S', change: -300, id: 'b' })], '2026-06-01', false)).toHaveLength(2)
+  })
+})
+
+describe('parseFmpTrades', () => {
+  it('maps FMP rows to trades and drops other types', async () => {
+    const { parseFmpTrades } = await import('@/lib/congress')
+    const out = parseFmpTrades(
+      [
+        { firstName: 'Nancy', lastName: 'Pelosi', district: 'CA11', type: 'Purchase', amount: '$1,000,001 - $5,000,000', transactionDate: '2026-07-24', disclosureDate: '2026-08-24' },
+        { firstName: 'A', lastName: 'B', type: 'Exchange', amount: '$1,001 - $15,000', transactionDate: '2026-07-01' },
+      ],
+      'house',
+    )
+    expect(out).toEqual([{ member: 'Nancy Pelosi', chamber: 'house', state: 'CA', side: 'buy', amountLow: 1000001, amountHigh: 5000000, date: '2026-07-24', disclosedAt: '2026-08-24' }])
+  })
+})

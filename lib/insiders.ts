@@ -10,6 +10,8 @@ export interface InsiderTrade {
   value: number
   date: string
   filingDate: string
+  accession?: string
+  role?: string | null
 }
 
 export interface InsiderSummary {
@@ -22,14 +24,14 @@ export interface InsiderSummary {
 }
 
 // Only open-market purchases (P) and sales (S): grants, gifts, option exercises and tax withholdings say nothing about conviction.
-// Tranches filed by the same person, same day and same side are merged into one operation (weighted average price).
-export function toTrades(transactions: InsiderTransaction[], sinceDate: string): InsiderTrade[] {
+// By default tranches filed by the same person, same day and same side are merged into one operation (weighted average price); group=false keeps every row.
+export function toTrades(transactions: InsiderTransaction[], sinceDate: string, group = true): InsiderTrade[] {
   const groups = new Map<string, InsiderTrade>()
   for (const t of transactions) {
     if ((t.code !== 'P' && t.code !== 'S') || t.change === 0 || t.transactionDate < sinceDate) continue
     const side: InsiderSide = t.code === 'P' ? 'buy' : 'sell'
     const shares = Math.abs(t.change)
-    const key = `${t.name}|${t.transactionDate}|${side}`
+    const key = group ? `${t.name}|${t.transactionDate}|${side}` : `${t.id ?? ''}|${groups.size}`
     const prev = groups.get(key)
     const value = shares * t.price + (prev?.value ?? 0)
     const totalShares = shares + (prev?.shares ?? 0)
@@ -41,6 +43,7 @@ export function toTrades(transactions: InsiderTransaction[], sinceDate: string):
       value,
       date: t.transactionDate,
       filingDate: prev && prev.filingDate > t.filingDate ? prev.filingDate : t.filingDate,
+      accession: t.id,
     })
   }
   return [...groups.values()].sort((a, b) => b.date.localeCompare(a.date) || b.value - a.value)

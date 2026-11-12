@@ -78,10 +78,7 @@ export async function searchSymbol(query: string): Promise<FinnhubSymbolResult[]
 }
 
 export async function getQuote(symbol: string): Promise<FinnhubQuote> {
-  const data = await finnhubFetch<{ c: number; dp: number; h: number; l: number; o: number; pc: number }>(
-    '/quote',
-    { symbol }
-  )
+  const data = await finnhubFetch<{ c: number; dp: number; h: number; l: number; o: number; pc: number }>('/quote', { symbol })
   return {
     currentPrice: data.c,
     changePercent: data.dp,
@@ -129,9 +126,7 @@ export async function getMetrics(symbol: string): Promise<FinnhubMetrics> {
 }
 
 export async function getRecommendationTrend(symbol: string): Promise<FinnhubRecommendation[]> {
-  const data = await finnhubFetch<
-    Array<{ symbol: string; period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }>
-  >('/stock/recommendation', { symbol })
+  const data = await finnhubFetch<Array<{ symbol: string; period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }>>('/stock/recommendation', { symbol })
   return data.map((d) => ({
     period: d.period,
     strongBuy: d.strongBuy,
@@ -143,9 +138,7 @@ export async function getRecommendationTrend(symbol: string): Promise<FinnhubRec
 }
 
 export async function getCompanyNews(symbol: string, fromDate: string, toDate: string): Promise<FinnhubNewsItem[]> {
-  const data = await finnhubFetch<
-    Array<{ headline: string; url: string; source: string; summary: string; datetime: number }>
-  >('/company-news', { symbol, from: fromDate, to: toDate })
+  const data = await finnhubFetch<Array<{ headline: string; url: string; source: string; summary: string; datetime: number }>>('/company-news', { symbol, from: fromDate, to: toDate })
   return data.map((d) => ({
     headline: d.headline,
     url: d.url,
@@ -163,6 +156,7 @@ export interface InsiderTransaction {
   transactionDate: string
   filingDate: string
   code: string
+  id?: string
 }
 
 export interface InsiderSentimentMonth {
@@ -174,8 +168,8 @@ export interface InsiderSentimentMonth {
 
 export async function getInsiderTransactions(symbol: string): Promise<InsiderTransaction[]> {
   const data = await finnhubFetch<{
-    data?: Array<{ name: string; change: number; share: number; transactionPrice: number; transactionDate: string; filingDate: string; transactionCode: string; isDerivative?: boolean }>
-  }>('/stock/insider-transactions', { symbol })
+    data?: Array<{ name: string; change: number; share: number; transactionPrice: number; transactionDate: string; filingDate: string; transactionCode: string; isDerivative?: boolean; id?: string }>
+  }>('/stock/insider-transactions', { symbol, from: '2016-01-01' })
   return (data.data ?? [])
     .filter((t) => !t.isDerivative)
     .map((t) => ({
@@ -186,6 +180,7 @@ export async function getInsiderTransactions(symbol: string): Promise<InsiderTra
       transactionDate: t.transactionDate,
       filingDate: t.filingDate,
       code: t.transactionCode,
+      id: t.id,
     }))
 }
 
