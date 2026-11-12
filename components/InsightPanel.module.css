@@ -1,0 +1,68 @@
+.card {
+  --tone: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--tone);
+  border-radius: 6px;
+}
+
+.positive {
+  --tone: var(--gain-bright);
+}
+
+.negative {
+  --tone: var(--loss-bright);
+}
+
+.neutral {
+  --tone: var(--amber-bright);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.verdict {
+  color: var(--tone);
+  font-size: 16px;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.summary {
+  color: var(--bone);
+  line-height: 1.55;
+}
+
+.label {
+  margin-bottom: 6px;
+  color: var(--brass);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 18px;
+  color: var(--bone);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.footnote {
+  color: var(--muted);
+  font-size: 12px;
+}
