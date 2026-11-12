@@ -10,6 +10,7 @@ const ITEMS = [
   { href: '/movimenti', label: 'Movimenti forti' },
   { href: '/trimestrali', label: 'Trimestrali' },
   { href: '/ipo', label: 'IPO' },
+  { href: '/politici', label: 'Politici' },
 ]
 
 export function SiteNav() {

@@ -112,3 +112,73 @@ export async function getCongressTrades(symbol: string): Promise<CongressTrade[]
     return hit?.trades ?? null
   }
 }
+
+export interface CongressBuy extends CongressTrade {
+  ticker: string
+  asset: string
+}
+
+interface RawBuy extends RawTrade {
+  ticker?: string
+  asset?: string
+}
+
+// Latest purchases across all tickers, newest disclosure first; only rows with a ticker (stocks/ETFs), identical rows counted once.
+export function parseCongressBuys(json: unknown): CongressBuy[] {
+  const raw = (json as { trades?: RawBuy[] } | null)?.trades
+  if (!Array.isArray(raw)) return []
+  const seen = new Set<string>()
+  const buys: CongressBuy[] = []
+  for (const t of raw) {
+    if (t.type !== 'purchase' || !t.member || !t.ticker || !t.transaction_date) continue
+    const key = `${t.member}|${t.ticker}|${t.transaction_date}|${t.amount_low}|${t.amount_high}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    buys.push({
+      member: t.member,
+      chamber: t.chamber ?? '',
+      state: t.state ?? '',
+      side: 'buy',
+      amountLow: t.amount_low ?? 0,
+      amountHigh: t.amount_high ?? 0,
+      date: t.transaction_date,
+      disclosedAt: t.disclosure_date ?? '',
+      ticker: t.ticker,
+      asset: (t.asset ?? t.ticker).replace(/\s*\([A-Z.\-]+\)\s*\[[A-Z]+\]\s*$/, ''),
+    })
+  }
+  return buys.sort((a, b) => b.disclosedAt.localeCompare(a.disclosedAt) || b.date.localeCompare(a.date))
+}
+
+export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
+  try {
+    const headers: Record<string, string> = {}
+    if (process.env.BARGO_API_KEY) headers['X-Api-Key'] = process.env.BARGO_API_KEY
+    const res = await fetch('https://www.bargo.ai/free-apis/congress/v1/trades?type=purchase&limit=500', { headers, signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return null
+    return parseCongressBuys(await res.json())
+  } catch {
+    return null
+  }
+}
+
+export interface TopBought {
+  ticker: string
+  asset: string
+  members: number
+  trades: number
+}
+
+export function topBought(buys: CongressBuy[], limit = 8): TopBought[] {
+  const by = new Map<string, { asset: string; members: Set<string>; trades: number }>()
+  for (const b of buys) {
+    const e = by.get(b.ticker) ?? { asset: b.asset, members: new Set<string>(), trades: 0 }
+    e.members.add(b.member)
+    e.trades++
+    by.set(b.ticker, e)
+  }
+  return [...by.entries()]
+    .map(([ticker, e]) => ({ ticker, asset: e.asset, members: e.members.size, trades: e.trades }))
+    .sort((a, b) => b.members - a.members || b.trades - a.trades)
+    .slice(0, limit)
+}
