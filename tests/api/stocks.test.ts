@@ -51,6 +51,40 @@ describe('stocks API', () => {
     expect(res.status).toBe(409)
   })
 
+  it('POST returns 502 instead of crashing when Finnhub is unreachable', async () => {
+    vi.spyOn(finnhub, 'searchSymbol').mockRejectedValue(new Error('Finnhub request failed: 500 /search'))
+
+    const res = await addStock(jsonRequest({ symbol: 'AAPL' }))
+    expect(res.status).toBe(502)
+
+    const stored = await prisma.stock.findUnique({ where: { symbol: 'AAPL' } })
+    expect(stored).toBeNull()
+  })
+
+  it('POST falls back to UNKNOWN exchange instead of crashing when Finnhub profile is empty', async () => {
+    vi.spyOn(finnhub, 'searchSymbol').mockResolvedValue([{ symbol: 'AAPL', description: 'Apple Inc', type: 'Common Stock' }])
+    vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: '', exchange: '', currency: '', marketCapitalization: 0 })
+    vi.spyOn(refreshLib, 'refreshStock').mockResolvedValue({ symbol: 'AAPL', ok: true })
+
+    const res = await addStock(jsonRequest({ symbol: 'AAPL' }))
+    expect(res.status).toBe(201)
+
+    const stored = await prisma.stock.findUnique({ where: { symbol: 'AAPL' } })
+    expect(stored?.exchange).toBe('UNKNOWN')
+    expect(stored?.name).toBe('Apple Inc')
+  })
+
+  it('POST returns 400 for a malformed JSON body instead of crashing', async () => {
+    const malformed = new Request('http://localhost/api/stocks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not json',
+    }) as any
+
+    const res = await addStock(malformed)
+    expect(res.status).toBe(400)
+  })
+
   it('GET /api/stocks lists stocks with their latest snapshot', async () => {
     const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     await prisma.priceSnapshot.create({ data: { stockId: stock.id, price: 150, changePct: 1 } })

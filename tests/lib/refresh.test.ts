@@ -5,7 +5,10 @@ import { resetDb } from '../helpers/db'
 import { refreshStock, refreshAllStocks } from '@/lib/refresh'
 
 describe('refreshStock', () => {
-  beforeEach(resetDb)
+  beforeEach(async () => {
+    await resetDb()
+    vi.restoreAllMocks()
+  })
 
   it('writes a price snapshot and news items for a known stock', async () => {
     const stock = await prisma.stock.create({
@@ -43,6 +46,16 @@ describe('refreshStock', () => {
     expect(result).toEqual({ symbol: 'MSFT', ok: false, error: 'Finnhub request failed: 429 /quote' })
   })
 
+  it('logs the failure so it is visible in server logs, per the spec', async () => {
+    await prisma.stock.create({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('Finnhub request failed: 429 /quote'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await refreshStock('MSFT')
+
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('MSFT'), expect.anything())
+  })
+
   it('does not duplicate news items with the same url on repeated refresh', async () => {
     await prisma.stock.create({ data: { symbol: 'TSLA', name: 'Tesla', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({
@@ -65,7 +78,10 @@ describe('refreshStock', () => {
 })
 
 describe('refreshAllStocks', () => {
-  beforeEach(resetDb)
+  beforeEach(async () => {
+    await resetDb()
+    vi.restoreAllMocks()
+  })
 
   it('isolates one failing symbol from the rest', async () => {
     await prisma.stock.create({ data: { symbol: 'GOOD', name: 'Good Co', exchange: 'NASDAQ' } })

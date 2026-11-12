@@ -25,4 +25,13 @@ describe('database setup', () => {
     const orphanSnapshots = await prisma.priceSnapshot.findMany({ where: { stockId: stock.id } })
     expect(orphanSnapshots).toHaveLength(0)
   })
+
+  it('refuses to run against a DATABASE_URL that does not look like a test database', async () => {
+    const original = process.env.DATABASE_URL
+    process.env.DATABASE_URL = 'postgresql://user:pass@prod-host/any_stock_production'
+
+    await expect(resetDb()).rejects.toThrow(/does not look like a test database/)
+
+    process.env.DATABASE_URL = original
+  })
 })

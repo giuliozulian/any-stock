@@ -24,4 +24,20 @@ describe('PriceChart', () => {
     )
     expect(screen.getByRole('img', { name: /price history chart/i })).toBeInTheDocument()
   })
+
+  it('honors custom width/height for compact sparkline use', () => {
+    render(
+      <PriceChart
+        width={80}
+        height={24}
+        snapshots={[
+          { price: 100, timestamp: new Date('2026-11-01') },
+          { price: 110, timestamp: new Date('2026-11-02') },
+        ]}
+      />
+    )
+    const svg = screen.getByRole('img', { name: /price history chart/i })
+    expect(svg).toHaveAttribute('width', '80')
+    expect(svg).toHaveAttribute('height', '24')
+  })
 })

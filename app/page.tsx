@@ -2,11 +2,13 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { AddStockForm } from '@/components/AddStockForm'
+import { RemoveStockButton } from '@/components/RemoveStockButton'
+import { PriceChart } from '@/components/PriceChart'
 
 async function WatchlistTable() {
   const stocks = await prisma.stock.findMany({
     orderBy: { addedAt: 'asc' },
-    include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 1 } },
+    include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } },
   })
 
   if (stocks.length === 0) {
@@ -21,6 +23,8 @@ async function WatchlistTable() {
           <th>Name</th>
           <th>Price</th>
           <th>Change %</th>
+          <th>Trend</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -34,6 +38,12 @@ async function WatchlistTable() {
               <td>{stock.name}</td>
               <td>{latest ? `$${latest.price.toFixed(2)}` : '—'}</td>
               <td>{latest ? `${latest.changePct.toFixed(2)}%` : '—'}</td>
+              <td>
+                <PriceChart snapshots={stock.snapshots} width={80} height={24} />
+              </td>
+              <td>
+                <RemoveStockButton symbol={stock.symbol} />
+              </td>
             </tr>
           )
         })}

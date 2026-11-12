@@ -54,7 +54,9 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
 
     return { symbol, ok: true }
   } catch (err) {
-    return { symbol, ok: false, error: err instanceof Error ? err.message : String(err) }
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`Refresh failed for ${symbol}:`, message)
+    return { symbol, ok: false, error: message }
   }
 }
 

@@ -3,7 +3,15 @@ interface Snapshot {
   timestamp: Date
 }
 
-export function PriceChart({ snapshots }: { snapshots: Snapshot[] }) {
+export function PriceChart({
+  snapshots,
+  width = 300,
+  height = 80,
+}: {
+  snapshots: Snapshot[]
+  width?: number
+  height?: number
+}) {
   if (snapshots.length === 0) {
     return <p>No price history yet.</p>
   }
@@ -18,8 +26,6 @@ export function PriceChart({ snapshots }: { snapshots: Snapshot[] }) {
   const max = Math.max(...prices)
   const range = max - min || 1
 
-  const width = 300
-  const height = 80
   const points = ordered
     .map((s, i) => {
       const x = (i / (ordered.length - 1)) * width

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { PriceChart } from '@/components/PriceChart'
 import { NewsList } from '@/components/NewsList'
+import { RefreshButton } from '@/components/RefreshButton'
 
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = await paramsPromise
@@ -27,6 +28,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       <h1>
         {stock.symbol} — {stock.name}
       </h1>
+      <RefreshButton symbol={stock.symbol} />
       {latest ? (
         <section>
           <p>

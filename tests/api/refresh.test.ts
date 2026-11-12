@@ -45,6 +45,13 @@ describe('cron refresh route', () => {
     expect(res.status).toBe(401)
   })
 
+  it('rejects every request when CRON_SECRET is not set, even "Bearer undefined"', async () => {
+    delete process.env.CRON_SECRET
+
+    const res = await cronRefresh(new Request('http://localhost', { headers: { authorization: 'Bearer undefined' } }) as any)
+    expect(res.status).toBe(401)
+  })
+
   it('refreshes all stocks and reports per-symbol results when authorized', async () => {
     vi.spyOn(refreshLib, 'refreshAllStocks').mockResolvedValue([
       { symbol: 'GOOD', ok: true },

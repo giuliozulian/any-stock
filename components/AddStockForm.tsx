@@ -14,22 +14,32 @@ export function AddStockForm() {
     setSubmitting(true)
     setError(null)
 
-    const res = await fetch('/api/stocks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ symbol }),
-    })
+    try {
+      const res = await fetch('/api/stocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      })
 
-    setSubmitting(false)
+      if (!res.ok) {
+        let message = 'Failed to add symbol'
+        try {
+          const data = await res.json()
+          message = data.error ?? message
+        } catch {
+          // non-JSON error body; keep the generic message
+        }
+        setError(message)
+        return
+      }
 
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Failed to add symbol')
-      return
+      setSymbol('')
+      router.refresh()
+    } catch {
+      setError('Failed to add symbol')
+    } finally {
+      setSubmitting(false)
     }
-
-    setSymbol('')
-    router.refresh()
   }
 
   return (
