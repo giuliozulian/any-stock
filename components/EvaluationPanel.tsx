@@ -2,11 +2,6 @@ import styles from './EvaluationPanel.module.css'
 import { InfoTip } from './InfoTip'
 import type { Evaluation } from '@/lib/evaluate'
 
-function fmtPct(pct: number | null): string {
-  if (pct === null) return '—'
-  return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
-}
-
 const SIGNAL_INFO: Record<string, { what: string; how: string; source: string; formula: string }> = {
   short: {
     what: 'Misura la spinta recente del prezzo: dove si trova rispetto al minimo e al massimo dell’ultimo anno e se sta andando meglio o peggio dell’indice S&P 500 nelle ultime 13 settimane.',
@@ -84,7 +79,6 @@ function buildView(evaluation: Evaluation) {
 }
 
 export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; children?: React.ReactNode }) {
-  const { targetPrice } = evaluation
   const { tones, overall, verdict } = buildView(evaluation)
 
   return (
@@ -106,24 +100,6 @@ export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; 
       <p className={styles.verdictTitle}>{verdict.title}</p>
       <p className={styles.verdictText}>{verdict.text}</p>
       {children}
-
-      <div className={styles.block}>
-        <p className={styles.blockLabel}>
-          Target price (solo Peter Lynch)
-          <InfoTip label="Cos’è il target price" source="calcolo interno con EPS TTM e crescita utili a 5 anni da Finnhub (/stock/metric)" formula="target = P/E equo × EPS TTM, con P/E equo = crescita utili 5 anni (%), limitato tra 5 e 40. Upside = (target − prezzo) ÷ prezzo × 100" align="right">
-            <strong>Target price stimato</strong>
-            <span>Un prezzo “equo” calcolato con la formula di Peter Lynch: il P/E giusto è pari alla crescita storica degli utili, moltiplicato per gli utili per azione.</span>
-            <span>La percentuale è la distanza dal prezzo attuale. Non è disponibile se gli utili o la crescita sono negativi. Non è una previsione.</span>
-          </InfoTip>
-        </p>
-        <p className={styles.targetLine}>
-          <span className={`${styles.targetValue} ${targetPrice.upsidePct === null ? '' : targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>{targetPrice.value === null ? '—' : `$${targetPrice.value.toFixed(2)}`}</span>
-          {targetPrice.upsidePct !== null && (
-            <span className={`${styles.upside} ${targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>{fmtPct(targetPrice.upsidePct)} dal prezzo attuale</span>
-          )}
-        </p>
-        <p className={styles.note}>{targetPrice.note}</p>
-      </div>
 
       <p className={styles.fine}>Notizie (IA): {evaluation.newsImpact.note}</p>
       <p className={styles.fine}>Indicazione sintetica basata sui dati disponibili, non un consiglio di investimento.</p>
