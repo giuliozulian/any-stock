@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { PriceChart } from '@/components/PriceChart'
 import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
+import { EvaluationPanel } from '@/components/EvaluationPanel'
+import { evaluateStock } from '@/lib/evaluate'
 import styles from './page.module.css'
 
 function formatExchange(exchange: string): string {
@@ -22,6 +24,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     include: {
       snapshots: { orderBy: { timestamp: 'desc' }, take: 100 },
       news: { orderBy: { publishedAt: 'desc' }, take: 20 },
+      recommendations: { orderBy: { period: 'desc' }, take: 2 },
     },
   })
 
@@ -31,6 +34,42 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
   const latest = stock.snapshots[0]
   const changeClass = latest ? (latest.changePct >= 0 ? styles.gain : styles.loss) : ''
+
+  const earliestSnapshot =
+    stock.snapshots.length > 1
+      ? await prisma.priceSnapshot.findFirst({
+          where: { stockId: stock.id },
+          orderBy: { timestamp: 'asc' },
+        })
+      : null
+
+  const evaluation = latest
+    ? evaluateStock({
+        latestSnapshot: {
+          price: latest.price,
+          week52High: latest.week52High,
+          week52Low: latest.week52Low,
+          relativePerf13W: latest.relativePerf13W,
+          pegRatio: latest.pegRatio,
+          roe: latest.roe,
+          debtToEquity: latest.debtToEquity,
+          netMargin: latest.netMargin,
+          dividendYield: latest.dividendYield,
+          payoutRatio: latest.payoutRatio,
+          epsTTM: latest.epsTTM,
+          epsGrowth5Y: latest.epsGrowth5Y,
+        },
+        earliestSnapshot: earliestSnapshot ? { price: earliestSnapshot.price, timestamp: earliestSnapshot.timestamp } : null,
+        recentRecommendations: stock.recommendations.map((r) => ({
+          period: r.period,
+          strongBuy: r.strongBuy,
+          buy: r.buy,
+          hold: r.hold,
+          sell: r.sell,
+          strongSell: r.strongSell,
+        })),
+      })
+    : null
 
   return (
     <>
@@ -84,10 +123,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         </dl>
       )}
 
-      <div className={styles.considerations}>
-        <p className={styles.considerationsTitle}>Considerations</p>
-        <p className={styles.considerationsBody}>Valuation and buy/sell signals aren't built yet.</p>
-      </div>
+      {evaluation && <EvaluationPanel evaluation={evaluation} />}
 
       <p className={styles.newsTitle}>Recent news</p>
       <NewsList news={stock.news} />
