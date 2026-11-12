@@ -19,6 +19,7 @@ model Stock {
   snapshots       PriceSnapshot[]
   news            NewsItem[]
   recommendations AnalystRecommendation[]
+  insight         StockInsight?
 }
 
 model PriceSnapshot {
@@ -88,4 +89,19 @@ model NewsAnalysis {
   rationale  String
   model      String
   analyzedAt DateTime @default(now())
+}
+
+model StockInsight {
+  id          String   @id @default(cuid())
+  stockId     String   @unique
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  summary     String
+  verdict     String
+  score       Int
+  keyPoints   String[]
+  risks       String[]
+  confidence  String
+  inputHash   String
+  model       String
+  generatedAt DateTime @default(now())
 }
