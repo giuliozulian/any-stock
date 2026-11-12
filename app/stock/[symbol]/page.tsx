@@ -13,6 +13,7 @@ import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { WatchStar } from '@/components/WatchStar'
 import { getProfile, getQuote } from '@/lib/finnhub'
+import { getYahooQuote } from '@/lib/yahoo-quote'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { SinceWatching } from '@/components/SinceWatching'
@@ -53,8 +54,17 @@ async function StockPreview({ symbol }: { symbol: string }) {
   } catch {
     profile = null
   }
-  if (!profile || !profile.name) notFound()
-  const up = quote ? quote.changePercent >= 0 : true
+
+  const covered = Boolean(profile && profile.name)
+  const yahoo = covered ? null : await getYahooQuote(symbol)
+  if (!covered && !yahoo) notFound()
+
+  const name = profile?.name || yahoo!.name
+  const exchange = profile?.name ? formatExchange(profile.exchange) : yahoo!.exchange
+  const price = covered ? quote?.currentPrice ?? 0 : yahoo!.price
+  const pct = covered ? quote?.changePercent ?? null : yahoo!.changePct
+  const currency = covered ? '$' : yahoo!.currency === 'EUR' ? '€' : yahoo!.currency === 'USD' ? '$' : `${yahoo!.currency} `
+  const up = pct === null || pct >= 0
   return (
     <>
       <Link href="/" className={styles.back}>
@@ -63,26 +73,38 @@ async function StockPreview({ symbol }: { symbol: string }) {
       <header className={styles.header}>
         <div>
           <p className={styles.ticker}>
-            {formatExchange(profile.exchange)}: {symbol}
+            {exchange ? `${exchange}: ` : ''}
+            {symbol}
           </p>
-          <h1 className={styles.name}>{profile.name}</h1>
-          <div className={styles.starRow}>
-            <WatchStar symbol={symbol} watched={false} />
-          </div>
+          <h1 className={styles.name}>{name}</h1>
+          {covered && (
+            <div className={styles.starRow}>
+              <WatchStar symbol={symbol} watched={false} />
+            </div>
+          )}
         </div>
-        {quote && quote.currentPrice > 0 && (
+        {price > 0 && (
           <div className={styles.quote}>
             <div className={styles.heroRow}>
-              <span className={styles.price}>${quote.currentPrice.toFixed(2)}</span>
-              <span className={`${styles.change} ${up ? styles.gain : styles.loss}`}>
-                {up ? '+' : '−'}
-                {Math.abs(quote.changePercent).toFixed(2)}%
+              <span className={styles.price}>
+                {currency}
+                {price.toFixed(2)}
               </span>
+              {pct !== null && (
+                <span className={`${styles.change} ${up ? styles.gain : styles.loss}`}>
+                  {up ? '+' : '−'}
+                  {Math.abs(pct).toFixed(2)}%
+                </span>
+              )}
             </div>
           </div>
         )}
       </header>
-      <p className={styles.stale}>Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.</p>
+      <p className={styles.stale}>
+        {covered
+          ? 'Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.'
+          : 'Questo titolo è quotato in una borsa che i dati gratuiti di Finnhub non coprono: posso mostrare solo il prezzo, non posso aggiungerlo alla watchlist.'}
+      </p>
     </>
   )
 }
