@@ -48,6 +48,8 @@ next-env.d.ts
 .claude/
 *.log
 *.md
+!docs/**/*.md
+!README.md
 rea-run.log
 rae-run.log
 rae-run.ndjson
