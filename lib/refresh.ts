@@ -1,5 +1,5 @@
 import { prisma } from './db'
-import { getQuote, getProfile, getMetrics, getCompanyNews } from './finnhub'
+import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from './finnhub'
 
 export interface RefreshResult {
   symbol: string
@@ -9,6 +9,11 @@ export interface RefreshResult {
 
 function toDateString(d: Date): string {
   return d.toISOString().slice(0, 10)
+}
+
+function logFailure(context: string, symbol: string, err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err)
+  console.error(`${context} failed for ${symbol}:`, message)
 }
 
 export async function refreshStock(symbol: string): Promise<RefreshResult> {
@@ -30,26 +35,67 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
         peRatio: metrics.peRatio,
         week52High: metrics.week52High,
         week52Low: metrics.week52Low,
+        pegRatio: metrics.pegRatio,
+        roe: metrics.roe,
+        netMargin: metrics.netMargin,
+        debtToEquity: metrics.debtToEquity,
+        dividendYield: metrics.dividendYield,
+        payoutRatio: metrics.payoutRatio,
+        relativePerf13W: metrics.relativePerf13W,
+        epsTTM: metrics.epsTTM,
+        epsGrowth5Y: metrics.epsGrowth5Y,
       },
     })
 
-    const to = new Date()
-    const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const news = await getCompanyNews(symbol, toDateString(from), toDateString(to))
+    try {
+      const to = new Date()
+      const from = new Date(to.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const news = await getCompanyNews(symbol, toDateString(from), toDateString(to))
 
-    for (const item of news.slice(0, 10)) {
-      await prisma.newsItem.upsert({
-        where: { url: item.url },
-        create: {
-          stockId: stock.id,
-          headline: item.headline,
-          url: item.url,
-          source: item.source,
-          summary: item.summary,
-          publishedAt: new Date(item.datetime * 1000),
-        },
-        update: {},
-      })
+      for (const item of news.slice(0, 10)) {
+        await prisma.newsItem.upsert({
+          where: { url: item.url },
+          create: {
+            stockId: stock.id,
+            headline: item.headline,
+            url: item.url,
+            source: item.source,
+            summary: item.summary,
+            publishedAt: new Date(item.datetime * 1000),
+          },
+          update: {},
+        })
+      }
+    } catch (err) {
+      logFailure('News refresh', symbol, err)
+    }
+
+    try {
+      const recommendations = await getRecommendationTrend(symbol)
+
+      for (const rec of recommendations) {
+        await prisma.analystRecommendation.upsert({
+          where: { stockId_period: { stockId: stock.id, period: new Date(rec.period) } },
+          create: {
+            stockId: stock.id,
+            period: new Date(rec.period),
+            strongBuy: rec.strongBuy,
+            buy: rec.buy,
+            hold: rec.hold,
+            sell: rec.sell,
+            strongSell: rec.strongSell,
+          },
+          update: {
+            strongBuy: rec.strongBuy,
+            buy: rec.buy,
+            hold: rec.hold,
+            sell: rec.sell,
+            strongSell: rec.strongSell,
+          },
+        })
+      }
+    } catch (err) {
+      logFailure('Recommendation refresh', symbol, err)
     }
 
     return { symbol, ok: true }
