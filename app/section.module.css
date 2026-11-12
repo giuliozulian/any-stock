@@ -4,13 +4,8 @@
   padding: 56px 32px 96px;
 }
 
-.back {
-  color: var(--muted);
-  font-size: 14px;
-}
-
 .title {
-  margin: 16px 0 40px;
+  margin: 0 0 32px;
   font-size: 32px;
   font-weight: 600;
 }

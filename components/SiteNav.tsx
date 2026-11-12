@@ -7,7 +7,9 @@ import styles from './SiteNav.module.css'
 
 const ITEMS = [
   { href: '/', label: 'Watchlist' },
-  { href: '/mercato', label: 'Mercato' },
+  { href: '/movimenti', label: 'Movimenti forti' },
+  { href: '/trimestrali', label: 'Trimestrali' },
+  { href: '/ipo', label: 'IPO' },
 ]
 
 export function SiteNav() {
