@@ -8,7 +8,7 @@ export function VideoList({ videos }: { videos: RecentVideo[] }) {
   }
   return (
     <NewsSlider label="Video">
-      {videos.map((v) => (
+      {[...videos].sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt)).map((v) => (
         <li key={v.id} className={styles.card}>
           <a href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noopener noreferrer">
             {/* eslint-disable-next-line @next/next/no-img-element */}

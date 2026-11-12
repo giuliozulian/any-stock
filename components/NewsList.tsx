@@ -45,7 +45,7 @@ export function NewsList({ news, stock }: { news: NewsItemProps[]; stock?: { sym
 
   return (
     <NewsSlider>
-      {news.map((item) => {
+      {[...news].sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime()).map((item) => {
         const ai = item.analysis ?? null
         const impact = ai ? null : stock ? analyzeNewsImpact({ headline: item.headline, summary: item.summary ?? null }, stock) : null
         return (
