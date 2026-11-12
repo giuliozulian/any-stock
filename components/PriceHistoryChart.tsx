@@ -23,7 +23,7 @@ const H = 220
 const PAD = { top: 12, right: 8, bottom: 22, left: 8 }
 
 export function PriceHistoryChart({ points, intraday = [], prevClose = null }: { points: Point[]; intraday?: Point[]; prevClose?: number | null }) {
-  const [range, setRange] = useState<(typeof RANGES)[number]['key']>('3M')
+  const [range, setRange] = useState<(typeof RANGES)[number]['key']>(intraday.length > 1 ? '1G' : '3M')
   const [hover, setHover] = useState<number | null>(null)
 
   const data = useMemo(() => {
