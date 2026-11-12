@@ -109,7 +109,7 @@ export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; 
 
       <div className={styles.block}>
         <p className={styles.blockLabel}>
-          Prezzo equo stimato
+          Target price (solo Peter Lynch)
           <InfoTip label="Cos’è il target price" source="calcolo interno con EPS TTM e crescita utili a 5 anni da Finnhub (/stock/metric)" formula="target = P/E equo × EPS TTM, con P/E equo = crescita utili 5 anni (%), limitato tra 5 e 40. Upside = (target − prezzo) ÷ prezzo × 100" align="right">
             <strong>Target price stimato</strong>
             <span>Un prezzo “equo” calcolato con la formula di Peter Lynch: il P/E giusto è pari alla crescita storica degli utili, moltiplicato per gli utili per azione.</span>
