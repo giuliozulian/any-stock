@@ -116,11 +116,13 @@ export async function getCongressTrades(symbol: string): Promise<CongressTrade[]
 export interface CongressBuy extends CongressTrade {
   ticker: string
   asset: string
+  perfPct: number | null
 }
 
 interface RawBuy extends RawTrade {
   ticker?: string
   asset?: string
+  perf_pct?: number | null
 }
 
 // Latest purchases across all tickers, newest disclosure first; only rows with a ticker (stocks/ETFs), identical rows counted once.
@@ -144,6 +146,7 @@ export function parseCongressBuys(json: unknown): CongressBuy[] {
       date: t.transaction_date,
       disclosedAt: t.disclosure_date ?? '',
       ticker: t.ticker,
+      perfPct: typeof t.perf_pct === 'number' ? t.perf_pct : null,
       asset: (t.asset ?? t.ticker).replace(/\s*\([A-Z.\-]+\)\s*\[[A-Z]+\]\s*$/, ''),
     })
   }
@@ -162,23 +165,41 @@ export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
   }
 }
 
-export interface TopBought {
+export interface BuyCluster {
   ticker: string
   asset: string
-  members: number
+  members: string[]
   trades: number
+  totalLow: number
+  totalHigh: number
+  lastDisclosedAt: string
+  avgPerfPct: number | null
 }
 
-export function topBought(buys: CongressBuy[], limit = 8): TopBought[] {
-  const by = new Map<string, { asset: string; members: Set<string>; trades: number }>()
+// Groups purchases by ticker: many different politicians buying the same stock is the most useful signal for finding new ideas.
+export function clusterBuys(buys: CongressBuy[], minMembers = 2): BuyCluster[] {
+  const by = new Map<string, { asset: string; members: Set<string>; trades: number; low: number; high: number; last: string; perfs: number[] }>()
   for (const b of buys) {
-    const e = by.get(b.ticker) ?? { asset: b.asset, members: new Set<string>(), trades: 0 }
+    const e = by.get(b.ticker) ?? { asset: b.asset, members: new Set<string>(), trades: 0, low: 0, high: 0, last: '', perfs: [] }
     e.members.add(b.member)
     e.trades++
+    e.low += b.amountLow
+    e.high += b.amountHigh
+    if (b.disclosedAt > e.last) e.last = b.disclosedAt
+    if (b.perfPct !== null) e.perfs.push(b.perfPct)
     by.set(b.ticker, e)
   }
   return [...by.entries()]
-    .map(([ticker, e]) => ({ ticker, asset: e.asset, members: e.members.size, trades: e.trades }))
-    .sort((a, b) => b.members - a.members || b.trades - a.trades)
-    .slice(0, limit)
+    .filter(([, e]) => e.members.size >= minMembers)
+    .map(([ticker, e]) => ({
+      ticker,
+      asset: e.asset,
+      members: [...e.members],
+      trades: e.trades,
+      totalLow: e.low,
+      totalHigh: e.high,
+      lastDisclosedAt: e.last,
+      avgPerfPct: e.perfs.length ? e.perfs.reduce((a, b) => a + b, 0) / e.perfs.length : null,
+    }))
+    .sort((a, b) => b.members.length - a.members.length || b.totalHigh - a.totalHigh)
 }
