@@ -8,6 +8,7 @@ import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
 import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
 import { getIntradayHistory } from '@/lib/history'
+import { getSector } from '@/lib/sector'
 import styles from './page.module.css'
 
 async function WatchlistTable() {
@@ -37,13 +38,15 @@ async function WatchlistTable() {
     })
   )
 
+  const sectors = await Promise.all(stocks.map((stock) => getSector(stock.symbol)))
+
   const rows = stocks.map((stock, idx) => {
     const latest = stock.snapshots[0]
     const ext = extended[idx]
     const entry = firstSnapshots[idx]
     const extPct = ext && latest ? ((ext.close - latest.price) / latest.price) * 100 : null
     const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
-    return { stock, latest, ext, extPct, sincePct, entryPrice: entry?.price ?? null }
+    return { stock, latest, ext, extPct, sincePct, entryPrice: entry?.price ?? null, sector: sectors[idx] }
   })
   const gaining = rows.filter((r) => r.sincePct !== null && r.sincePct > 0).length
   const losing = rows.filter((r) => r.sincePct !== null && r.sincePct < 0).length
@@ -58,6 +61,7 @@ async function WatchlistTable() {
       </p>
       <div className={styles.listHead} aria-hidden="true">
         <span>Titolo</span>
+        <span>Settore</span>
         <span className={styles.num}>Prezzo</span>
         <span className={styles.num}>Oggi</span>
         <span className={styles.num}>Da quando lo segui</span>
@@ -65,7 +69,7 @@ async function WatchlistTable() {
         <span />
       </div>
       <ul className={styles.list}>
-        {rows.map(({ stock, latest, ext, extPct, entryPrice }) => {
+        {rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash
           return (
             <li key={stock.id} className={styles.row}>
@@ -82,6 +86,7 @@ async function WatchlistTable() {
                   sellTriggered={stock.sellTriggeredAt !== null}
                 />
               </div>
+              <div className={styles.sectorCell}>{sector ? <span className={styles.sectorTag}>{sector}</span> : <span className={styles.dash}>—</span>}</div>
               <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
                 <span className={styles.price}>{latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}</span>
                 {ext && extPct !== null && (

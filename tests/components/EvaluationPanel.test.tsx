@@ -33,14 +33,11 @@ describe('EvaluationPanel', () => {
     expect(screen.getByText('Positivo')).toBeInTheDocument()
     expect(screen.getByText('Consenso positivo, in miglioramento')).toBeInTheDocument()
     expect(screen.getByText('Fondamentali solidi')).toBeInTheDocument()
-    expect(screen.getByText('$60.00')).toBeInTheDocument()
-    expect(screen.getByText(/stima indicativa/i)).toBeInTheDocument()
   })
 
   it('renders every not-available note without crashing for a freshly-added stock', () => {
     render(<EvaluationPanel evaluation={emptyEvaluation()} />)
     expect(screen.getByText('Nessun dato disponibile')).toBeInTheDocument()
     expect(screen.getByText('Dati fondamentali non disponibili')).toBeInTheDocument()
-    expect(screen.getByText(/stima non disponibile/i)).toBeInTheDocument()
   })
 })

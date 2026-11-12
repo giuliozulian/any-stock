@@ -1,14 +1,14 @@
 .shell {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 40px 32px 96px;
+  padding: 24px 32px 96px;
 }
 
 .back {
   display: inline-block;
   color: var(--muted);
   font-size: 14px;
-  margin-bottom: 28px;
+  margin-bottom: 14px;
 }
 
 .back:hover {
@@ -18,11 +18,11 @@
 .header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  gap: 32px;
+  align-items: center;
+  gap: 12px 32px;
   flex-wrap: wrap;
-  padding-bottom: 28px;
-  margin-bottom: 36px;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
   border-bottom: 1px solid var(--rule);
 }
 
@@ -34,11 +34,11 @@
 
 .name {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: 30px;
   line-height: 1.1;
   font-weight: 600;
-  margin-top: 6px;
-  max-width: 18ch;
+  margin-top: 2px;
+  max-width: 28ch;
 }
 
 .quote {
@@ -54,7 +54,7 @@
 
 .price {
   font-family: var(--font-display);
-  font-size: 56px;
+  font-size: 40px;
   line-height: 1;
   font-feature-settings: "onum" 1, "tnum" 1;
 }
@@ -83,7 +83,7 @@
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
-  margin-top: 12px;
+  margin-top: 6px;
   color: var(--muted);
   font-size: 13px;
 }
@@ -261,11 +261,11 @@
   }
 
   .name {
-    font-size: 32px;
+    font-size: 26px;
   }
 
   .price {
-    font-size: 44px;
+    font-size: 34px;
   }
 }
 
@@ -297,7 +297,7 @@
 }
 
 .starRow {
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
 .previewStats {
