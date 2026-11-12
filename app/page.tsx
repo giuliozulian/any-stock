@@ -19,9 +19,14 @@ async function WatchlistTable() {
     return <p className={styles.empty}>Nessun titolo in watchlist. Scrivi un simbolo (per esempio AAPL) in alto a destra e premi Add.</p>
   }
 
-  const firstSnapshots = await Promise.all(
-    stocks.map((stock) => prisma.priceSnapshot.findFirst({ where: { stockId: stock.id }, orderBy: { timestamp: 'asc' }, select: { price: true } }))
-  )
+  const firstRows = await prisma.priceSnapshot.findMany({
+    where: { stockId: { in: stocks.map((s) => s.id) } },
+    orderBy: { timestamp: 'asc' },
+    distinct: ['stockId'],
+    select: { stockId: true, price: true },
+  })
+  const firstByStock = new Map(firstRows.map((r) => [r.stockId, r]))
+  const firstSnapshots = stocks.map((stock) => firstByStock.get(stock.id) ?? null)
 
   const extended = await Promise.all(
     stocks.map(async (stock) => {
