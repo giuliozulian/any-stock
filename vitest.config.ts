@@ -8,6 +8,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
     globals: true,
+    // Integration tests share one real Postgres instance; running test
+    // files concurrently races deleteMany()/create() across files on the
+    // same symbols (e.g. "AAPL") and causes spurious unique-constraint
+    // failures. Serialize file execution instead.
+    fileParallelism: false,
   },
   resolve: {
     alias: {
