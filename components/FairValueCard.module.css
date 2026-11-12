@@ -1,0 +1,70 @@
+.card {
+  margin-top: 40px;
+  padding: 16px 18px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  max-width: 560px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin: 0 0 12px;
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gap {
+  font-size: 14px;
+}
+
+.gain {
+  color: var(--gain-bright);
+}
+
+.loss {
+  color: var(--loss-bright);
+}
+
+.flat {
+  color: var(--amber-bright);
+}
+
+.models {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.models li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.altman {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.altman strong {
+  color: inherit;
+}

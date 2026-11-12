@@ -24,6 +24,8 @@ import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
 import { StockTabs } from '@/components/StockTabs'
+import { FairValueCard } from '@/components/FairValueCard'
+import { altmanZ } from '@/lib/solidity'
 import { FinancialAnalysis } from '@/components/FinancialAnalysis'
 import { getAnnualFinancials } from '@/lib/fundamentals'
 import { CongressPanel } from '@/components/CongressPanel'
@@ -246,13 +248,14 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const [history, intraday, videos, insiders, congress, financials] = await Promise.all([
+  const [history, intraday, videos, insiders, congress, financials, metrics] = await Promise.all([
     getPriceHistory(stock.symbol),
     getIntradayHistory(stock.symbol),
     getRecentVideos(stock.symbol, stock.name),
     getInsiderData(stock.symbol),
     getCongressTrades(stock.symbol),
     getAnnualFinancials(stock.symbol),
+    getMetrics(stock.symbol).catch(() => null),
   ])
 
   const evaluation = latest
@@ -455,6 +458,13 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             content: (
               <>
                 {evaluation && <ReasonsSection evaluation={evaluation} />}
+
+                {latest && metrics && (
+                  <FairValueCard
+                    input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+                    altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
+                  />
+                )}
 
                 <div className={styles.layout}>
                   {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
