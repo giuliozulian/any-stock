@@ -7,27 +7,37 @@ datasource db {
 }
 
 model Stock {
-  id        String          @id @default(cuid())
-  symbol    String          @unique
-  name      String
-  exchange  String
-  addedAt   DateTime        @default(now())
-  snapshots PriceSnapshot[]
-  news      NewsItem[]
+  id              String                  @id @default(cuid())
+  symbol          String                  @unique
+  name            String
+  exchange        String
+  addedAt         DateTime                @default(now())
+  snapshots       PriceSnapshot[]
+  news            NewsItem[]
+  recommendations AnalystRecommendation[]
 }
 
 model PriceSnapshot {
-  id         String   @id @default(cuid())
-  stockId    String
-  stock      Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
-  price      Float
-  changePct  Float
-  volume     BigInt?
-  marketCap  Float?
-  peRatio    Float?
-  week52High Float?
-  week52Low  Float?
-  timestamp  DateTime @default(now())
+  id              String   @id @default(cuid())
+  stockId         String
+  stock           Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  price           Float
+  changePct       Float
+  volume          BigInt?
+  marketCap       Float?
+  peRatio         Float?
+  week52High      Float?
+  week52Low       Float?
+  pegRatio        Float?
+  roe             Float?
+  netMargin       Float?
+  debtToEquity    Float?
+  dividendYield   Float?
+  payoutRatio     Float?
+  relativePerf13W Float?
+  epsTTM          Float?
+  epsGrowth5Y     Float?
+  timestamp       DateTime @default(now())
 
   @@index([stockId, timestamp])
 }
@@ -43,4 +53,20 @@ model NewsItem {
   publishedAt DateTime
 
   @@index([stockId, publishedAt])
+}
+
+model AnalystRecommendation {
+  id         String   @id @default(cuid())
+  stockId    String
+  stock      Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  period     DateTime
+  strongBuy  Int
+  buy        Int
+  hold       Int
+  sell       Int
+  strongSell Int
+  fetchedAt  DateTime @default(now())
+
+  @@unique([stockId, period])
+  @@index([stockId, period])
 }

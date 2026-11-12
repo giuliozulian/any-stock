@@ -34,4 +34,27 @@ describe('database setup', () => {
 
     process.env.DATABASE_URL = original
   })
+
+  it('cascades AnalystRecommendation deletes when a stock is removed', async () => {
+    const stock = await prisma.stock.create({
+      data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' },
+    })
+
+    await prisma.analystRecommendation.create({
+      data: {
+        stockId: stock.id,
+        period: new Date('2026-11-01'),
+        strongBuy: 10,
+        buy: 20,
+        hold: 5,
+        sell: 1,
+        strongSell: 0,
+      },
+    })
+
+    await prisma.stock.delete({ where: { symbol: 'MSFT' } })
+
+    const orphans = await prisma.analystRecommendation.findMany({ where: { stockId: stock.id } })
+    expect(orphans).toHaveLength(0)
+  })
 })
