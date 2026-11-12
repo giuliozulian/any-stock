@@ -110,3 +110,17 @@
   color: var(--muted);
   font-size: 15px;
 }
+
+.rationale {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.aiMeta,
+.baseTag {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}

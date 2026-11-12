@@ -1,4 +1,5 @@
 import { prisma } from './db'
+import { analyzePendingNews } from './news-analysis'
 import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from './finnhub'
 
 export interface RefreshResult {
@@ -68,6 +69,12 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
       }
     } catch (err) {
       logFailure('News refresh', symbol, err)
+    }
+
+    try {
+      await analyzePendingNews(stock.id)
+    } catch (err) {
+      logFailure('News analysis', symbol, err)
     }
 
     try {

@@ -45,11 +45,12 @@ const VERDICTS: Record<Tone, { title: string; text: string }> = {
   unknown: { title: 'Dati insufficienti', text: 'Non ci sono abbastanza dati per un giudizio complessivo.' },
 }
 
-function overallTone(tones: Tone[], upsidePct: number | null): Tone {
+function overallTone(tones: Tone[], upsidePct: number | null, newsAdjustment = 0): Tone {
   const known = tones.filter((t) => t !== 'unknown')
   if (known.length === 0) return 'unknown'
   let score = known.reduce((acc, t) => acc + (t === 'positive' ? 1 : t === 'negative' ? -1 : 0), 0)
   if (upsidePct !== null) score += upsidePct >= 15 ? 1 : upsidePct <= -15 ? -1 : 0
+  score += newsAdjustment
   return score >= 2 ? 'positive' : score <= -2 ? 'negative' : 'neutral'
 }
 
@@ -79,14 +80,14 @@ export function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
   ]
 
   const tones = signals.map((x) => toneOf(x.result.label))
-  const overall = overallTone(tones, targetPrice.upsidePct)
+  const overall = overallTone(tones, targetPrice.upsidePct, evaluation.newsImpact.adjustment)
   const verdict = VERDICTS[overall]
 
   return (
     <section className={styles.panel}>
       <h2 className={styles.title}>
         Valutazione
-        <InfoTip label="Come leggere la valutazione" source="calcolo interno (lib/evaluate.ts) sui dati Finnhub mostrati nella scheda" formula="3 barre = segnali breve, medio e lungo termine (verde = buono, ambra = neutro, rosso = debole); il titolo riassume quanti sono favorevoli, tenendo conto dell’upside del target" align="right">
+        <InfoTip label="Come leggere la valutazione" source="calcolo interno (lib/evaluate.ts) sui dati Finnhub mostrati nella scheda" formula="punteggio = +1 per ogni segnale positivo, −1 per ogni negativo (breve, medio, lungo) + 1 se l’upside del target è ≥ +15%, −1 se ≤ −15% + 1 se il saldo delle notizie analizzate dall’IA (positive − negative, solo confidenza alta, intensità ≥ 3, ultimi 7 giorni) è ≥ +2, −1 se ≤ −2. Punteggio ≥ 2: “Segnali favorevoli”; ≤ −2: “Serve prudenza”; altrimenti “Segnali contrastanti”" align="right">
           <strong>Valutazione complessiva</strong>
           <span>Sintetizza i tre segnali (breve, medio, lungo termine) e il target price in un solo colpo d’occhio: ogni barra è un segnale, verde buono, ambra neutro, rosso debole.</span>
           <span>È un aiuto per orientarsi, calcolato in automatico: non è una raccomandazione di acquisto o vendita.</span>
@@ -156,6 +157,7 @@ export function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
         <p className={styles.note}>{targetPrice.note}</p>
       </div>
 
+      <p className={styles.newsNote}>Notizie (IA): {evaluation.newsImpact.note}</p>
       <p className={styles.disclaimer}>Indicazione sintetica basata sui dati disponibili, non un consiglio di investimento.</p>
     </section>
   )

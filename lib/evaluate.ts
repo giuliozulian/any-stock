@@ -9,6 +9,7 @@ export interface Evaluation {
   mediumTerm: SignalResult & { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }
   longTerm: SignalResult
   targetPrice: { value: number | null; upsidePct: number | null; note: string }
+  newsImpact: NewsImpactSummary
   details: {
     pegRatio: number | null
     roe: number | null
@@ -18,6 +19,25 @@ export interface Evaluation {
     payoutRatio: number | null
   }
 }
+
+export interface NewsImpactSummary {
+  counted: number
+  positive: number
+  negative: number
+  net: number
+  adjustment: -1 | 0 | 1
+  note: string
+}
+
+export interface NewsAnalysisInput {
+  direction: string
+  intensity: number
+  confidence: string
+  publishedAt: Date
+}
+
+export const NEWS_WINDOW_DAYS = 7
+export const NEWS_MIN_INTENSITY = 3
 
 export interface EvaluateInput {
   latestSnapshot: {
@@ -43,6 +63,8 @@ export interface EvaluateInput {
     sell: number
     strongSell: number
   }>
+  newsAnalyses?: NewsAnalysisInput[]
+  now?: Date
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -215,6 +237,25 @@ function evaluateTargetPrice(input: EvaluateInput): Evaluation['targetPrice'] {
   }
 }
 
+// Contano solo notizie recenti, rilevanti e con confidenza alta: un errore del modello non può ribaltare il giudizio.
+export function evaluateNewsImpact(input: EvaluateInput): NewsImpactSummary {
+  const now = (input.now ?? new Date()).getTime()
+  const windowMs = NEWS_WINDOW_DAYS * 24 * 60 * 60 * 1000
+  const analyses = input.newsAnalyses ?? []
+  const counted = analyses.filter(
+    (a) => a.confidence === 'high' && a.intensity >= NEWS_MIN_INTENSITY && now - a.publishedAt.getTime() <= windowMs
+  )
+  const positive = counted.filter((a) => a.direction === 'positive').length
+  const negative = counted.filter((a) => a.direction === 'negative').length
+  const net = positive - negative
+  const adjustment: -1 | 0 | 1 = net >= 2 ? 1 : net <= -2 ? -1 : 0
+  const note =
+    counted.length === 0
+      ? 'Nessuna notizia recente abbastanza rilevante e sicura da pesare nel giudizio.'
+      : `${counted.length} notizie pesate negli ultimi ${NEWS_WINDOW_DAYS} giorni: ${positive} positive, ${negative} negative (saldo ${net >= 0 ? '+' : ''}${net}).`
+  return { counted: counted.length, positive, negative, net, adjustment, note }
+}
+
 export function evaluateStock(input: EvaluateInput): Evaluation {
   return {
     sinceWatching: evaluateSinceWatching(input),
@@ -222,6 +263,7 @@ export function evaluateStock(input: EvaluateInput): Evaluation {
     mediumTerm: evaluateMediumTerm(input),
     longTerm: evaluateLongTerm(input),
     targetPrice: evaluateTargetPrice(input),
+    newsImpact: evaluateNewsImpact(input),
     details: {
       pegRatio: input.latestSnapshot.pegRatio,
       roe: input.latestSnapshot.roe,

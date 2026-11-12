@@ -10,6 +10,7 @@ function fullEvaluation(): Evaluation {
     mediumTerm: { label: 'Consenso positivo, in miglioramento', note: '30 analisti su 49 raccomandano l\'acquisto.', strongBuy: 11, buy: 19, hold: 15, sell: 3, strongSell: 1 },
     longTerm: { label: 'Fondamentali solidi', note: 'PEG 0.80, ROE 20.0%, debito/capitale 0.50.' },
     targetPrice: { value: 60, upsidePct: -40, note: "Stima indicativa basata sulla crescita storica degli utili." },
+    newsImpact: { counted: 0, positive: 0, negative: 0, net: 0, adjustment: 0, note: 'Nessuna notizia recente abbastanza rilevante e sicura da pesare nel giudizio.' },
     details: { pegRatio: 0.8, roe: 20, debtToEquity: 0.5, netMargin: 22, dividendYield: 0.5, payoutRatio: 10 },
   }
 }
@@ -21,6 +22,7 @@ function emptyEvaluation(): Evaluation {
     mediumTerm: { label: 'Nessun dato disponibile', note: 'Nessun dato sul consenso degli analisti disponibile per questo titolo.', strongBuy: 0, buy: 0, hold: 0, sell: 0, strongSell: 0 },
     longTerm: { label: 'Dati fondamentali non disponibili', note: 'Non ci sono abbastanza dati fondamentali per valutare questo titolo nel lungo periodo.' },
     targetPrice: { value: null, upsidePct: null, note: 'Stima non disponibile: utili o crescita storica non adatti a questo calcolo.' },
+    newsImpact: { counted: 0, positive: 0, negative: 0, net: 0, adjustment: 0, note: 'Nessuna notizia recente abbastanza rilevante e sicura da pesare nel giudizio.' },
     details: { pegRatio: null, roe: null, debtToEquity: null, netMargin: null, dividendYield: null, payoutRatio: null },
   }
 }

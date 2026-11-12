@@ -298,3 +298,10 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+.newsNote {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}

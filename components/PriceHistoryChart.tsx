@@ -6,9 +6,11 @@ import styles from './PriceHistoryChart.module.css'
 interface Point {
   t: number
   close: number
+  session?: 'pre' | 'regular' | 'post'
 }
 
 const RANGES = [
+  { key: '1G', days: 1 },
   { key: '1M', days: 30 },
   { key: '3M', days: 91 },
   { key: '6M', days: 182 },
@@ -19,16 +21,20 @@ const W = 640
 const H = 220
 const PAD = { top: 12, right: 8, bottom: 22, left: 8 }
 
-export function PriceHistoryChart({ points }: { points: Point[] }) {
+export function PriceHistoryChart({ points, intraday = [], prevClose = null }: { points: Point[]; intraday?: Point[]; prevClose?: number | null }) {
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('3M')
   const [hover, setHover] = useState<number | null>(null)
 
   const data = useMemo(() => {
+    if (range === '1G') return intraday
     const days = RANGES.find((r) => r.key === range)!.days
     const last = points[points.length - 1].t
     return points.filter((p) => p.t >= last - days * 86_400_000)
-  }, [points, range])
+  }, [points, intraday, range])
 
+  if (data.length === 0) return null
+
+  const isDay = range === '1G'
   const min = Math.min(...data.map((d) => d.close))
   const max = Math.max(...data.map((d) => d.close))
   const span = max - min || 1
@@ -36,13 +42,32 @@ export function PriceHistoryChart({ points }: { points: Point[] }) {
   const y = (v: number) => PAD.top + (1 - (v - min) / span) * (H - PAD.top - PAD.bottom)
 
   const line = data.map((d, i) => `${x(i)},${y(d.close)}`).join(' ')
+  const extLines: string[] = []
+  if (isDay) {
+    let cur: string[] = []
+    data.forEach((d, i) => {
+      if (d.session !== 'regular') {
+        if (cur.length === 0 && i > 0) cur.push(`${x(i - 1)},${y(data[i - 1].close)}`)
+        cur.push(`${x(i)},${y(d.close)}`)
+      } else if (cur.length) {
+        cur.push(`${x(i)},${y(d.close)}`)
+        extLines.push(cur.join(' '))
+        cur = []
+      }
+    })
+    if (cur.length) extLines.push(cur.join(' '))
+  }
   const area = `${x(0)},${H - PAD.bottom} ${line} ${x(data.length - 1)},${H - PAD.bottom}`
-  const first = data[0].close
+  const first = isDay && prevClose ? prevClose : data[0].close
   const last = data[data.length - 1].close
   const changePct = ((last - first) / first) * 100
   const up = changePct >= 0
   const shown = hover !== null ? data[hover] : data[data.length - 1]
-  const fmtDate = (t: number) => new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })
+  const fmtDate = (t: number) =>
+    isDay
+      ? new Date(t).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+      : new Date(t).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })
+  const sessionLabel = { pre: 'Premarket', regular: '', post: 'After-hours' } as const
 
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
@@ -57,11 +82,11 @@ export function PriceHistoryChart({ points }: { points: Point[] }) {
         <div>
           <p className={styles.value}>${shown.close.toFixed(2)}</p>
           <p className={styles.sub}>
-            {hover !== null ? fmtDate(shown.t) : `${up ? '+' : ''}${changePct.toFixed(1)}% in ${range === '1A' ? '1 anno' : range.replace('M', ' mesi').replace('1 mesi', '1 mese')}`}
+            {hover !== null ? `${fmtDate(shown.t)}${shown.session && shown.session !== 'regular' ? ` · ${sessionLabel[shown.session]}` : ''}` : isDay ? `${up ? '+' : ''}${changePct.toFixed(1)}% oggi (vs chiusura prec.)` : `${up ? '+' : ''}${changePct.toFixed(1)}% in ${range === '1A' ? '1 anno' : range.replace('M', ' mesi').replace('1 mesi', '1 mese')}`}
           </p>
         </div>
         <div className={styles.tabs} role="tablist" aria-label="Periodo">
-          {RANGES.map((r) => (
+          {RANGES.filter((r) => r.key !== '1G' || intraday.length > 0).map((r) => (
             <button
               key={r.key}
               type="button"
@@ -89,6 +114,9 @@ export function PriceHistoryChart({ points }: { points: Point[] }) {
       >
         <polygon points={area} className={styles.area} />
         <polyline points={line} className={styles.line} fill="none" />
+        {extLines.map((pts, i) => (
+          <polyline key={i} points={pts} className={styles.ext} fill="none" />
+        ))}
         <text x={PAD.left} y={H - 6} className={styles.axis}>
           {fmtDate(data[0].t)}
         </text>

@@ -95,3 +95,10 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+.ext {
+  stroke: var(--muted);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}

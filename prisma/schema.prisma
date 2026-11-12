@@ -51,6 +51,7 @@ model NewsItem {
   source      String
   summary     String?
   publishedAt DateTime
+  analysis    NewsAnalysis?
 
   @@index([stockId, publishedAt])
 }
@@ -69,4 +70,18 @@ model AnalystRecommendation {
 
   @@unique([stockId, period])
   @@index([stockId, period])
+}
+
+model NewsAnalysis {
+  id         String   @id @default(cuid())
+  newsItemId String   @unique
+  newsItem   NewsItem @relation(fields: [newsItemId], references: [id], onDelete: Cascade)
+  direction  String
+  intensity  Int
+  horizon    String
+  scope      String
+  confidence String
+  rationale  String
+  model      String
+  analyzedAt DateTime @default(now())
 }

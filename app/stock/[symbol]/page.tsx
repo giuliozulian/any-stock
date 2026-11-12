@@ -1,12 +1,13 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
 import { PriceChart } from '@/components/PriceChart'
 import { PriceHistoryChart } from '@/components/PriceHistoryChart'
 import { AnalystTrendChart } from '@/components/AnalystTrendChart'
 import { InfoTip } from '@/components/InfoTip'
-import { getPriceHistory } from '@/lib/history'
+import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
@@ -28,6 +29,7 @@ function formatExchange(exchange: string): string {
 }
 
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
+  await connection()
   const { symbol: rawSymbol } = await paramsPromise
   const symbol = rawSymbol.toUpperCase()
 
@@ -35,7 +37,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     where: { symbol },
     include: {
       snapshots: { orderBy: { timestamp: 'desc' }, take: 100 },
-      news: { orderBy: { publishedAt: 'desc' }, take: 20 },
+      news: { orderBy: { publishedAt: 'desc' }, take: 20, include: { analysis: true } },
       recommendations: { orderBy: { period: 'desc' }, take: 6 },
     },
   })
@@ -55,7 +57,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const history = await getPriceHistory(stock.symbol)
+  const [history, intraday] = await Promise.all([getPriceHistory(stock.symbol), getIntradayHistory(stock.symbol)])
 
   const evaluation = latest
     ? evaluateStock({
@@ -74,6 +76,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           epsGrowth5Y: latest.epsGrowth5Y,
         },
         earliestSnapshot: earliestSnapshot ? { price: earliestSnapshot.price, timestamp: earliestSnapshot.timestamp } : null,
+        newsAnalyses: stock.news.flatMap((n) => (n.analysis ? [{ ...n.analysis, publishedAt: n.publishedAt }] : [])),
         recentRecommendations: stock.recommendations.slice(0, 2).map((r) => ({
           period: r.period,
           strongBuy: r.strongBuy,
@@ -140,14 +143,14 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
               <section className={styles.chartCard} aria-labelledby="price-title">
                 <h2 id="price-title" className={styles.sectionTitle}>
                   Andamento del prezzo
-                  <InfoTip label="Cos’è l’andamento del prezzo" source="Yahoo Finance (chiusure giornaliere, query1.finance.yahoo.com), dati reali; se non disponibili, le tue rilevazioni salvate da Finnhub (/quote)">
+                  <InfoTip label="Cos’è l’andamento del prezzo" source="Yahoo Finance (chiusure giornaliere, query1.finance.yahoo.com), dati reali; se non disponibili, le tue rilevazioni salvate da Finnhub (/quote)" formula="variazione del periodo = (ultimo prezzo − primo prezzo del periodo) ÷ primo prezzo × 100">
                     <strong>Andamento del prezzo</strong>
                     <span>Mostra come è cambiato il prezzo di chiusura giorno per giorno. Passa il mouse (o il dito) sul grafico per vedere il prezzo di una data.</span>
                     <span>Serve a capire se il titolo sta salendo, scendendo o è fermo, e se il prezzo di oggi è alto o basso rispetto al periodo scelto.</span>
                   </InfoTip>
                 </h2>
                 {history.length > 1 ? (
-                  <PriceHistoryChart points={history} />
+                  <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} />
                 ) : stock.snapshots.length > 1 ? (
                   <>
                     <div className={`${styles.chart} ${seriesTrendClass}`}>
@@ -217,13 +220,13 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           <section className={styles.news}>
             <h2 className={styles.sectionTitle}>
               Notizie recenti
-              <InfoTip label="Come leggere le notizie" source="Finnhub (/company-news), titoli reali; l’impatto è calcolato con parole chiave (lib/news-impact.ts)" formula="punteggio = 2 × (parole positive − negative nel titolo) + (parole positive − negative nel riassunto). ≥ +2 positivo, ≤ −2 negativo, altrimenti neutro">
+              <InfoTip label="Come leggere le notizie" source="Finnhub (/company-news) per i titoli reali; analisi di impatto fatta da un modello IA (Google Gemini, gemini-3.5-flash-lite) e salvata nel database; senza risposta del modello, parole chiave (lib/news-impact.ts)" formula="il modello restituisce direzione, intensità 1-5, orizzonte e confidenza. Nel verdetto contano solo le notizie con confidenza alta, intensità ≥ 3 e degli ultimi 7 giorni: +1 per positiva, −1 per negativa; saldo ≥ +2 aggiunge 1 punto, ≤ −2 ne toglie 1">
                 <strong>Notizie e impatto stimato</strong>
-                <span>Le ultime notizie sul titolo. Il colore indica l’impatto probabile: verde positivo, rosso negativo, ambra neutro.</span>
-                <span>“Sul titolo” = parla direttamente dell’azienda; “indiretto” = riguarda concorrenti o il settore. Il giudizio nasce dalle parole chiave, quindi è indicativo.</span>
+                <span>Le ultime notizie sul titolo. Il colore indica l’impatto probabile: verde positivo, rosso negativo, ambra neutro. Sotto trovi la motivazione dell’IA.</span>
+                <span>“Sul titolo” = parla direttamente dell’azienda; “indiretto” = riguarda concorrenti o il settore. È una stima di un modello, può sbagliare: non è una previsione.</span>
               </InfoTip>
             </h2>
-            <p className={styles.newsHint}>Impatto stimato in automatico dalle parole chiave di titolo e riassunto, non è una previsione.</p>
+            <p className={styles.newsHint}>Impatto stimato da un’IA che legge ogni notizia, non è una previsione.</p>
             <NewsList news={stock.news} stock={{ symbol: stock.symbol, name: stock.name }} />
           </section>
         </div>
