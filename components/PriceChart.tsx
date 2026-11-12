@@ -39,7 +39,7 @@ export function PriceChart({
     .join(' ')
 
   return (
-    <svg width={width} height={height} role="img" aria-label="Price history chart">
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Price history chart">
       <polyline points={points} fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )

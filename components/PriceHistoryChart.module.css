@@ -1,0 +1,97 @@
+.wrap {
+  --tone: var(--gain-bright);
+}
+
+.down {
+  --tone: var(--loss-bright);
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.value {
+  font-size: 26px;
+  line-height: 1.1;
+  font-feature-settings: "tnum" 1;
+}
+
+.sub {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--tone);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.tab {
+  min-width: 40px;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--bone);
+}
+
+.tabActive {
+  color: var(--bone);
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.line {
+  stroke: var(--tone);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.area {
+  fill: color-mix(in srgb, var(--tone) 14%, transparent);
+}
+
+.axis {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.cross {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.dot {
+  fill: var(--tone);
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.range {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}

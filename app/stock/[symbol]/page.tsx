@@ -3,11 +3,23 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { PriceChart } from '@/components/PriceChart'
+import { PriceHistoryChart } from '@/components/PriceHistoryChart'
+import { AnalystTrendChart } from '@/components/AnalystTrendChart'
+import { InfoTip } from '@/components/InfoTip'
+import { getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
+import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { EvaluationPanel } from '@/components/EvaluationPanel'
 import { evaluateStock } from '@/lib/evaluate'
 import styles from './page.module.css'
+
+function formatMarketCap(millions: number | null): string {
+  if (millions === null) return '—'
+  if (millions >= 1_000_000) return `$${(millions / 1_000_000).toFixed(2)}T`
+  if (millions >= 1_000) return `$${(millions / 1_000).toFixed(1)}B`
+  return `$${millions.toFixed(0)}M`
+}
 
 function formatExchange(exchange: string): string {
   if (exchange.includes('NASDAQ')) return 'NASDAQ'
@@ -24,7 +36,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     include: {
       snapshots: { orderBy: { timestamp: 'desc' }, take: 100 },
       news: { orderBy: { publishedAt: 'desc' }, take: 20 },
-      recommendations: { orderBy: { period: 'desc' }, take: 2 },
+      recommendations: { orderBy: { period: 'desc' }, take: 6 },
     },
   })
 
@@ -43,6 +55,8 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
+  const history = await getPriceHistory(stock.symbol)
+
   const evaluation = latest
     ? evaluateStock({
         latestSnapshot: {
@@ -60,7 +74,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           epsGrowth5Y: latest.epsGrowth5Y,
         },
         earliestSnapshot: earliestSnapshot ? { price: earliestSnapshot.price, timestamp: earliestSnapshot.timestamp } : null,
-        recentRecommendations: stock.recommendations.map((r) => ({
+        recentRecommendations: stock.recommendations.slice(0, 2).map((r) => ({
           period: r.period,
           strongBuy: r.strongBuy,
           buy: r.buy,
@@ -71,62 +85,155 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       })
     : null
 
+  const position52w =
+    latest && latest.week52High !== null && latest.week52Low !== null && latest.week52High > latest.week52Low
+      ? Math.min(1, Math.max(0, (latest.price - latest.week52Low) / (latest.week52High - latest.week52Low)))
+      : null
+
+  const seriesTrendClass =
+    stock.snapshots.length > 1
+      ? stock.snapshots[0].price >= stock.snapshots[stock.snapshots.length - 1].price
+        ? styles.gain
+        : styles.loss
+      : ''
+
   return (
     <>
       <Link href="/" className={styles.back}>
         ← Watchlist
       </Link>
 
-      <p className={styles.ticker}>
-        {formatExchange(stock.exchange)}: {stock.symbol}
-      </p>
-      <h1 className={styles.name}>{stock.name}</h1>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.ticker}>
+            {formatExchange(stock.exchange)}: {stock.symbol}
+          </p>
+          <h1 className={styles.name}>{stock.name}</h1>
+        </div>
 
-      {latest ? (
-        <>
-          <div className={styles.heroRow}>
-            <span className={styles.price}>${latest.price.toFixed(2)}</span>
-            <span className={`${styles.change} ${changeClass}`}>
-              {latest.changePct >= 0 ? '+' : ''}
-              {latest.changePct.toFixed(2)}%
-            </span>
-            <span className={`${styles.sparkline} ${changeClass}`}>
-              <PriceChart snapshots={stock.snapshots} width={100} height={32} strokeWidth={1.5} compact />
-            </span>
+        {latest ? (
+          <div className={styles.quote}>
+            <div className={styles.heroRow}>
+              <span className={styles.price}>${latest.price.toFixed(2)}</span>
+              <span className={`${styles.change} ${changeClass}`}>
+                {latest.changePct >= 0 ? '+' : ''}
+                {latest.changePct.toFixed(2)}%
+              </span>
+            </div>
+            <div className={styles.quoteMeta}>
+              <span>Aggiornato {latest.timestamp.toLocaleString()}</span>
+              <RefreshButton symbol={stock.symbol} />
+            </div>
           </div>
-          <p className={styles.stale}>Updated {latest.timestamp.toLocaleString()}</p>
-        </>
-      ) : (
-        <p className={styles.stale}>No data yet. Refresh to fetch the latest snapshot.</p>
-      )}
+        ) : (
+          <div className={styles.quote}>
+            <p className={styles.stale}>Nessun dato ancora: premi Refresh per scaricare l&apos;ultimo prezzo.</p>
+            <RefreshButton symbol={stock.symbol} />
+          </div>
+        )}
+      </header>
 
-      <div className={styles.actions}>
-        <RefreshButton symbol={stock.symbol} />
+      <div className={styles.layout}>
+        <div className={styles.main}>
+          {latest && (
+            <>
+              <section className={styles.chartCard} aria-labelledby="price-title">
+                <h2 id="price-title" className={styles.sectionTitle}>
+                  Andamento del prezzo
+                  <InfoTip label="Cos’è l’andamento del prezzo" source="Yahoo Finance (chiusure giornaliere, query1.finance.yahoo.com), dati reali; se non disponibili, le tue rilevazioni salvate da Finnhub (/quote)">
+                    <strong>Andamento del prezzo</strong>
+                    <span>Mostra come è cambiato il prezzo di chiusura giorno per giorno. Passa il mouse (o il dito) sul grafico per vedere il prezzo di una data.</span>
+                    <span>Serve a capire se il titolo sta salendo, scendendo o è fermo, e se il prezzo di oggi è alto o basso rispetto al periodo scelto.</span>
+                  </InfoTip>
+                </h2>
+                {history.length > 1 ? (
+                  <PriceHistoryChart points={history} />
+                ) : stock.snapshots.length > 1 ? (
+                  <>
+                    <div className={`${styles.chart} ${seriesTrendClass}`}>
+                      <PriceChart snapshots={stock.snapshots} width={640} height={180} strokeWidth={2} />
+                    </div>
+                    <p className={styles.chartCaption}>
+                      {stock.snapshots.length} rilevazioni dal {stock.snapshots[stock.snapshots.length - 1].timestamp.toLocaleDateString('it-IT')}
+                    </p>
+                  </>
+                ) : (
+                  <p className={styles.chartEmpty}>Storico non disponibile al momento: premi Refresh per aggiungere una rilevazione.</p>
+                )}
+              </section>
+
+              <dl className={styles.figures}>
+                <div className={styles.figure}>
+                  <dt>
+                    P/E
+                    <InfoTip label="Cos’è il P/E" source="Finnhub, campo peBasicExclExtraTTM (/stock/metric)" formula="P/E = prezzo dell’azione ÷ utile per azione (ultimi 12 mesi)">
+                      <strong>P/E (prezzo/utili)</strong>
+                      <span>Quanti dollari paghi per ogni dollaro di utile annuo dell’azienda. Un P/E di 20 significa che il prezzo vale 20 anni di utili attuali.</span>
+                      <span>Serve a capire se l’azione è cara o economica rispetto a quanto guadagna. Non entra direttamente nel giudizio, ma è alla base del PEG.</span>
+                    </InfoTip>
+                  </dt>
+                  <dd className="numeral">{latest.peRatio?.toFixed(1) ?? '—'}</dd>
+                </div>
+                <div className={styles.figure}>
+                  <dt>
+                    Capitalizzazione
+                    <InfoTip label="Cos’è la capitalizzazione" source="Finnhub (/stock/profile2), campo marketCapitalization" formula="capitalizzazione = prezzo × numero di azioni in circolazione">
+                      <strong>Capitalizzazione di mercato</strong>
+                      <span>Il valore totale dell’azienda in borsa: prezzo dell’azione per numero di azioni (T = mille miliardi, B = miliardi).</span>
+                      <span>Serve a capire la dimensione: le aziende più grandi sono in genere più stabili, quelle piccole più volatili.</span>
+                    </InfoTip>
+                  </dt>
+                  <dd className="numeral">{formatMarketCap(latest.marketCap)}</dd>
+                </div>
+              </dl>
+
+              <section className={styles.range} aria-label="Intervallo a 52 settimane">
+                <div className={styles.rangeHead}>
+                  <span className={styles.rangeLabel}>
+                    Intervallo 52 settimane
+                    <InfoTip label="Cos’è l’intervallo a 52 settimane" source="Finnhub, campi 52WeekHigh e 52WeekLow (/stock/metric); prezzo attuale da /quote" formula="posizione nel range = (prezzo − minimo) ÷ (massimo − minimo) × 100">
+                      <strong>Intervallo a 52 settimane</strong>
+                      <span>Il prezzo più basso e più alto dell’ultimo anno. Il pallino indica dove si trova il prezzo di oggi.</span>
+                      <span>Vicino al minimo può essere un’occasione o un segnale di debolezza; vicino al massimo, forza o rischio di prezzo già alto. Entra nel segnale a breve termine.</span>
+                    </InfoTip>
+                  </span>
+                  {position52w !== null && <span className={styles.rangePos}>al {Math.round(position52w * 100)}% del range</span>}
+                </div>
+                <div className={styles.rangeTrack}>
+                  {position52w !== null && <span className={styles.rangeMarker} style={{ left: `${position52w * 100}%` }} />}
+                </div>
+                <div className={`${styles.rangeEnds} numeral`}>
+                  <span>{latest.week52Low?.toFixed(2) ?? '—'}</span>
+                  <span>{latest.week52High?.toFixed(2) ?? '—'}</span>
+                </div>
+              </section>
+            </>
+          )}
+
+          {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
+
+          {evaluation && <FundamentalsGrid details={evaluation.details} />}
+
+          <section className={styles.news}>
+            <h2 className={styles.sectionTitle}>
+              Notizie recenti
+              <InfoTip label="Come leggere le notizie" source="Finnhub (/company-news), titoli reali; l’impatto è calcolato con parole chiave (lib/news-impact.ts)" formula="punteggio = 2 × (parole positive − negative nel titolo) + (parole positive − negative nel riassunto). ≥ +2 positivo, ≤ −2 negativo, altrimenti neutro">
+                <strong>Notizie e impatto stimato</strong>
+                <span>Le ultime notizie sul titolo. Il colore indica l’impatto probabile: verde positivo, rosso negativo, ambra neutro.</span>
+                <span>“Sul titolo” = parla direttamente dell’azienda; “indiretto” = riguarda concorrenti o il settore. Il giudizio nasce dalle parole chiave, quindi è indicativo.</span>
+              </InfoTip>
+            </h2>
+            <p className={styles.newsHint}>Impatto stimato in automatico dalle parole chiave di titolo e riassunto, non è una previsione.</p>
+            <NewsList news={stock.news} stock={{ symbol: stock.symbol, name: stock.name }} />
+          </section>
+        </div>
+
+        {evaluation && (
+          <aside className={styles.aside}>
+            <EvaluationPanel evaluation={evaluation} />
+          </aside>
+        )}
       </div>
-
-      {latest && (
-        <dl className={styles.metrics}>
-          <div className={styles.metricRow}>
-            <dt className={styles.metricLabel}>P/E ratio</dt>
-            <dd className={styles.metricValue}>{latest.peRatio?.toFixed(1) ?? '—'}</dd>
-          </div>
-          <div className={styles.metricRow}>
-            <dt className={styles.metricLabel}>Market cap</dt>
-            <dd className={styles.metricValue}>{latest.marketCap ?? '—'}</dd>
-          </div>
-          <div className={styles.metricRow}>
-            <dt className={styles.metricLabel}>52-week range</dt>
-            <dd className={styles.metricValue}>
-              {latest.week52Low ?? '—'} – {latest.week52High ?? '—'}
-            </dd>
-          </div>
-        </dl>
-      )}
-
-      {evaluation && <EvaluationPanel evaluation={evaluation} />}
-
-      <p className={styles.newsTitle}>Recent news</p>
-      <NewsList news={stock.news} />
     </>
   )
 }

@@ -1,4 +1,5 @@
 :root {
+  --font-display: var(--font-ui);
   --ink: #10141b;
   --surface: #171c25;
   --surface-raised: #1d2330;
@@ -9,6 +10,9 @@
   --brass-dim: #8a7047;
   --gain: #5b8c6e;
   --loss: #b5453a;
+  --gain-bright: #4fc283;
+  --loss-bright: #ef5f4f;
+  --amber-bright: #e0b062;
 }
 
 * {

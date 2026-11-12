@@ -16,7 +16,6 @@
 .wordmark {
   font-family: var(--font-display);
   font-weight: 500;
-  font-style: italic;
   font-size: 28px;
   letter-spacing: 0.01em;
 }
@@ -59,7 +58,6 @@
 .symbol {
   font-family: var(--font-display);
   font-size: 17px;
-  font-style: italic;
 }
 
 .symbol:hover {
