@@ -1,13 +1,18 @@
+'use client'
+
 import styles from './SinceWatching.module.css'
 import { InfoTip } from './InfoTip'
+import { useLivePrice } from './live-quotes'
 
 interface Props {
+  symbol?: string
   addedAt: Date
   entryPrice: number
   currentPrice: number
 }
 
-export function SinceWatching({ addedAt, entryPrice, currentPrice }: Props) {
+export function SinceWatching({ symbol, addedAt, entryPrice, currentPrice: initialPrice }: Props) {
+  const currentPrice = useLivePrice(symbol ?? null, initialPrice)
   const diff = currentPrice - entryPrice
   const pct = entryPrice > 0 ? (diff / entryPrice) * 100 : null
   const tone = diff > 0 ? styles.gain : diff < 0 ? styles.loss : styles.flat

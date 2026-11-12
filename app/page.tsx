@@ -6,6 +6,7 @@ import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
+import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
 import { getIntradayHistory } from '@/lib/history'
 import styles from './page.module.css'
 
@@ -42,11 +43,12 @@ async function WatchlistTable() {
     const entry = firstSnapshots[idx]
     const extPct = ext && latest ? ((ext.close - latest.price) / latest.price) * 100 : null
     const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
-    return { stock, latest, ext, extPct, sincePct }
+    return { stock, latest, ext, extPct, sincePct, entryPrice: entry?.price ?? null }
   })
   const gaining = rows.filter((r) => r.sincePct !== null && r.sincePct > 0).length
   const losing = rows.filter((r) => r.sincePct !== null && r.sincePct < 0).length
   const tone = (n: number | null) => (n === null || n === 0 ? styles.dash : n > 0 ? styles.gain : styles.loss)
+  const tones = { gain: styles.gain, loss: styles.loss, flat: styles.dash }
   const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`
 
   return (
@@ -63,7 +65,7 @@ async function WatchlistTable() {
         <span />
       </div>
       <ul className={styles.list}>
-        {rows.map(({ stock, latest, ext, extPct, sincePct }) => {
+        {rows.map(({ stock, latest, ext, extPct, entryPrice }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash
           return (
             <li key={stock.id} className={styles.row}>
@@ -81,7 +83,7 @@ async function WatchlistTable() {
                 />
               </div>
               <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
-                <span className={styles.price}>{latest ? `$${latest.price.toFixed(2)}` : <span className={styles.dash}>—</span>}</span>
+                <span className={styles.price}>{latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}</span>
                 {ext && extPct !== null && (
                   <span className={`${styles.ext} ${tone(extPct)}`}>
                     {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)} ({signed(extPct)})
@@ -89,10 +91,12 @@ async function WatchlistTable() {
                 )}
               </div>
               <div className={`${styles.num} ${styles.change} ${changeTone}`} data-label="Oggi">
-                {latest ? signed(latest.changePct) : '—'}
+                {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : '—'}
               </div>
               <div className={`${styles.num} ${styles.sinceCell}`} data-label="Da quando lo segui">
-                <span className={`${styles.sincePct} ${tone(sincePct)}`}>{sincePct === null ? '—' : signed(sincePct)}</span>
+                <span className={styles.sincePct}>
+                  <LiveSince symbol={stock.symbol} entryPrice={entryPrice} initialPrice={latest?.price ?? null} tones={tones} />
+                </span>
                 <time className={styles.sinceDate} dateTime={stock.addedAt.toISOString()}>
                   dal {stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </time>

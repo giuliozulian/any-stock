@@ -13,6 +13,7 @@ import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { SinceWatching } from '@/components/SinceWatching'
 import { AlertTargets } from '@/components/AlertTargets'
+import { LiveChange, LivePrice, LiveStamp } from '@/components/live-quotes'
 import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
 import { VideoList } from '@/components/VideoList'
 import { getRecentVideos, isYoutubeConfigured } from '@/lib/youtube'
@@ -56,7 +57,6 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   }
 
   const latest = stock.snapshots[0]
-  const changeClass = latest ? (latest.changePct >= 0 ? styles.gain : styles.loss) : ''
 
   const earliestSnapshot =
     stock.snapshots.length > 1
@@ -130,14 +130,15 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         {latest ? (
           <div className={styles.quote}>
             <div className={styles.heroRow}>
-              <span className={styles.price}>${latest.price.toFixed(2)}</span>
-              <span className={`${styles.change} ${changeClass}`}>
-                {latest.changePct >= 0 ? '+' : ''}
-                {latest.changePct.toFixed(2)}%
+              <span className={styles.price}>
+                <LivePrice symbol={stock.symbol} initial={latest.price} />
               </span>
+              <LiveChange symbol={stock.symbol} initial={latest.changePct} className={styles.change} tones={{ gain: styles.gain, loss: styles.loss, flat: '' }} />
             </div>
             <div className={styles.quoteMeta}>
-              <span>Aggiornato {latest.timestamp.toLocaleString()}</span>
+              <span>
+                <LiveStamp symbol={stock.symbol} fallback={`Aggiornato ${latest.timestamp.toLocaleString()}`} />
+              </span>
               <RefreshButton symbol={stock.symbol} />
             </div>
           </div>
@@ -158,7 +159,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           sellTriggered={stock.sellTriggeredAt !== null}
         />
       </div>
-      {latest && <SinceWatching addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
+      {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
 
       <div className={styles.hero}>
         {latest && (
