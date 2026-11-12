@@ -27,6 +27,23 @@
   font-weight: 600;
 }
 
+.marketLink {
+  display: inline-block;
+  margin-top: 14px;
+  padding: 8px 14px;
+  border: 1px solid var(--brass);
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brass);
+}
+
+.marketLink:hover,
+.marketLink:focus-visible {
+  background: var(--brass);
+  color: var(--bg, #000);
+}
+
 .summary {
   padding-bottom: 20px;
   font-size: 16px;
