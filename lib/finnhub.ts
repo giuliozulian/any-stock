@@ -170,6 +170,27 @@ export async function getNextEarnings(symbol: string, today: Date = new Date()):
   return { date: upcoming.date, hour: upcoming.hour || null, epsEstimate: upcoming.epsEstimate ?? null }
 }
 
+export interface EarningsEvent {
+  symbol: string
+  date: string
+  hour: string | null
+  epsEstimate: number | null
+  revenueEstimate: number | null
+}
+
+export async function getEarningsCalendar(from: string, to: string): Promise<EarningsEvent[]> {
+  const data = await finnhubFetch<{
+    earningsCalendar?: Array<{ symbol: string; date: string; hour?: string; epsEstimate?: number | null; revenueEstimate?: number | null }>
+  }>('/calendar/earnings', { from, to })
+  return (data.earningsCalendar ?? []).map((e) => ({
+    symbol: e.symbol,
+    date: e.date,
+    hour: e.hour || null,
+    epsEstimate: e.epsEstimate ?? null,
+    revenueEstimate: e.revenueEstimate ?? null,
+  }))
+}
+
 export interface IpoEvent {
   date: string
   name: string

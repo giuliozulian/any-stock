@@ -13,7 +13,7 @@ import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
 import { WatchStar } from '@/components/WatchStar'
-import { getMetrics, getProfile, getQuote } from '@/lib/finnhub'
+import { getIpoCalendar, getMetrics, getProfile, getQuote, type IpoEvent } from '@/lib/finnhub'
 import { getYahooQuote } from '@/lib/yahoo-quote'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
@@ -47,6 +47,65 @@ function formatExchange(exchange: string): string {
   return exchange.split(' - ')[0]
 }
 
+async function findIpo(symbol: string): Promise<IpoEvent | null> {
+  const day = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  try {
+    const events = await getIpoCalendar(new Date(now - 60 * day).toISOString().slice(0, 10), new Date(now + 120 * day).toISOString().slice(0, 10))
+    return events.find((e) => e.symbol?.toUpperCase() === symbol) ?? null
+  } catch {
+    return null
+  }
+}
+
+function IpoPreview({ ipo }: { ipo: IpoEvent }) {
+  const when = new Date(`${ipo.date}T00:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  return (
+    <>
+      <Link href="/ipo" className={styles.back}>
+        ← IPO
+      </Link>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.ticker}>
+            {ipo.exchange ? `${ipo.exchange}: ` : ''}
+            {ipo.symbol}
+          </p>
+          <h1 className={styles.name}>{ipo.name}</h1>
+        </div>
+      </header>
+      <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
+        <CompanyOverview symbol={ipo.symbol ?? ipo.name} name={ipo.name} />
+      </Suspense>
+      <dl className={styles.previewStats}>
+        <div>
+          <dt>Debutto in Borsa</dt>
+          <dd>{when}</dd>
+        </div>
+        {ipo.price && (
+          <div>
+            <dt>Prezzo previsto</dt>
+            <dd>{ipo.price} $</dd>
+          </div>
+        )}
+        {ipo.totalValue ? (
+          <div>
+            <dt>Valore dell’offerta</dt>
+            <dd>{ipo.totalValue >= 1e9 ? `${(ipo.totalValue / 1e9).toFixed(1)} mld $` : `${(ipo.totalValue / 1e6).toFixed(0)} mln $`}</dd>
+          </div>
+        ) : null}
+        {ipo.status && (
+          <div>
+            <dt>Stato</dt>
+            <dd>{ipo.status}</dd>
+          </div>
+        )}
+      </dl>
+      <p className={styles.stale}>Il titolo non è ancora quotato (o non ha ancora prezzi): quando inizia a scambiare qui compariranno prezzo e grafico.</p>
+    </>
+  )
+}
+
 async function StockPreview({ symbol }: { symbol: string }) {
   let profile: Awaited<ReturnType<typeof getProfile>> | null = null
   let quote: Awaited<ReturnType<typeof getQuote>> | null = null
@@ -63,7 +122,11 @@ async function StockPreview({ symbol }: { symbol: string }) {
     covered ? getMetrics(symbol).catch(() => null) : Promise.resolve(null),
   ])
   const yahoo = covered ? null : await getYahooQuote(symbol)
-  if (!covered && !yahoo) notFound()
+  if (!covered && !yahoo) {
+    const ipo = await findIpo(symbol)
+    if (!ipo) notFound()
+    return <IpoPreview ipo={ipo} />
+  }
 
   const name = profile?.name || yahoo!.name
   const exchange = profile?.name ? formatExchange(profile.exchange) : yahoo!.exchange
