@@ -16,7 +16,7 @@ async function WatchlistTable() {
   })
 
   if (stocks.length === 0) {
-    return <p className={styles.empty}>No stocks yet. Add a symbol above to get started.</p>
+    return <p className={styles.empty}>Nessun titolo in watchlist. Scrivi un simbolo (per esempio AAPL) in alto a destra e premi Add.</p>
   }
 
   const firstSnapshots = await Promise.all(
@@ -30,79 +30,85 @@ async function WatchlistTable() {
     })
   )
 
+  const rows = stocks.map((stock, idx) => {
+    const latest = stock.snapshots[0]
+    const ext = extended[idx]
+    const entry = firstSnapshots[idx]
+    const extPct = ext && latest ? ((ext.close - latest.price) / latest.price) * 100 : null
+    const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
+    return { stock, latest, ext, extPct, sincePct }
+  })
+  const gaining = rows.filter((r) => r.sincePct !== null && r.sincePct > 0).length
+  const losing = rows.filter((r) => r.sincePct !== null && r.sincePct < 0).length
+  const tone = (n: number | null) => (n === null || n === 0 ? styles.dash : n > 0 ? styles.gain : styles.loss)
+  const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`
+
   return (
-    <table className={styles.table}>
-      <thead>
-        <tr>
-          <th>Symbol</th>
-          <th>Company</th>
-          <th className={styles.num}>Price</th>
-          <th className={styles.num}>Change</th>
-          <th className={styles.num}>Pre/Post</th>
-          <th className={styles.num}>Trend</th>
-          <th className={styles.num}>Lo segui dal</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {stocks.map((stock, idx) => {
-          const latest = stock.snapshots[0]
-          const ext = extended[idx]
-          const extPct = ext && stock.snapshots[0] ? ((ext.close - stock.snapshots[0].price) / stock.snapshots[0].price) * 100 : null
-          const entry = firstSnapshots[idx]
-          const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
-          const sinceClass = sincePct === null || sincePct === 0 ? styles.dash : sincePct > 0 ? styles.gain : styles.loss
-          const changeClass = !latest ? styles.dash : latest.changePct >= 0 ? styles.gain : styles.loss
+    <>
+      <p className={styles.summary}>
+        {stocks.length} {stocks.length === 1 ? 'titolo' : 'titoli'} · <span className={styles.gain}>{gaining} in guadagno</span> · <span className={styles.loss}>{losing} in perdita</span> da quando li segui
+      </p>
+      <div className={styles.listHead} aria-hidden="true">
+        <span>Titolo</span>
+        <span className={styles.num}>Prezzo</span>
+        <span className={styles.num}>Oggi</span>
+        <span className={styles.num}>Da quando lo segui</span>
+        <span className={styles.num}>Trend</span>
+        <span />
+      </div>
+      <ul className={styles.list}>
+        {rows.map(({ stock, latest, ext, extPct, sincePct }) => {
+          const changeTone = latest ? tone(latest.changePct) : styles.dash
           return (
-            <tr key={stock.id}>
-              <td>
+            <li key={stock.id} className={styles.row}>
+              <div className={styles.titleCell}>
                 <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
                   {stock.symbol}
                 </Link>
-              </td>
-              <td className={styles.name}>{stock.name}</td>
-              <td className={`${styles.num} ${styles.price}`}>
-                {latest ? `$${latest.price.toFixed(2)}` : <span className={styles.dash}>—</span>}
-              </td>
-              <td className={`${styles.num} ${styles.change} ${changeClass}`}>
-                {latest ? `${latest.changePct >= 0 ? '+' : ''}${latest.changePct.toFixed(2)}%` : '—'}
-              </td>
-              <td className={`${styles.num} ${extPct === null ? styles.dash : extPct >= 0 ? styles.gain : styles.loss}`}>
-                {ext && extPct !== null ? (
-                  <>
-                    ${ext.close.toFixed(2)} ({extPct >= 0 ? '+' : ''}
-                    {extPct.toFixed(2)}%) <small>{ext.session === 'pre' ? 'pre' : 'post'}</small>
-                  </>
-                ) : (
-                  '—'
+                <span className={styles.name}>{stock.name}</span>
+              </div>
+              <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
+                <span className={styles.price}>{latest ? `$${latest.price.toFixed(2)}` : <span className={styles.dash}>—</span>}</span>
+                {ext && extPct !== null && (
+                  <span className={`${styles.ext} ${tone(extPct)}`}>
+                    {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)} ({signed(extPct)})
+                  </span>
                 )}
-              </td>
-              <td className={`${styles.num} ${changeClass}`}>
-                <PriceChart snapshots={stock.snapshots} width={72} height={22} strokeWidth={1.5} compact />
-              </td>
-              <td className={styles.num}>
-                <time dateTime={stock.addedAt.toISOString()}>{stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}</time>
-                <span className={`${styles.sinceDelta} ${sinceClass}`}>{sincePct === null ? '—' : `${sincePct >= 0 ? '+' : '−'}${Math.abs(sincePct).toFixed(1)}%`}</span>
-              </td>
-              <td>
+              </div>
+              <div className={`${styles.num} ${styles.change} ${changeTone}`} data-label="Oggi">
+                {latest ? signed(latest.changePct) : '—'}
+              </div>
+              <div className={`${styles.num} ${styles.sinceCell}`} data-label="Da quando lo segui">
+                <span className={`${styles.sincePct} ${tone(sincePct)}`}>{sincePct === null ? '—' : signed(sincePct)}</span>
+                <time className={styles.sinceDate} dateTime={stock.addedAt.toISOString()}>
+                  dal {stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </time>
+              </div>
+              <div className={`${styles.num} ${styles.trend} ${changeTone}`}>
+                <PriceChart snapshots={stock.snapshots} width={88} height={28} strokeWidth={1.5} compact />
+              </div>
+              <div className={styles.actions}>
                 <RemoveStockButton symbol={stock.symbol} />
-              </td>
-            </tr>
+              </div>
+            </li>
           )
         })}
-      </tbody>
-    </table>
+      </ul>
+    </>
   )
 }
 
 export default function WatchlistPage() {
   return (
     <main className={styles.shell}>
-      <div className={styles.masthead}>
-        <span className={styles.wordmark}>Any Stock</span>
+      <header className={styles.masthead}>
+        <div>
+          <p className={styles.wordmark}>Any Stock</p>
+          <h1 className={styles.title}>La tua watchlist</h1>
+        </div>
         <AddStockForm />
-      </div>
-      <Suspense fallback={<p className={styles.empty}>Loading watchlist…</p>}>
+      </header>
+      <Suspense fallback={<p className={styles.empty}>Carico la watchlist…</p>}>
         <WatchlistTable />
       </Suspense>
     </main>

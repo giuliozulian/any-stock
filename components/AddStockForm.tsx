@@ -44,17 +44,18 @@ export function AddStockForm() {
   }
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div style={{ position: 'relative' }} className={styles.wrap}>
       <form onSubmit={handleSubmit} className={styles.form}>
         <input
           value={symbol}
           onChange={(e) => setSymbol(e.target.value)}
-          placeholder="Add a symbol"
+          placeholder="Add a symbol, e.g. AAPL"
+          aria-label="Symbol"
           disabled={submitting}
           className={styles.input}
         />
         <button type="submit" disabled={submitting || !symbol.trim()} className={styles.submit}>
-          Add
+          {submitting ? 'Adding…' : 'Add'}
         </button>
       </form>
       {error && (
