@@ -67,6 +67,8 @@ describe('finnhub client', () => {
       relativePerf13W: null,
       epsTTM: null,
       epsGrowth5Y: null,
+      bookValuePerShare: null,
+      cashFlowPerShare: null,
     })
   })
 
