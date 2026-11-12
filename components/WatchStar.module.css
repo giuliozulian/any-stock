@@ -1,0 +1,55 @@
+.wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.star {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px 0 10px;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.star svg {
+  fill: none;
+  stroke: currentColor;
+}
+
+.star:hover:not(:disabled) {
+  border-color: var(--brass);
+  color: var(--amber-bright);
+}
+
+.on {
+  border-color: var(--brass);
+  color: var(--amber-bright);
+}
+
+.on svg {
+  fill: currentColor;
+}
+
+.star:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.star:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  font-size: 14px;
+  color: var(--loss-bright);
+}

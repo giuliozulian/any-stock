@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { connection } from 'next/server'
 import { getIpoCalendar, type IpoEvent } from '@/lib/finnhub'
 import styles from '../section.module.css'
@@ -43,7 +44,7 @@ async function IpoList() {
             <li key={`${i.date}-${i.name}-${idx}`} className={styles.item}>
               <span className={styles.date}>{formatDay(i.date)}</span>
               <span className={styles.main}>
-                {i.name}
+                {i.symbol ? <Link href={`/stock/${encodeURIComponent(i.symbol)}`}>{i.name}</Link> : i.name}
                 <span className={styles.sub}>{[i.symbol, i.exchange].filter(Boolean).join(' · ')}</span>
               </span>
               <span className={styles.side}>

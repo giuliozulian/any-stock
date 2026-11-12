@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import Link from 'next/link'
-import { prisma } from '@/lib/db'
 import { getRecentCongressBuys, clusterBuys, type CongressBuy } from '@/lib/congress'
 import { InfoTip } from '@/components/InfoTip'
 import styles from '../section.module.css'
@@ -29,9 +28,8 @@ function who(b: CongressBuy): string {
 
 async function CongressBuys() {
   await connection()
-  const [buys, watched] = await Promise.all([getRecentCongressBuys(), prisma.stock.findMany({ select: { symbol: true } })])
-  const watchedSymbols = new Set(watched.map((s) => s.symbol))
-  const symbolLink = (t: string) => (watchedSymbols.has(t) ? <Link href={`/stock/${t}`}>{t}</Link> : t)
+  const buys = await getRecentCongressBuys()
+  const symbolLink = (t: string) => <Link href={`/stock/${encodeURIComponent(t)}`}>{t}</Link>
 
   if (buys === null) return <p className={styles.empty}>Non riesco a scaricare le operazioni dei politici in questo momento. Riprova tra qualche minuto.</p>
   if (buys.length === 0) return <p className={styles.empty}>Nessun acquisto dichiarato di recente.</p>

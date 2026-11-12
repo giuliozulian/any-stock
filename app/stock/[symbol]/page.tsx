@@ -11,6 +11,8 @@ import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
 import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
+import { WatchStar } from '@/components/WatchStar'
+import { getProfile, getQuote } from '@/lib/finnhub'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { SinceWatching } from '@/components/SinceWatching'
@@ -43,6 +45,48 @@ function formatExchange(exchange: string): string {
   return exchange.split(' - ')[0]
 }
 
+async function StockPreview({ symbol }: { symbol: string }) {
+  let profile: Awaited<ReturnType<typeof getProfile>> | null = null
+  let quote: Awaited<ReturnType<typeof getQuote>> | null = null
+  try {
+    ;[profile, quote] = await Promise.all([getProfile(symbol), getQuote(symbol)])
+  } catch {
+    profile = null
+  }
+  if (!profile || !profile.name) notFound()
+  const up = quote ? quote.changePercent >= 0 : true
+  return (
+    <>
+      <Link href="/" className={styles.back}>
+        ← Watchlist
+      </Link>
+      <header className={styles.header}>
+        <div>
+          <p className={styles.ticker}>
+            {formatExchange(profile.exchange)}: {symbol}
+          </p>
+          <h1 className={styles.name}>{profile.name}</h1>
+          <div className={styles.starRow}>
+            <WatchStar symbol={symbol} watched={false} />
+          </div>
+        </div>
+        {quote && quote.currentPrice > 0 && (
+          <div className={styles.quote}>
+            <div className={styles.heroRow}>
+              <span className={styles.price}>${quote.currentPrice.toFixed(2)}</span>
+              <span className={`${styles.change} ${up ? styles.gain : styles.loss}`}>
+                {up ? '+' : '−'}
+                {Math.abs(quote.changePercent).toFixed(2)}%
+              </span>
+            </div>
+          </div>
+        )}
+      </header>
+      <p className={styles.stale}>Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.</p>
+    </>
+  )
+}
+
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
   await connection()
   const { symbol: rawSymbol } = await paramsPromise
@@ -63,7 +107,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   })
 
   if (!stock) {
-    notFound()
+    return <StockPreview symbol={symbol} />
   }
 
   const latest = stock.snapshots[0]
@@ -142,6 +186,9 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             {formatExchange(stock.exchange)}: {stock.symbol}
           </p>
           <h1 className={styles.name}>{stock.name}</h1>
+          <div className={styles.starRow}>
+            <WatchStar symbol={stock.symbol} watched />
+          </div>
         </div>
 
         {latest ? (

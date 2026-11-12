@@ -55,7 +55,7 @@ async function BigMovers() {
                 {Math.abs(m.changePct).toFixed(2)}%
               </span>
               <span className={styles.main}>
-                {watchedSymbols.has(m.symbol) ? <Link href={`/stock/${m.symbol}`}>{m.symbol}</Link> : m.symbol}
+                <Link href={`/stock/${encodeURIComponent(m.symbol)}`}>{m.symbol}</Link>
                 <span className={styles.sub}>
                   {m.name}
                   {watchedSymbols.has(m.symbol) ? ' · in watchlist' : ''}
