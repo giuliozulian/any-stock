@@ -13,11 +13,16 @@ function formatMoney(n: number): string {
 }
 
 
-async function BigMovers() {
+const THRESHOLDS = [5, 10, BIG_MOVE_THRESHOLD_PCT]
+
+async function BigMovers({ searchParams }: { searchParams: Promise<{ soglia?: string }> }) {
   await connection()
+  const { soglia } = await searchParams
+  const parsed = Number(soglia)
+  const threshold = THRESHOLDS.includes(parsed) ? parsed : BIG_MOVE_THRESHOLD_PCT
   const [watched, marketResult] = await Promise.all([
     prisma.stock.findMany({ select: { symbol: true } }),
-    getMarketBigMovers().then(
+    getMarketBigMovers(threshold).then(
       (movers) => ({ movers, failed: false }),
       (err) => {
         console.error('Market movers failed:', err instanceof Error ? err.message : err)
@@ -34,18 +39,26 @@ async function BigMovers() {
         <InfoTip
           label="Cos’è questa sezione"
           source="Yahoo Finance, classifiche pubbliche dei titoli USA che salgono e scendono di più oggi"
-          formula={`Compare un titolo se la variazione giornaliera è almeno ±${BIG_MOVE_THRESHOLD_PCT}% e il prezzo è almeno 1 $`}
+          formula={`Compare un titolo se la variazione giornaliera è almeno ±${threshold}% e il prezzo è almeno 1 $`}
         >
           <strong>Movimenti forti</strong>
-          <span>Tutti i titoli USA che oggi hanno guadagnato o perso almeno il {BIG_MOVE_THRESHOLD_PCT}%, non solo quelli che segui.</span>
-          <span>Ho escluso i titoli sotto 1 $ perché sono quasi sempre rumore. Le classifiche mostrano i primi 100 per direzione.</span>
+          <span>Tutti i titoli USA che oggi hanno guadagnato o perso almeno il {threshold}%, non solo quelli che segui.</span>
+          <span>Ho escluso i titoli sotto 1 $ perché sono quasi sempre rumore. Yahoo pubblica solo le sue classifiche dei titoli che salgono e scendono di più, quindi nei giorni tranquilli i risultati sono pochi.</span>
         </InfoTip>
       </h2>
-      <p className={styles.lead}>Titoli di tutto il mercato USA che oggi si sono mossi di almeno il {BIG_MOVE_THRESHOLD_PCT}%. Quelli in watchlist sono segnati.</p>
+      <p className={styles.lead}>Titoli di tutto il mercato USA che oggi si sono mossi di almeno il {threshold}%. Quelli in watchlist sono segnati.</p>
+      <p className={styles.lead}>
+        Soglia:{' '}
+        {THRESHOLDS.map((t) => (
+          <Link key={t} href={`/movimenti?soglia=${t}`} aria-current={t === threshold ? 'page' : undefined} style={{ marginRight: 12, fontWeight: t === threshold ? 700 : 400 }}>
+            ±{t}%
+          </Link>
+        ))}
+      </p>
       {failed ? (
         <p className={styles.empty}>Non riesco a scaricare le classifiche del mercato in questo momento. Riprova tra qualche minuto.</p>
       ) : movers.length === 0 ? (
-        <p className={styles.empty}>Oggi nessun titolo ha superato ±{BIG_MOVE_THRESHOLD_PCT}%.</p>
+        <p className={styles.empty}>Oggi nessun titolo ha superato ±{threshold}%. Prova una soglia più bassa.</p>
       ) : (
         <ul className={styles.list}>
           {movers.map((m) => (
@@ -73,12 +86,12 @@ async function BigMovers() {
   )
 }
 
-export default function MoversPage() {
+export default function MoversPage({ searchParams }: { searchParams: Promise<{ soglia?: string }> }) {
   return (
     <main className={styles.shell}>
       <h1 className={styles.title}>Movimenti forti</h1>
       <Suspense fallback={<p className={styles.empty}>Carico i movimenti…</p>}>
-        <BigMovers />
+        <BigMovers searchParams={searchParams} />
       </Suspense>
     </main>
   )
