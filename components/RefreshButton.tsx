@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import styles from './ghost-button.module.css'
 
 export function RefreshButton({ symbol }: { symbol: string }) {
   const router = useRouter()
@@ -37,10 +38,14 @@ export function RefreshButton({ symbol }: { symbol: string }) {
 
   return (
     <>
-      <button type="button" onClick={handleClick} disabled={refreshing}>
-        Refresh
+      <button type="button" onClick={handleClick} disabled={refreshing} className={styles.button}>
+        {refreshing ? 'Refreshing…' : 'Refresh'}
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
     </>
   )
 }

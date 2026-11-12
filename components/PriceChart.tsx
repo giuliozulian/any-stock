@@ -7,10 +7,12 @@ export function PriceChart({
   snapshots,
   width = 300,
   height = 80,
+  strokeWidth = 2,
 }: {
   snapshots: Snapshot[]
   width?: number
   height?: number
+  strokeWidth?: number
 }) {
   if (snapshots.length === 0) {
     return <p>No price history yet.</p>
@@ -36,7 +38,7 @@ export function PriceChart({
 
   return (
     <svg width={width} height={height} role="img" aria-label="Price history chart">
-      <polyline points={points} fill="none" stroke="currentColor" strokeWidth={2} />
+      <polyline points={points} fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

@@ -1,9 +1,11 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/db'
 import { PriceChart } from '@/components/PriceChart'
 import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
+import styles from './page.module.css'
 
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = await paramsPromise
@@ -22,33 +24,66 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   }
 
   const latest = stock.snapshots[0]
+  const changeClass = latest ? (latest.changePct >= 0 ? styles.gain : styles.loss) : ''
 
   return (
     <>
-      <h1>
-        {stock.symbol} — {stock.name}
-      </h1>
-      <RefreshButton symbol={stock.symbol} />
+      <Link href="/" className={styles.back}>
+        ← Watchlist
+      </Link>
+
+      <p className={styles.ticker}>
+        {stock.exchange}: {stock.symbol}
+      </p>
+      <h1 className={styles.name}>{stock.name}</h1>
+
       {latest ? (
-        <section>
-          <p>
-            Price: ${latest.price.toFixed(2)} ({latest.changePct.toFixed(2)}%)
-          </p>
-          <p>P/E: {latest.peRatio ?? '—'}</p>
-          <p>Market cap: {latest.marketCap ?? '—'}</p>
-          <p>
-            52w range: {latest.week52Low ?? '—'} – {latest.week52High ?? '—'}
-          </p>
-          <p>Updated at {latest.timestamp.toLocaleString()}</p>
-        </section>
+        <>
+          <div className={styles.heroRow}>
+            <span className={styles.price}>${latest.price.toFixed(2)}</span>
+            <span className={`${styles.change} ${changeClass}`}>
+              {latest.changePct >= 0 ? '+' : ''}
+              {latest.changePct.toFixed(2)}%
+            </span>
+            <span className={`${styles.sparkline} ${changeClass}`}>
+              <PriceChart snapshots={stock.snapshots} width={100} height={32} strokeWidth={1.5} />
+            </span>
+          </div>
+          <p className={styles.stale}>Updated {latest.timestamp.toLocaleString()}</p>
+        </>
       ) : (
-        <p>No data yet. Refresh to fetch the latest snapshot.</p>
+        <p className={styles.stale}>No data yet. Refresh to fetch the latest snapshot.</p>
       )}
-      <PriceChart snapshots={stock.snapshots} />
-      <section>
-        <h2>Considerations</h2>
-        <p>Valuation and buy/sell signals are not implemented yet.</p>
-      </section>
+
+      <div className={styles.actions}>
+        <RefreshButton symbol={stock.symbol} />
+      </div>
+
+      {latest && (
+        <dl className={styles.metrics}>
+          <div className={styles.metricRow}>
+            <dt className={styles.metricLabel}>P/E ratio</dt>
+            <dd className={styles.metricValue}>{latest.peRatio?.toFixed(1) ?? '—'}</dd>
+          </div>
+          <div className={styles.metricRow}>
+            <dt className={styles.metricLabel}>Market cap</dt>
+            <dd className={styles.metricValue}>{latest.marketCap ?? '—'}</dd>
+          </div>
+          <div className={styles.metricRow}>
+            <dt className={styles.metricLabel}>52-week range</dt>
+            <dd className={styles.metricValue}>
+              {latest.week52Low ?? '—'} – {latest.week52High ?? '—'}
+            </dd>
+          </div>
+        </dl>
+      )}
+
+      <div className={styles.considerations}>
+        <p className={styles.considerationsTitle}>Considerations</p>
+        <p className={styles.considerationsBody}>Valuation and buy/sell signals aren't built yet.</p>
+      </div>
+
+      <p className={styles.newsTitle}>Recent news</p>
       <NewsList news={stock.news} />
     </>
   )
@@ -56,8 +91,8 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   return (
-    <main>
-      <Suspense fallback={<p>Loading stock...</p>}>
+    <main className={styles.shell}>
+      <Suspense fallback={<p className={styles.stale}>Loading stock…</p>}>
         <StockDetail paramsPromise={params} />
       </Suspense>
     </main>

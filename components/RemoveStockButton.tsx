@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import styles from './ghost-button.module.css'
 
 export function RemoveStockButton({ symbol }: { symbol: string }) {
   const router = useRouter()
@@ -37,10 +38,14 @@ export function RemoveStockButton({ symbol }: { symbol: string }) {
 
   return (
     <>
-      <button type="button" onClick={handleClick} disabled={removing}>
-        Remove
+      <button type="button" onClick={handleClick} disabled={removing} className={styles.button}>
+        {removing ? 'Removing…' : 'Remove'}
       </button>
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
     </>
   )
 }

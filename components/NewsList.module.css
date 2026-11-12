@@ -1,0 +1,32 @@
+.list {
+  list-style: none;
+}
+
+.item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+.headline {
+  font-size: 15px;
+}
+
+.headline:hover {
+  color: var(--brass);
+}
+
+.meta {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 15px;
+}

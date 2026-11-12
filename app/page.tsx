@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
+import styles from './page.module.css'
 
 async function WatchlistTable() {
   const stocks = await prisma.stock.findMany({
@@ -12,34 +13,41 @@ async function WatchlistTable() {
   })
 
   if (stocks.length === 0) {
-    return <p>No stocks yet. Add a symbol above to get started.</p>
+    return <p className={styles.empty}>No stocks yet. Add a symbol above to get started.</p>
   }
 
   return (
-    <table>
+    <table className={styles.table}>
       <thead>
         <tr>
           <th>Symbol</th>
-          <th>Name</th>
-          <th>Price</th>
-          <th>Change %</th>
-          <th>Trend</th>
-          <th>Actions</th>
+          <th>Company</th>
+          <th className={styles.num}>Price</th>
+          <th className={styles.num}>Change</th>
+          <th className={styles.num}>Trend</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
         {stocks.map((stock) => {
           const latest = stock.snapshots[0]
+          const changeClass = !latest ? styles.dash : latest.changePct >= 0 ? styles.gain : styles.loss
           return (
             <tr key={stock.id}>
               <td>
-                <Link href={`/stock/${stock.symbol}`}>{stock.symbol}</Link>
+                <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
+                  {stock.symbol}
+                </Link>
               </td>
-              <td>{stock.name}</td>
-              <td>{latest ? `$${latest.price.toFixed(2)}` : '—'}</td>
-              <td>{latest ? `${latest.changePct.toFixed(2)}%` : '—'}</td>
-              <td>
-                <PriceChart snapshots={stock.snapshots} width={80} height={24} />
+              <td className={styles.name}>{stock.name}</td>
+              <td className={`${styles.num} ${styles.price}`}>
+                {latest ? `$${latest.price.toFixed(2)}` : <span className={styles.dash}>—</span>}
+              </td>
+              <td className={`${styles.num} ${styles.change} ${changeClass}`}>
+                {latest ? `${latest.changePct >= 0 ? '+' : ''}${latest.changePct.toFixed(2)}%` : '—'}
+              </td>
+              <td className={`${styles.num} ${changeClass}`}>
+                <PriceChart snapshots={stock.snapshots} width={72} height={22} strokeWidth={1.5} />
               </td>
               <td>
                 <RemoveStockButton symbol={stock.symbol} />
@@ -54,10 +62,12 @@ async function WatchlistTable() {
 
 export default function WatchlistPage() {
   return (
-    <main>
-      <h1>Watchlist</h1>
-      <AddStockForm />
-      <Suspense fallback={<p>Loading watchlist...</p>}>
+    <main className={styles.shell}>
+      <div className={styles.masthead}>
+        <span className={styles.wordmark}>Any Stock</span>
+        <AddStockForm />
+      </div>
+      <Suspense fallback={<p className={styles.empty}>Loading watchlist…</p>}>
         <WatchlistTable />
       </Suspense>
     </main>

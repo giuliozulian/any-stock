@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import styles from './AddStockForm.module.css'
 
 export function AddStockForm() {
   const router = useRouter()
@@ -43,17 +44,24 @@ export function AddStockForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        value={symbol}
-        onChange={(e) => setSymbol(e.target.value)}
-        placeholder="Symbol (e.g. AAPL)"
-        disabled={submitting}
-      />
-      <button type="submit" disabled={submitting || !symbol.trim()}>
-        Add
-      </button>
-      {error && <p role="alert">{error}</p>}
-    </form>
+    <div style={{ position: 'relative' }}>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        <input
+          value={symbol}
+          onChange={(e) => setSymbol(e.target.value)}
+          placeholder="Add a symbol"
+          disabled={submitting}
+          className={styles.input}
+        />
+        <button type="submit" disabled={submitting || !symbol.trim()} className={styles.submit}>
+          Add
+        </button>
+      </form>
+      {error && (
+        <p role="alert" className={styles.error}>
+          {error}
+        </p>
+      )}
+    </div>
   )
 }

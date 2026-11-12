@@ -1,0 +1,25 @@
+.button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+  color: var(--brass);
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.error {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--loss);
+}
