@@ -118,10 +118,11 @@ async function StockPreview({ symbol }: { symbol: string }) {
   }
 
   const covered = Boolean(profile && profile.name)
-  const [history, intraday, metrics] = await Promise.all([
+  const [history, intraday, metrics, years] = await Promise.all([
     getPriceHistory(symbol),
     getIntradayHistory(symbol),
     covered ? getMetrics(symbol).catch(() => null) : Promise.resolve(null),
+    covered ? getAnnualFinancials(symbol).catch(() => []) : Promise.resolve([]),
   ])
   const yahoo = covered ? null : await getYahooQuote(symbol)
   if (!covered && !yahoo) {
@@ -179,6 +180,12 @@ async function StockPreview({ symbol }: { symbol: string }) {
           <h2 className={styles.sectionTitle}>Andamento del prezzo</h2>
           <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} />
         </section>
+      )}
+      {covered && price > 0 && metrics && (
+        <FairValueCard
+          input={{ price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+          altman={years.length > 0 ? altmanZ(years[years.length - 1], profile?.marketCapitalization ? profile.marketCapitalization * 1e6 : null) : null}
+        />
       )}
       {metrics && (metrics.week52Low !== null || metrics.peRatio !== null) && (
         <dl className={styles.previewStats}>
@@ -353,6 +360,13 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
       <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
 
+      {latest && metrics && (
+        <FairValueCard
+          input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+          altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
+        />
+      )}
+
       <div className={styles.hero}>
         {latest && (
           <div className={styles.chartCol}>
@@ -458,14 +472,6 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             content: (
               <>
                 {evaluation && <ReasonsSection evaluation={evaluation} />}
-
-                {latest && metrics && (
-                  <FairValueCard
-                    input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
-                    altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
-                  />
-                )}
-
                 <div className={styles.layout}>
                   {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
                   {evaluation && <FundamentalsGrid details={evaluation.details} />}

@@ -5,7 +5,8 @@ import styles from './FairValueCard.module.css'
 
 export function FairValueCard({ input, altman = null }: { input: FairValueInput; altman?: AltmanResult | null }) {
   const result = fairValue(input)
-  if (!result) return null
+  if (!result && !altman) return null
+  if (!result) return <AltmanLine altman={altman!} standalone />
   const { average, premiumPct, models } = result
   const above = premiumPct >= 0
   const near = Math.abs(premiumPct) < 5
@@ -39,12 +40,17 @@ export function FairValueCard({ input, altman = null }: { input: FairValueInput;
           </li>
         ))}
       </ul>
-      {altman && (
-        <p className={styles.altman}>
-          Rischio di dissesto (Altman Z): <strong>{altman.score.toFixed(2)}</strong>{' '}
-          {altman.zone === 'safe' ? '— rischio basso di fallimento' : altman.zone === 'grey' ? '— zona grigia, situazione incerta' : '— rischio elevato di difficoltà finanziarie'}
-        </p>
-      )}
+      {altman && <AltmanLine altman={altman} />}
     </section>
   )
+}
+
+function AltmanLine({ altman, standalone = false }: { altman: AltmanResult; standalone?: boolean }) {
+  const line = (
+    <p className={standalone ? styles.altmanSolo : styles.altman}>
+      Rischio di dissesto (Altman Z): <strong>{altman.score.toFixed(2)}</strong>{' '}
+      {altman.zone === 'safe' ? '— rischio basso di fallimento' : altman.zone === 'grey' ? '— zona grigia, situazione incerta' : '— rischio elevato di difficoltà finanziarie'}
+    </p>
+  )
+  return standalone ? <section className={styles.card}>{line}</section> : line
 }
