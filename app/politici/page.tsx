@@ -1,8 +1,10 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import Link from 'next/link'
-import { getRecentCongressBuys, clusterBuys, type CongressBuy } from '@/lib/congress'
+import { getRecentCongressBuys, clusterBuys } from '@/lib/congress'
 import { InfoTip } from '@/components/InfoTip'
+import { MemberName, type MemberCard } from '@/components/MemberName'
+import { getMemberProfiles, memberStats } from '@/lib/politician-profiles'
 import styles from '../section.module.css'
 
 const short = (v: number) => (v >= 1_000_000 ? `${+(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : String(v))
@@ -21,11 +23,6 @@ function Perf({ pct }: { pct: number | null }) {
   )
 }
 
-function who(b: CongressBuy): string {
-  const chamber = b.chamber === 'senate' ? 'Senato' : b.chamber === 'house' ? 'Camera' : b.chamber
-  return `${b.member} (${chamber}${b.state ? ` ${b.state}` : ''})`
-}
-
 async function CongressBuys() {
   await connection()
   const buys = await getRecentCongressBuys()
@@ -34,6 +31,27 @@ async function CongressBuys() {
   if (buys === null) return <p className={styles.empty}>Non riesco a scaricare le operazioni dei politici in questo momento. Riprova tra qualche minuto.</p>
   if (buys.length === 0) return <p className={styles.empty}>Nessun acquisto dichiarato di recente.</p>
 
+  const people = new Map<string, { member: string; chamber: string; state: string }>()
+  for (const b of buys) if (!people.has(b.member)) people.set(b.member, { member: b.member, chamber: b.chamber, state: b.state })
+  const [profiles, stats] = [await getMemberProfiles([...people.values()]), memberStats(buys)]
+  const person = (name: string) => {
+    const p = people.get(name)
+    const prof = profiles.get(name)
+    const st = stats.get(name)
+    const card: MemberCard = {
+      name,
+      chamber: p?.chamber ?? '',
+      state: p?.state ?? '',
+      party: prof?.party ?? '',
+      role: prof?.role ?? '',
+      influence: prof?.influence ?? '',
+      note: prof?.note ?? '',
+      purchases: st?.purchases ?? 0,
+      tickers: st?.tickers ?? 0,
+      avgPerfPct: st?.avgPerfPct ?? null,
+    }
+    return <MemberName card={card} />
+  }
   const clusters = clusterBuys(buys).slice(0, 12)
   const big = buys
     .filter((b) => b.amountLow >= BIG_BUY_MIN)
@@ -70,7 +88,13 @@ async function CongressBuys() {
                   <span className={styles.sub}>{c.asset}</span>
                 </span>
                 <span className={styles.date}>
-                  {c.members.length} politici: {c.members.join(', ')}
+                  {c.members.length} politici:{' '}
+                  {c.members.map((m, k) => (
+                    <span key={m}>
+                      {k > 0 && ', '}
+                      {person(m)}
+                    </span>
+                  ))}
                 </span>
                 <span className={styles.side}>
                   {amount(c.totalLow, c.totalHigh)} in totale · pubblicato il {day(c.lastDisclosedAt)}
@@ -97,7 +121,7 @@ async function CongressBuys() {
                   <span className={styles.sub}>{b.asset}</span>
                 </span>
                 <span className={styles.date}>
-                  {who(b)} · {amount(b.amountLow, b.amountHigh)}
+                  {person(b.member)} · {amount(b.amountLow, b.amountHigh)}
                 </span>
                 <span className={styles.side}>
                   comprato il {day(b.date)}
@@ -123,7 +147,7 @@ async function CongressBuys() {
                 <span className={styles.main}>
                   {symbolLink(b.ticker)}
                   <span className={styles.sub}>
-                    {b.asset} · {who(b)}
+                    {b.asset} · {person(b.member)}
                   </span>
                 </span>
                 <span className={styles.side}>{amount(b.amountLow, b.amountHigh)}</span>
