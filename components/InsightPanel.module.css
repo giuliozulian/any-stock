@@ -1,13 +1,8 @@
-.card {
+.note {
   --tone: var(--muted);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 16px 20px;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-left: 4px solid var(--tone);
-  border-radius: 6px;
+  margin-bottom: 40px;
+  padding: 4px 0 4px 24px;
+  border-left: 3px solid var(--tone);
 }
 
 .positive {
@@ -26,27 +21,53 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 10px;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  gap: 4px 16px;
+  margin-bottom: 12px;
 }
 
-.label {
-  color: var(--brass);
+.title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--tone);
 }
 
+.verdict::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
 .summary {
-  color: var(--bone);
-  font-size: 15px;
+  max-width: 64ch;
+  font-size: 20px;
   line-height: 1.55;
+  color: var(--bone);
+  text-wrap: pretty;
 }
 
 .footnote {
+  margin-top: 12px;
+  font-size: 13px;
   color: var(--muted);
-  font-size: 12px;
+}
+
+@media (max-width: 600px) {
+  .note {
+    padding-left: 16px;
+  }
+
+  .summary {
+    font-size: 18px;
+  }
 }
