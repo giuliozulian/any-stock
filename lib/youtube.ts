@@ -40,7 +40,26 @@ function decodeEntities(text: string): string {
     .replace(/&gt;/g, '>')
 }
 
-// Una ricerca costa 100 unità sulle 10.000 giornaliere gratuite: cache di 6 ore per titolo.
+const MAX_VIDEOS = 6
+
+async function searchVideos(query: string, key: string, language?: string): Promise<RecentVideo[] | null> {
+  const params = new URLSearchParams({
+    part: 'snippet',
+    type: 'video',
+    maxResults: String(MAX_VIDEOS),
+    order: 'relevance',
+    q: query,
+    publishedAfter: new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
+    key,
+  })
+  if (language) params.set('relevanceLanguage', language)
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, { signal: AbortSignal.timeout(6000) })
+  if (!res.ok) return null
+  return parseYoutubeSearch(await res.json())
+}
+
+// Due ricerche (italiano, poi generica) costano 200 unità sulle 10.000 giornaliere gratuite: cache di 6 ore per titolo.
+// I video in italiano vengono messi per primi; la ricerca generica completa fino a 6 risultati.
 export async function getRecentVideos(symbol: string, name: string): Promise<RecentVideo[]> {
   const key = process.env.YOUTUBE_API_KEY
   if (!key) return []
@@ -48,20 +67,16 @@ export async function getRecentVideos(symbol: string, name: string): Promise<Rec
   const hit = cache.get(cacheKey)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.videos
 
-  const params = new URLSearchParams({
-    part: 'snippet',
-    type: 'video',
-    maxResults: '6',
-    order: 'relevance',
-    relevanceLanguage: 'it',
-    q: `${name} ${symbol} stock`,
-    publishedAfter: new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
-    key,
-  })
   try {
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params}`, { signal: AbortSignal.timeout(6000) })
-    if (!res.ok) return hit?.videos ?? []
-    const videos = parseYoutubeSearch(await res.json())
+    const [italian, general] = await Promise.all([
+      searchVideos(`${name} ${symbol} azioni`, key, 'it').catch(() => null),
+      searchVideos(`${name} ${symbol} stock`, key).catch(() => null),
+    ])
+    if (!italian && !general) return hit?.videos ?? []
+    const seen = new Set<string>()
+    const videos = [...(italian ?? []), ...(general ?? [])]
+      .filter((v) => !seen.has(v.id) && seen.add(v.id))
+      .slice(0, MAX_VIDEOS)
     cache.set(cacheKey, { at: Date.now(), videos })
     return videos
   } catch {
