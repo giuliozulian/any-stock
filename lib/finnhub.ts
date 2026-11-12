@@ -26,6 +26,24 @@ export interface FinnhubMetrics {
   peRatio: number | null
   week52High: number | null
   week52Low: number | null
+  pegRatio: number | null
+  roe: number | null
+  netMargin: number | null
+  debtToEquity: number | null
+  dividendYield: number | null
+  payoutRatio: number | null
+  relativePerf13W: number | null
+  epsTTM: number | null
+  epsGrowth5Y: number | null
+}
+
+export interface FinnhubRecommendation {
+  period: string
+  strongBuy: number
+  buy: number
+  hold: number
+  sell: number
+  strongSell: number
 }
 
 export interface FinnhubNewsItem {
@@ -98,7 +116,30 @@ export async function getMetrics(symbol: string): Promise<FinnhubMetrics> {
     peRatio: data.metric.peBasicExclExtraTTM ?? null,
     week52High: data.metric['52WeekHigh'] ?? null,
     week52Low: data.metric['52WeekLow'] ?? null,
+    pegRatio: data.metric.pegTTM ?? null,
+    roe: data.metric.roeTTM ?? null,
+    netMargin: data.metric.netProfitMarginTTM ?? null,
+    debtToEquity: data.metric['totalDebt/totalEquityAnnual'] ?? null,
+    dividendYield: data.metric.currentDividendYieldTTM ?? null,
+    payoutRatio: data.metric.payoutRatioTTM ?? null,
+    relativePerf13W: data.metric['priceRelativeToS&P50013Week'] ?? null,
+    epsTTM: data.metric.epsTTM ?? null,
+    epsGrowth5Y: data.metric.epsGrowth5Y ?? null,
   }
+}
+
+export async function getRecommendationTrend(symbol: string): Promise<FinnhubRecommendation[]> {
+  const data = await finnhubFetch<
+    Array<{ symbol: string; period: string; strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }>
+  >('/stock/recommendation', { symbol })
+  return data.map((d) => ({
+    period: d.period,
+    strongBuy: d.strongBuy,
+    buy: d.buy,
+    hold: d.hold,
+    sell: d.sell,
+    strongSell: d.strongSell,
+  }))
 }
 
 export async function getCompanyNews(symbol: string, fromDate: string, toDate: string): Promise<FinnhubNewsItem[]> {

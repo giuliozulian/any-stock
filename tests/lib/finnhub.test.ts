@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews } from '@/lib/finnhub'
+import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from '@/lib/finnhub'
 
 function mockFetchOnce(body: unknown, ok = true) {
   vi.stubGlobal(
@@ -54,7 +54,60 @@ describe('finnhub client', () => {
   it('getMetrics falls back to null for missing fields', async () => {
     mockFetchOnce({ metric: {} })
     const metrics = await getMetrics('AAPL')
-    expect(metrics).toEqual({ peRatio: null, week52High: null, week52Low: null })
+    expect(metrics).toEqual({
+      peRatio: null,
+      week52High: null,
+      week52Low: null,
+      pegRatio: null,
+      roe: null,
+      netMargin: null,
+      debtToEquity: null,
+      dividendYield: null,
+      payoutRatio: null,
+      relativePerf13W: null,
+      epsTTM: null,
+      epsGrowth5Y: null,
+    })
+  })
+
+  it('getMetrics maps fundamental and momentum fields when present', async () => {
+    mockFetchOnce({
+      metric: {
+        pegTTM: 1.4,
+        roeTTM: 22.5,
+        netProfitMarginTTM: 18.2,
+        'totalDebt/totalEquityAnnual': 0.8,
+        currentDividendYieldTTM: 0.5,
+        payoutRatioTTM: 15,
+        'priceRelativeToS&P50013Week': 3.1,
+        epsTTM: 6.4,
+        epsGrowth5Y: 12.5,
+      },
+    })
+    const metrics = await getMetrics('AAPL')
+    expect(metrics).toMatchObject({
+      pegRatio: 1.4,
+      roe: 22.5,
+      netMargin: 18.2,
+      debtToEquity: 0.8,
+      dividendYield: 0.5,
+      payoutRatio: 15,
+      relativePerf13W: 3.1,
+      epsTTM: 6.4,
+      epsGrowth5Y: 12.5,
+    })
+  })
+
+  it('getRecommendationTrend maps analyst recommendation periods', async () => {
+    mockFetchOnce([
+      { symbol: 'AAPL', period: '2026-11-01', strongBuy: 11, buy: 19, hold: 15, sell: 3, strongSell: 1 },
+      { symbol: 'AAPL', period: '2026-10-01', strongBuy: 11, buy: 20, hold: 14, sell: 3, strongSell: 1 },
+    ])
+    const trend = await getRecommendationTrend('AAPL')
+    expect(trend).toEqual([
+      { period: '2026-11-01', strongBuy: 11, buy: 19, hold: 15, sell: 3, strongSell: 1 },
+      { period: '2026-10-01', strongBuy: 11, buy: 20, hold: 14, sell: 3, strongSell: 1 },
+    ])
   })
 
   it('getCompanyNews maps news items', async () => {
