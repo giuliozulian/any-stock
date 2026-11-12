@@ -53,6 +53,7 @@ export async function getRecentVideos(symbol: string, name: string): Promise<Rec
     type: 'video',
     maxResults: '6',
     order: 'relevance',
+    relevanceLanguage: 'it',
     q: `${name} ${symbol} stock`,
     publishedAfter: new Date(Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString(),
     key,

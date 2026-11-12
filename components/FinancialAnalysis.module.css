@@ -1,0 +1,180 @@
+.section {
+  min-width: 0;
+  margin-top: 56px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.hint {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.metric {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.metricTitle {
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bars {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 8px;
+}
+
+.barCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.barValue {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bone);
+  white-space: nowrap;
+}
+
+.barTrack {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  height: 90px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.bar {
+  display: block;
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+}
+
+.pos {
+  background: var(--gain-bright);
+}
+
+.neg {
+  background: var(--loss-bright);
+}
+
+.barYear {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.scores {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.score {
+  padding: 16px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.scoreTitle {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.scoreValue {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 34px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.scoreLabel {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.scoreText {
+  font-size: 14px;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.gain {
+  color: var(--gain-bright);
+}
+
+.loss {
+  color: var(--loss-bright);
+}
+
+.flat {
+  color: var(--amber-bright);
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+}
+
+.checks li {
+  display: flex;
+  gap: 8px;
+}
+
+.ok {
+  color: var(--bone);
+}
+
+.ok span[aria-hidden] {
+  color: var(--gain-bright);
+}
+
+.ko {
+  color: var(--muted);
+}
+
+.ko span[aria-hidden] {
+  color: var(--loss-bright);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
