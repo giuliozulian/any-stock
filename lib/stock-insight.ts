@@ -32,7 +32,7 @@ Scrivi un riassunto e una valutazione complessiva, solo in base al contenuto for
 Le notizie sono più affidabili dei video: i video sono opinioni di terzi, usali solo come segnale di sentiment e pesali meno.
 Se il materiale è scarso o non riguarda davvero il titolo, usa verdict "neutral" e confidence "low".
 Rispondi SOLO con un oggetto JSON con questi campi:
-- summary: riassunto in italiano, massimo 500 caratteri, parole semplici
+- summary: riassunto in italiano di massimo 2 frasi brevi (circa 250 caratteri) che dice cosa emerge da notizie e video e come valutarli per il titolo, parole semplici
 - verdict: "positive" | "neutral" | "negative" (tono complessivo del materiale per il titolo)
 - score: intero da 1 (segnale debolissimo) a 5 (segnale molto forte) sulla forza del verdetto
 - keyPoints: da 1 a 4 punti chiave in italiano, ciascuno massimo 140 caratteri

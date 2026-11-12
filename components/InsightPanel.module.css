@@ -2,8 +2,8 @@
   --tone: var(--muted);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 20px 24px;
+  gap: 8px;
+  padding: 16px 20px;
   background: var(--surface);
   border: 1px solid var(--rule);
   border-left: 4px solid var(--tone);
@@ -26,40 +26,24 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 12px;
-}
-
-.verdict {
-  color: var(--tone);
-  font-size: 16px;
-}
-
-.meta {
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.summary {
-  color: var(--bone);
-  line-height: 1.55;
-}
-
-.label {
-  margin-bottom: 6px;
-  color: var(--brass);
+  gap: 10px;
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-left: 18px;
+.label {
+  color: var(--brass);
+}
+
+.verdict {
+  color: var(--tone);
+}
+
+.summary {
   color: var(--bone);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.55;
 }
 
 .footnote {
