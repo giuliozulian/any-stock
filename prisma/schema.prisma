@@ -12,6 +12,10 @@ model Stock {
   name            String
   exchange        String
   addedAt         DateTime                @default(now())
+  entryPrice       Float?
+  sellPrice        Float?
+  entryTriggeredAt DateTime?
+  sellTriggeredAt  DateTime?
   snapshots       PriceSnapshot[]
   news            NewsItem[]
   recommendations AnalystRecommendation[]

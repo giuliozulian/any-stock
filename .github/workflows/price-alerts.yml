@@ -1,0 +1,20 @@
+# Free, frequent price-alert check (Vercel Hobby crons are limited to once a day).
+# Needs repository secrets: APP_URL (e.g. https://any-stock.vercel.app) and CRON_SECRET.
+name: price-alerts
+
+on:
+  schedule:
+    # Every 10 minutes during US market hours (13:00-21:59 UTC), Mon-Fri
+    - cron: '*/10 13-21 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call alerts endpoint
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/alerts"

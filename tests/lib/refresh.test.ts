@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
+import * as notify from '@/lib/notify'
 import { resetDb } from '../helpers/db'
 import { refreshStock, refreshAllStocks } from '@/lib/refresh'
 
@@ -70,6 +71,25 @@ describe('refreshStock', () => {
     expect(recs).toHaveLength(1)
     expect(recs[0].strongBuy).toBe(11)
     expect(recs[0].period).toEqual(new Date('2026-11-01'))
+  })
+
+  it('emails once when the sell target is reached and marks it triggered only after a successful send', async () => {
+    const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', sellPrice: 140 } })
+    vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149, previousClose: 148 })
+    vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'Apple Inc.', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 1 })
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS })
+    vi.spyOn(finnhub, 'getCompanyNews').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getRecommendationTrend').mockResolvedValue([])
+    const send = vi.spyOn(notify, 'sendAlertEmail').mockResolvedValueOnce(false).mockResolvedValue(true)
+
+    await refreshStock('AAPL')
+    expect((await prisma.stock.findUniqueOrThrow({ where: { id: stock.id } })).sellTriggeredAt).toBeNull()
+
+    await refreshStock('AAPL')
+    expect((await prisma.stock.findUniqueOrThrow({ where: { id: stock.id } })).sellTriggeredAt).not.toBeNull()
+
+    await refreshStock('AAPL')
+    expect(send).toHaveBeenCalledTimes(2)
   })
 
   it('returns ok:false and does not throw when Finnhub fails', async () => {

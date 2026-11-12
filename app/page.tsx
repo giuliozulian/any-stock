@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
+import { AlertTargets } from '@/components/AlertTargets'
 import { getIntradayHistory } from '@/lib/history'
 import styles from './page.module.css'
 
@@ -71,6 +72,13 @@ async function WatchlistTable() {
                   {stock.symbol}
                 </Link>
                 <span className={styles.name}>{stock.name}</span>
+                <AlertTargets
+                  symbol={stock.symbol}
+                  entryPrice={stock.entryPrice}
+                  sellPrice={stock.sellPrice}
+                  entryTriggered={stock.entryTriggeredAt !== null}
+                  sellTriggered={stock.sellTriggeredAt !== null}
+                />
               </div>
               <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
                 <span className={styles.price}>{latest ? `$${latest.price.toFixed(2)}` : <span className={styles.dash}>—</span>}</span>

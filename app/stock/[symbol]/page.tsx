@@ -12,6 +12,7 @@ import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { SinceWatching } from '@/components/SinceWatching'
+import { AlertTargets } from '@/components/AlertTargets'
 import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
 import { VideoList } from '@/components/VideoList'
 import { getRecentVideos, isYoutubeConfigured } from '@/lib/youtube'
@@ -148,6 +149,15 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         )}
       </header>
 
+      <div className={styles.alerts}>
+        <AlertTargets
+          symbol={stock.symbol}
+          entryPrice={stock.entryPrice}
+          sellPrice={stock.sellPrice}
+          entryTriggered={stock.entryTriggeredAt !== null}
+          sellTriggered={stock.sellTriggeredAt !== null}
+        />
+      </div>
       {latest && <SinceWatching addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
 
       <div className={styles.hero}>

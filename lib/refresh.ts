@@ -1,6 +1,7 @@
 import { prisma } from './db'
 import { analyzePendingNews } from './news-analysis'
 import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend } from './finnhub'
+import { notifyTargets } from './alert-runner'
 
 export interface RefreshResult {
   symbol: string
@@ -47,6 +48,12 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
         epsGrowth5Y: metrics.epsGrowth5Y,
       },
     })
+
+    try {
+      await notifyTargets(stock, quote.currentPrice)
+    } catch (err) {
+      logFailure('Price alerts', symbol, err)
+    }
 
     try {
       const to = new Date()

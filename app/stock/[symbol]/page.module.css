@@ -291,3 +291,7 @@
 .tone_na {
   color: var(--muted);
 }
+
+.alerts {
+  margin: 0 0 16px;
+}
