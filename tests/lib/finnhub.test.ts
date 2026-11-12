@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from '@/lib/finnhub'
+import { searchSymbol, getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings, getIpoCalendar } from '@/lib/finnhub'
 
 function mockFetchOnce(body: unknown, ok = true) {
   vi.stubGlobal(
@@ -145,5 +145,17 @@ describe('finnhub client', () => {
   it('getNextEarnings returns null when nothing is scheduled', async () => {
     mockFetchOnce({ earningsCalendar: [] })
     expect(await getNextEarnings('XYZ', new Date('2026-11-12T10:00:00Z'))).toBeNull()
+  })
+  it('getIpoCalendar maps and sorts by date then size', async () => {
+    mockFetchOnce({
+      ipoCalendar: [
+        { date: '2026-11-19', name: 'Big', symbol: 'BIG', exchange: 'NASDAQ', price: '10-12', totalSharesValue: 500 },
+        { date: '2026-11-13', name: 'Small', symbol: '', totalSharesValue: 5 },
+        { date: '2026-11-13', name: 'Mid', symbol: 'MID', totalSharesValue: 50 },
+      ],
+    })
+    const ipos = await getIpoCalendar('2026-11-12', '2026-12-30')
+    expect(ipos.map((i) => i.name)).toEqual(['Mid', 'Small', 'Big'])
+    expect(ipos[1].symbol).toBeNull()
   })
 })

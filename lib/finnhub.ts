@@ -167,6 +167,35 @@ export async function getNextEarnings(symbol: string, today: Date = new Date()):
   return { date: upcoming.date, hour: upcoming.hour || null, epsEstimate: upcoming.epsEstimate ?? null }
 }
 
+export interface IpoEvent {
+  date: string
+  name: string
+  symbol: string | null
+  exchange: string | null
+  price: string | null
+  shares: number | null
+  totalValue: number | null
+  status: string | null
+}
+
+export async function getIpoCalendar(from: string, to: string): Promise<IpoEvent[]> {
+  const data = await finnhubFetch<{
+    ipoCalendar?: Array<{ date: string; name: string; symbol?: string; exchange?: string; price?: string; numberOfShares?: number; totalSharesValue?: number; status?: string }>
+  }>('/calendar/ipo', { from, to })
+  return (data.ipoCalendar ?? [])
+    .map((e) => ({
+      date: e.date,
+      name: e.name,
+      symbol: e.symbol || null,
+      exchange: e.exchange || null,
+      price: e.price || null,
+      shares: e.numberOfShares ?? null,
+      totalValue: e.totalSharesValue ?? null,
+      status: e.status || null,
+    }))
+    .sort((a, b) => a.date.localeCompare(b.date) || (b.totalValue ?? 0) - (a.totalValue ?? 0))
+}
+
 export interface InsiderTransaction {
   name: string
   change: number
