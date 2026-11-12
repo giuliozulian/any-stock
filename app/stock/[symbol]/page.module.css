@@ -259,3 +259,26 @@
     font-size: 44px;
   }
 }
+
+.figureStatus {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tone_good {
+  color: var(--gain-bright);
+}
+
+.tone_ok {
+  color: var(--amber-bright);
+}
+
+.tone_bad {
+  color: var(--loss-bright);
+}
+
+.tone_na {
+  color: var(--muted);
+}

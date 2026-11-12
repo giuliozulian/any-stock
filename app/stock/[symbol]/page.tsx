@@ -13,6 +13,7 @@ import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
 import { EvaluationPanel } from '@/components/EvaluationPanel'
 import { evaluateStock } from '@/lib/evaluate'
+import { marketCapStatus, peStatus, rangeStatus } from '@/lib/figure-status'
 import styles from './page.module.css'
 
 function formatMarketCap(millions: number | null): string {
@@ -93,6 +94,10 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       ? Math.min(1, Math.max(0, (latest.price - latest.week52Low) / (latest.week52High - latest.week52Low)))
       : null
 
+  const pe = peStatus(latest?.peRatio ?? null)
+  const cap = marketCapStatus(latest?.marketCap ?? null)
+  const range = rangeStatus(position52w)
+
   const seriesTrendClass =
     stock.snapshots.length > 1
       ? stock.snapshots[0].price >= stock.snapshots[stock.snapshots.length - 1].price
@@ -169,24 +174,26 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 <div className={styles.figure}>
                   <dt>
                     P/E
-                    <InfoTip label="Cos’è il P/E" source="Finnhub, campo peBasicExclExtraTTM (/stock/metric)" formula="P/E = prezzo dell’azione ÷ utile per azione (ultimi 12 mesi)">
+                    <InfoTip label="Cos’è il P/E" source="Finnhub, campo peBasicExclExtraTTM (/stock/metric)" formula="P/E = prezzo dell’azione ÷ utile per azione (ultimi 12 mesi). Giudizio: < 15 buono, 15–30 neutro, > 30 negativo, ≤ 0 azienda in perdita">
                       <strong>P/E (prezzo/utili)</strong>
                       <span>Quanti dollari paghi per ogni dollaro di utile annuo dell’azienda. Un P/E di 20 significa che il prezzo vale 20 anni di utili attuali.</span>
                       <span>Serve a capire se l’azione è cara o economica rispetto a quanto guadagna. Non entra direttamente nel giudizio, ma è alla base del PEG.</span>
                     </InfoTip>
                   </dt>
                   <dd className="numeral">{latest.peRatio?.toFixed(1) ?? '—'}</dd>
+                  <p className={`${styles.figureStatus} ${styles[`tone_${pe.tone}`]}`}>{pe.label}</p>
                 </div>
                 <div className={styles.figure}>
                   <dt>
                     Capitalizzazione
-                    <InfoTip label="Cos’è la capitalizzazione" source="Finnhub (/stock/profile2), campo marketCapitalization" formula="capitalizzazione = prezzo × numero di azioni in circolazione">
+                    <InfoTip label="Cos’è la capitalizzazione" source="Finnhub (/stock/profile2), campo marketCapitalization" formula="capitalizzazione = prezzo × numero di azioni in circolazione. Dimensione: ≥ 200 mld colosso, ≥ 10 mld grande, ≥ 2 mld media, sotto piccola">
                       <strong>Capitalizzazione di mercato</strong>
                       <span>Il valore totale dell’azienda in borsa: prezzo dell’azione per numero di azioni (T = mille miliardi, B = miliardi).</span>
                       <span>Serve a capire la dimensione: le aziende più grandi sono in genere più stabili, quelle piccole più volatili.</span>
                     </InfoTip>
                   </dt>
                   <dd className="numeral">{formatMarketCap(latest.marketCap)}</dd>
+                  <p className={`${styles.figureStatus} ${styles[`tone_${cap.tone}`]}`}>{cap.label}</p>
                 </div>
               </dl>
 
@@ -194,7 +201,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 <div className={styles.rangeHead}>
                   <span className={styles.rangeLabel}>
                     Intervallo 52 settimane
-                    <InfoTip label="Cos’è l’intervallo a 52 settimane" source="Finnhub, campi 52WeekHigh e 52WeekLow (/stock/metric); prezzo attuale da /quote" formula="posizione nel range = (prezzo − minimo) ÷ (massimo − minimo) × 100">
+                    <InfoTip label="Cos’è l’intervallo a 52 settimane" source="Finnhub, campi 52WeekHigh e 52WeekLow (/stock/metric); prezzo attuale da /quote" formula="posizione nel range = (prezzo − minimo) ÷ (massimo − minimo) × 100. Giudizio: < 25% vicino ai minimi, > 80% vicino ai massimi">
                       <strong>Intervallo a 52 settimane</strong>
                       <span>Il prezzo più basso e più alto dell’ultimo anno. Il pallino indica dove si trova il prezzo di oggi.</span>
                       <span>Vicino al minimo può essere un’occasione o un segnale di debolezza; vicino al massimo, forza o rischio di prezzo già alto. Entra nel segnale a breve termine.</span>
@@ -209,6 +216,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                   <span>{latest.week52Low?.toFixed(2) ?? '—'}</span>
                   <span>{latest.week52High?.toFixed(2) ?? '—'}</span>
                 </div>
+                <p className={`${styles.figureStatus} ${styles[`tone_${range.tone}`]}`}>{range.label}</p>
               </section>
             </>
           )}
