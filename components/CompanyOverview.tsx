@@ -6,7 +6,7 @@ export async function CompanyOverview({ symbol, name, industry }: { symbol: stri
   if (!overview) return null
   return (
     <section className={styles.box} aria-label="Chi è l'azienda">
-      <p className={styles.sector}>{overview.sector}</p>
+      <span className={styles.tag}>{overview.sector}</span>
       <p className={styles.text}>{overview.description}</p>
     </section>
   )

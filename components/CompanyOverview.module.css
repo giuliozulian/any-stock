@@ -5,11 +5,16 @@
   max-width: 72ch;
 }
 
-.sector {
+.tag {
+  display: inline-block;
+  margin: 0 0 8px;
+  padding: 3px 10px;
+  border: 1px solid var(--brass);
+  border-radius: 999px;
   color: var(--brass);
   font-size: 13px;
-  font-weight: 600;
-  margin: 0 0 4px;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .text {
