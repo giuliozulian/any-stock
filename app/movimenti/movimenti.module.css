@@ -1,0 +1,113 @@
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin: 0 0 24px;
+}
+
+.group {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.group a {
+  padding: 7px 14px;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.group a + a {
+  border-left: 1px solid var(--rule);
+}
+
+.group a:hover {
+  color: inherit;
+}
+
+.group a[aria-current='page'] {
+  background: var(--brass);
+  color: var(--bg, #14110d);
+  font-weight: 600;
+}
+
+.group a:focus-visible,
+.sort:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 12px 16px 12px 0;
+  border-top: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+
+.table th {
+  border-top: 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.table .num {
+  text-align: right;
+}
+
+.table td:last-child,
+.table th:last-child {
+  padding-right: 0;
+}
+
+.sort {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.sort:hover,
+.sort[data-active] {
+  color: inherit;
+}
+
+.arrow {
+  display: inline-block;
+  min-width: 1.2em;
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+.sort[data-active] .arrow {
+  color: var(--brass);
+  opacity: 1;
+}
+
+.symbol {
+  font-weight: 600;
+}
+
+.name {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.table td:nth-child(2) {
+  white-space: normal;
+  min-width: 14rem;
+}
