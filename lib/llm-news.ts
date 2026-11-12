@@ -129,9 +129,10 @@ function buildUserPrompt({ stock, news, market }: NewsAnalysisContext): string {
   return lines.filter(Boolean).join("\n");
 }
 
-export async function analyzeNewsWithLlm(
-  ctx: NewsAnalysisContext,
-): Promise<LlmNewsAnalysis | null> {
+export async function requestLlmJson(
+  system: string,
+  user: string,
+): Promise<{ json: unknown; model: string } | null> {
   const cfg = config();
   if (!cfg) return null;
   const { key: token, model } = cfg;
@@ -150,8 +151,8 @@ export async function analyzeNewsWithLlm(
         max_tokens: 1500,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserPrompt(ctx) },
+          { role: "system", content: system },
+          { role: "user", content: user },
         ],
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -179,8 +180,16 @@ export async function analyzeNewsWithLlm(
   if (!content) return null;
 
   try {
-    return parseLlmAnalysis(JSON.parse(content), model);
+    return { json: JSON.parse(content), model };
   } catch {
     return null;
   }
+}
+
+export async function analyzeNewsWithLlm(
+  ctx: NewsAnalysisContext,
+): Promise<LlmNewsAnalysis | null> {
+  const result = await requestLlmJson(SYSTEM_PROMPT, buildUserPrompt(ctx));
+  if (!result) return null;
+  return parseLlmAnalysis(result.json, result.model);
 }
