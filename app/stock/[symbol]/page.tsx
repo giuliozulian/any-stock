@@ -275,7 +275,6 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Valutazione',
             content: (
               <>
-                {stock.insight && <InsightPanel insight={stock.insight} />}
                 {evaluation && <ReasonsSection evaluation={evaluation} />}
 
                 <div className={styles.layout}>
@@ -310,6 +309,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Notizie e video',
             content: (
               <>
+                {stock.insight && <InsightPanel insight={stock.insight} />}
                 <section className={styles.news}>
                   <h2 className={styles.sectionTitle}>
                     Notizie recenti
