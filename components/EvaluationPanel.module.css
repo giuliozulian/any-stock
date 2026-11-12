@@ -1,0 +1,73 @@
+.panel {
+  margin-bottom: 48px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.row {
+  border-top: 1px solid var(--rule);
+  padding: 14px 0;
+}
+
+.rowHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.label {
+  color: var(--muted);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-feature-settings: "onum" 1, "tnum" 1;
+}
+
+.note {
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.details {
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.summary:hover {
+  color: var(--brass);
+}
+
+.detailList {
+  margin-top: 12px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 13px;
+  border-top: 1px solid var(--rule);
+}
+
+.detailRow dt {
+  color: var(--muted);
+}
+
+.detailRow dd {
+  font-family: var(--font-display);
+  font-feature-settings: "onum" 1, "tnum" 1;
+}
