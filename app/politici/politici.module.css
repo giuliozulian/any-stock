@@ -1,0 +1,56 @@
+.rank {
+  display: grid;
+  gap: 6px;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.early {
+  border-color: var(--gain-bright);
+  color: var(--gain-bright);
+}
+
+.late {
+  border-color: var(--amber-bright);
+  color: var(--amber-bright);
+}
+
+.watch {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.why {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.follow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.follow li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}

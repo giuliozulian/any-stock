@@ -5,13 +5,18 @@ import { getRecentCongressBuys, clusterBuys } from '@/lib/congress'
 import { InfoTip } from '@/components/InfoTip'
 import { MemberName, type MemberCard } from '@/components/MemberName'
 import { getMemberProfiles, memberStats } from '@/lib/politician-profiles'
+import { prisma } from '@/lib/db'
+import { rankSignals, topMembers, type Timing } from '@/lib/congress-signals'
 import styles from '../section.module.css'
+import local from './politici.module.css'
 
 const short = (v: number) => (v >= 1_000_000 ? `${+(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : String(v))
 const day = (iso: string) => (iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—')
 const amount = (low: number, high: number) => (high > 0 ? `$${short(low)} – $${short(high)}` : '—')
 const BIG_BUY_MIN = 50_000
 const FRESH_DAYS = 7
+const TIMING_LABEL: Record<Timing, string | null> = { early: 'Ancora in tempo', running: 'Già in movimento', late: 'Già salito molto', unknown: null }
+const TIMING_CLASS: Partial<Record<Timing, string>> = { early: local.early, late: local.late }
 
 function Perf({ pct }: { pct: number | null }) {
   if (pct === null) return null
@@ -33,7 +38,8 @@ async function CongressBuys() {
 
   const people = new Map<string, { member: string; chamber: string; state: string }>()
   for (const b of buys) if (!people.has(b.member)) people.set(b.member, { member: b.member, chamber: b.chamber, state: b.state })
-  const [profiles, stats] = [await getMemberProfiles([...people.values()]), memberStats(buys)]
+  const [profiles, stats, watched] = await Promise.all([getMemberProfiles([...people.values()]), memberStats(buys), prisma.stock.findMany({ select: { symbol: true } })])
+  const watchSet = new Set(watched.map((w) => w.symbol.toUpperCase()))
   const person = (name: string) => {
     const p = people.get(name)
     const prof = profiles.get(name)
@@ -52,6 +58,8 @@ async function CongressBuys() {
     }
     return <MemberName card={card} />
   }
+  const signals = rankSignals(buys, profiles, stats).slice(0, 10)
+  const leaders = topMembers(stats)
   const clusters = clusterBuys(buys).slice(0, 12)
   const big = buys
     .filter((b) => b.amountLow >= BIG_BUY_MIN)
@@ -63,6 +71,70 @@ async function CongressBuys() {
 
   return (
     <>
+      <section className={styles.section}>
+        <h2 className={styles.heading}>
+          Da approfondire adesso
+          <InfoTip
+            label="Come è calcolata la classifica"
+            source="Bargo (dichiarazioni STOCK Act) più il profilo dei politici generato da Gemini"
+            formula="punti per numero di politici diversi, importi, pubblicazione recente, commissioni chiave, storico di chi compra; bonus se il prezzo è salito poco dall'acquisto, malus se è già salito oltre il 20%"
+          >
+            <strong>Una classifica per decidere dove guardare per primo</strong>
+            <span>Non è un consiglio di acquisto: i dati arrivano fino a 45 giorni dopo l&apos;operazione. Serve a mettere in cima i titoli con più segnali insieme.</span>
+          </InfoTip>
+        </h2>
+        <p className={styles.lead}>Titoli con più segnali insieme. «Ancora in tempo» significa che da quando hanno comprato il prezzo è salito di poco.</p>
+        {signals.length === 0 ? (
+          <p className={styles.empty}>Nessun titolo con segnali abbastanza forti al momento.</p>
+        ) : (
+          <ul className={styles.list}>
+            {signals.map((s) => (
+              <li key={s.ticker} className={styles.item}>
+                <span className={styles.main}>
+                  {symbolLink(s.ticker)}
+                  <span className={styles.sub}>{s.asset}</span>
+                  <span className={local.tags}>
+                    {watchSet.has(s.ticker.toUpperCase()) && <span className={`${local.tag} ${local.watch}`}>In watchlist</span>}
+                    {TIMING_LABEL[s.timing] && <span className={`${local.tag} ${TIMING_CLASS[s.timing] ?? ''}`}>{TIMING_LABEL[s.timing]}</span>}
+                  </span>
+                </span>
+                <span className={styles.date}>
+                  {s.members.map((m, k) => (
+                    <span key={m}>
+                      {k > 0 && ', '}
+                      {person(m)}
+                    </span>
+                  ))}
+                  <span className={local.why}>{s.reasons.join(' · ')}</span>
+                </span>
+                <span className={styles.side}>
+                  {amount(s.totalLow, s.totalHigh)}
+                  <br />
+                  comprato da {day(s.firstDate)} · pubblicato il {day(s.lastDisclosedAt)}
+                  <br />
+                  <Perf pct={s.avgPerfPct} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {leaders.length > 0 && (
+        <section className={styles.section}>
+          <h2 className={styles.heading}>Chi ha scelto meglio</h2>
+          <p className={styles.lead}>Politici con almeno 3 acquisti recenti, in ordine di rendimento medio da quando hanno comprato.</p>
+          <ul className={local.follow}>
+            {leaders.map((l) => (
+              <li key={l.member}>
+                {person(l.member)}
+                <Perf pct={l.avgPerfPct} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <section className={styles.section}>
         <h2 className={styles.heading}>
           Comprati da più politici

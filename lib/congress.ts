@@ -153,15 +153,22 @@ export function parseCongressBuys(json: unknown): CongressBuy[] {
   return buys.sort((a, b) => b.disclosedAt.localeCompare(a.disclosedAt) || b.date.localeCompare(a.date))
 }
 
+let recentBuys: { at: number; buys: CongressBuy[] } | null = null
+const RECENT_TTL_MS = 30 * 60 * 1000
+
+// Cached: the free API has a daily row budget, and the last good result is served if it is exhausted.
 export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
+  if (recentBuys && Date.now() - recentBuys.at < RECENT_TTL_MS) return recentBuys.buys
   try {
     const headers: Record<string, string> = {}
     if (process.env.BARGO_API_KEY) headers['X-Api-Key'] = process.env.BARGO_API_KEY
     const res = await fetch('https://www.bargo.ai/free-apis/congress/v1/trades?type=purchase&limit=500', { headers, signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return null
-    return parseCongressBuys(await res.json())
+    if (!res.ok) return recentBuys?.buys ?? null
+    const buys = parseCongressBuys(await res.json())
+    recentBuys = { at: Date.now(), buys }
+    return buys
   } catch {
-    return null
+    return recentBuys?.buys ?? null
   }
 }
 
