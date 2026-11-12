@@ -83,7 +83,7 @@ function buildView(evaluation: Evaluation) {
   return { signals, tones, overall, verdict: VERDICTS[overall] }
 }
 
-export function VerdictCard({ evaluation }: { evaluation: Evaluation }) {
+export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; children?: React.ReactNode }) {
   const { targetPrice } = evaluation
   const { tones, overall, verdict } = buildView(evaluation)
 
@@ -105,6 +105,7 @@ export function VerdictCard({ evaluation }: { evaluation: Evaluation }) {
       </div>
       <p className={styles.verdictTitle}>{verdict.title}</p>
       <p className={styles.verdictText}>{verdict.text}</p>
+      {children}
 
       <div className={styles.block}>
         <p className={styles.blockLabel}>

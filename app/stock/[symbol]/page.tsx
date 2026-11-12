@@ -305,6 +305,14 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       : null
 
   const pe = peStatus(latest?.peRatio ?? null)
+  const fairValueCard = (embedded: boolean) =>
+    latest && metrics ? (
+      <FairValueCard
+        embedded={embedded}
+        input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+        altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
+      />
+    ) : null
   const cap = marketCapStatus(latest?.marketCap ?? null)
   const range = rangeStatus(position52w)
 
@@ -360,12 +368,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
       <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
 
-      {latest && metrics && (
-        <FairValueCard
-          input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
-          altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
-        />
-      )}
+      {!evaluation && fairValueCard(false)}
 
       <div className={styles.hero}>
         {latest && (
@@ -461,7 +464,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             </div>
           </div>
         )}
-        {evaluation && <VerdictCard evaluation={evaluation} />}
+        {evaluation && <VerdictCard evaluation={evaluation}>{fairValueCard(true)}</VerdictCard>}
       </div>
 
       <StockTabs
