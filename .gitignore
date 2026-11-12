@@ -48,3 +48,9 @@ next-env.d.ts
 .claude/
 *.log
 *.md
+rea-run.log
+rae-run.log
+rae-run.ndjson
+rae-run.pid
+scripts/
+skills-lock.json

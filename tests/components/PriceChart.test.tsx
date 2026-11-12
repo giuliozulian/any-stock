@@ -40,4 +40,16 @@ describe('PriceChart', () => {
     expect(svg).toHaveAttribute('width', '80')
     expect(svg).toHaveAttribute('height', '24')
   })
+
+  it('renders a minimal placeholder instead of a sentence in compact mode with no history', () => {
+    render(<PriceChart snapshots={[]} compact />)
+    expect(screen.queryByText(/no price history yet/i)).not.toBeInTheDocument()
+    expect(screen.getByText('–')).toBeInTheDocument()
+  })
+
+  it('renders a minimal placeholder instead of a sentence in compact mode with one snapshot', () => {
+    render(<PriceChart snapshots={[{ price: 100, timestamp: new Date() }]} compact />)
+    expect(screen.queryByText(/only one data point/i)).not.toBeInTheDocument()
+    expect(screen.getByText('–')).toBeInTheDocument()
+  })
 })

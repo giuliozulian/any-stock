@@ -47,7 +47,7 @@ async function WatchlistTable() {
                 {latest ? `${latest.changePct >= 0 ? '+' : ''}${latest.changePct.toFixed(2)}%` : '—'}
               </td>
               <td className={`${styles.num} ${changeClass}`}>
-                <PriceChart snapshots={stock.snapshots} width={72} height={22} strokeWidth={1.5} />
+                <PriceChart snapshots={stock.snapshots} width={72} height={22} strokeWidth={1.5} compact />
               </td>
               <td>
                 <RemoveStockButton symbol={stock.symbol} />

@@ -7,6 +7,12 @@ import { NewsList } from '@/components/NewsList'
 import { RefreshButton } from '@/components/RefreshButton'
 import styles from './page.module.css'
 
+function formatExchange(exchange: string): string {
+  if (exchange.includes('NASDAQ')) return 'NASDAQ'
+  if (exchange.includes('NYSE')) return 'NYSE'
+  return exchange.split(' - ')[0]
+}
+
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
   const { symbol: rawSymbol } = await paramsPromise
   const symbol = rawSymbol.toUpperCase()
@@ -33,7 +39,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       </Link>
 
       <p className={styles.ticker}>
-        {stock.exchange}: {stock.symbol}
+        {formatExchange(stock.exchange)}: {stock.symbol}
       </p>
       <h1 className={styles.name}>{stock.name}</h1>
 
@@ -46,7 +52,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
               {latest.changePct.toFixed(2)}%
             </span>
             <span className={`${styles.sparkline} ${changeClass}`}>
-              <PriceChart snapshots={stock.snapshots} width={100} height={32} strokeWidth={1.5} />
+              <PriceChart snapshots={stock.snapshots} width={100} height={32} strokeWidth={1.5} compact />
             </span>
           </div>
           <p className={styles.stale}>Updated {latest.timestamp.toLocaleString()}</p>

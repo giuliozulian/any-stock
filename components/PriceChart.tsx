@@ -8,18 +8,20 @@ export function PriceChart({
   width = 300,
   height = 80,
   strokeWidth = 2,
+  compact = false,
 }: {
   snapshots: Snapshot[]
   width?: number
   height?: number
   strokeWidth?: number
+  compact?: boolean
 }) {
   if (snapshots.length === 0) {
-    return <p>No price history yet.</p>
+    return compact ? <span>–</span> : <p>No price history yet.</p>
   }
 
   if (snapshots.length === 1) {
-    return <p>Only one data point so far: ${snapshots[0].price.toFixed(2)}</p>
+    return compact ? <span>–</span> : <p>Only one data point so far: ${snapshots[0].price.toFixed(2)}</p>
   }
 
   const ordered = [...snapshots].reverse()
