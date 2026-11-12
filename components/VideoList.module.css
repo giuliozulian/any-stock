@@ -1,0 +1,51 @@
+.card {
+  flex: 0 0 300px;
+  scroll-snap-align: start;
+}
+
+.card a {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--bone);
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.card a:hover,
+.card a:focus-visible {
+  border-color: var(--brass);
+}
+
+.thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--surface-raised);
+}
+
+.title {
+  font-size: 14px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.meta {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.empty {
+  font-size: 14px;
+  color: var(--muted);
+}

@@ -1,5 +1,5 @@
 .shell {
-  max-width: 1120px;
+  max-width: 1280px;
   margin: 0 auto;
   padding: 40px 32px 96px;
 }
@@ -94,23 +94,36 @@
   margin-bottom: 8px;
 }
 
-.layout {
+.hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 380px;
-  gap: 56px;
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+  gap: 32px;
   align-items: start;
 }
 
-.main {
+.chartCol {
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 20px;
   min-width: 0;
 }
 
-.aside {
-  position: sticky;
-  top: 24px;
+.strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.5fr;
+  gap: 16px;
+}
+
+.figures {
+  display: contents;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: 48px;
+  align-items: start;
+  margin-top: 56px;
 }
 
 .chartCard {
@@ -139,20 +152,13 @@
   text-align: center;
 }
 
-.figures {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  border-top: 1px solid var(--rule);
-  border-bottom: 1px solid var(--rule);
-}
-
-.figure {
-  padding: 18px 0;
-}
-
-.figure + .figure {
-  padding-left: 24px;
-  border-left: 1px solid var(--rule);
+.figure,
+.range {
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
 }
 
 .figure dt {
@@ -164,12 +170,9 @@
 
 .figure dd {
   margin-top: 4px;
-  font-size: 28px;
+  font-size: 30px;
 }
 
-.range {
-  margin-top: -8px;
-}
 
 .rangeHead {
   display: flex;
@@ -211,22 +214,22 @@
 
 .news {
   min-width: 0;
+  margin-top: 56px;
 }
 
 .newsHint {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--muted);
-  margin-bottom: 14px;
-  max-width: 48ch;
+  margin-bottom: 16px;
+  max-width: 60ch;
 }
 
 .sectionTitle {
   display: flex;
   align-items: center;
-  font-size: 14px;
+  font-size: 17px;
   font-weight: 600;
-  color: var(--muted);
-  margin-bottom: 4px;
+  margin-bottom: 8px;
 }
 
 @media (max-width: 920px) {
@@ -234,15 +237,21 @@
     padding: 28px 20px 72px;
   }
 
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 40px;
+  .strip {
+    grid-template-columns: 1fr 1fr;
   }
 
-  .aside {
-    position: static;
-    order: -1;
+  .range {
+    grid-column: 1 / -1;
   }
+
+  .hero,
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    margin-top: 28px;
+  }
+
 
   .quote,
   .heroRow,

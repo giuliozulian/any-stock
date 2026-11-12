@@ -30,7 +30,6 @@ function emptyEvaluation(): Evaluation {
 describe('EvaluationPanel', () => {
   it('renders all five signal rows with their labels and notes', () => {
     render(<EvaluationPanel evaluation={fullEvaluation()} />)
-    expect(screen.getByText('+12.3%')).toBeInTheDocument()
     expect(screen.getByText('Positivo')).toBeInTheDocument()
     expect(screen.getByText('Consenso positivo, in miglioramento')).toBeInTheDocument()
     expect(screen.getByText('Fondamentali solidi')).toBeInTheDocument()
@@ -40,7 +39,6 @@ describe('EvaluationPanel', () => {
 
   it('renders every not-available note without crashing for a freshly-added stock', () => {
     render(<EvaluationPanel evaluation={emptyEvaluation()} />)
-    expect(screen.getByText(/appena aggiunto/i)).toBeInTheDocument()
     expect(screen.getByText('Nessun dato disponibile')).toBeInTheDocument()
     expect(screen.getByText('Dati fondamentali non disponibili')).toBeInTheDocument()
     expect(screen.getByText(/stima non disponibile/i)).toBeInTheDocument()

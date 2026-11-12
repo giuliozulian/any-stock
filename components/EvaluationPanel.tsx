@@ -71,22 +71,26 @@ function AnalystBar({ m }: { m: { strongBuy: number; buy: number; hold: number; 
   )
 }
 
-export function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
-  const { sinceWatching, shortTerm, mediumTerm, longTerm, targetPrice } = evaluation
+function buildView(evaluation: Evaluation) {
+  const { shortTerm, mediumTerm, longTerm, targetPrice } = evaluation
   const signals = [
-    { key: 'short', title: 'Breve termine', result: shortTerm },
-    { key: 'medium', title: 'Medio termine', result: mediumTerm },
-    { key: 'long', title: 'Lungo termine', result: longTerm },
+    { key: 'short', title: 'Breve termine', horizon: 'settimane', result: shortTerm },
+    { key: 'medium', title: 'Medio termine', horizon: 'alcuni mesi', result: mediumTerm },
+    { key: 'long', title: 'Lungo termine', horizon: 'anni', result: longTerm },
   ]
-
   const tones = signals.map((x) => toneOf(x.result.label))
   const overall = overallTone(tones, targetPrice.upsidePct, evaluation.newsImpact.adjustment)
-  const verdict = VERDICTS[overall]
+  return { signals, tones, overall, verdict: VERDICTS[overall] }
+}
+
+export function VerdictCard({ evaluation }: { evaluation: Evaluation }) {
+  const { targetPrice } = evaluation
+  const { tones, overall, verdict } = buildView(evaluation)
 
   return (
-    <section className={styles.panel}>
-      <h2 className={styles.title}>
-        Valutazione
+    <section className={`${styles.verdictCard} ${styles[`v_${overall}`]}`} aria-labelledby="verdict-title">
+      <h2 id="verdict-title" className={styles.cardTitle}>
+        Il giudizio
         <InfoTip label="Come leggere la valutazione" source="calcolo interno (lib/evaluate.ts) sui dati Finnhub mostrati nella scheda" formula="punteggio = +1 per ogni segnale positivo, −1 per ogni negativo (breve, medio, lungo) + 1 se l’upside del target è ≥ +15%, −1 se ≤ −15% + 1 se il saldo delle notizie analizzate dall’IA (positive − negative, solo confidenza alta, intensità ≥ 3, ultimi 7 giorni) è ≥ +2, −1 se ≤ −2. Punteggio ≥ 2: “Segnali favorevoli”; ≤ −2: “Serve prudenza”; altrimenti “Segnali contrastanti”" align="right">
           <strong>Valutazione complessiva</strong>
           <span>Sintetizza i tre segnali (breve, medio, lungo termine) e il target price in un solo colpo d’occhio: ogni barra è un segnale, verde buono, ambra neutro, rosso debole.</span>
@@ -94,71 +98,75 @@ export function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
         </InfoTip>
       </h2>
 
-      <div className={`${styles.verdict} ${styles[`v_${overall}`]}`}>
-        <div className={styles.meter} aria-hidden="true">
-          {tones.map((t, i) => (
-            <span key={i} className={`${styles.meterBar} ${styles[`m_${t}`]}`} />
-          ))}
-        </div>
-        <p className={styles.verdictTitle}>{verdict.title}</p>
-        <p className={styles.verdictText}>{verdict.text}</p>
+      <div className={styles.meter} aria-hidden="true">
+        {tones.map((t, i) => (
+          <span key={i} className={`${styles.meterBar} ${styles[`m_${t}`]}`} />
+        ))}
+      </div>
+      <p className={styles.verdictTitle}>{verdict.title}</p>
+      <p className={styles.verdictText}>{verdict.text}</p>
+
+      <div className={styles.block}>
+        <p className={styles.blockLabel}>
+          Prezzo equo stimato
+          <InfoTip label="Cos’è il target price" source="calcolo interno con EPS TTM e crescita utili a 5 anni da Finnhub (/stock/metric)" formula="target = P/E equo × EPS TTM, con P/E equo = crescita utili 5 anni (%), limitato tra 5 e 40. Upside = (target − prezzo) ÷ prezzo × 100" align="right">
+            <strong>Target price stimato</strong>
+            <span>Un prezzo “equo” calcolato con la formula di Peter Lynch: il P/E giusto è pari alla crescita storica degli utili, moltiplicato per gli utili per azione.</span>
+            <span>La percentuale è la distanza dal prezzo attuale. Non è disponibile se gli utili o la crescita sono negativi. Non è una previsione.</span>
+          </InfoTip>
+        </p>
+        <p className={styles.targetLine}>
+          <span className={`${styles.targetValue} ${targetPrice.upsidePct === null ? '' : targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>{targetPrice.value === null ? '—' : `$${targetPrice.value.toFixed(2)}`}</span>
+          {targetPrice.upsidePct !== null && (
+            <span className={`${styles.upside} ${targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>{fmtPct(targetPrice.upsidePct)} dal prezzo attuale</span>
+          )}
+        </p>
+        <p className={styles.note}>{targetPrice.note}</p>
       </div>
 
-      <div className={styles.row}>
-        <div className={styles.rowHead}>
-          <span className={styles.label}>
-            Da quando lo segui
-            <InfoTip label="Cos’è Da quando lo segui" source="prezzi salvati nel tuo database a ogni Refresh (prima rilevazione vs ultima)" formula="(ultimo prezzo − primo prezzo salvato) ÷ primo prezzo × 100" align="right">
-              <strong>Da quando lo segui</strong>
-              <span>Di quanto è cambiato il prezzo da quando hai aggiunto il titolo alla watchlist.</span>
-              <span>Serve a vedere il tuo andamento personale, indipendentemente dai segnali. Non entra nel giudizio.</span>
-            </InfoTip>
-          </span>
-          <span className={styles.value}>{fmtPct(sinceWatching.pct)}</span>
-        </div>
-        <p className={styles.note}>{sinceWatching.note}</p>
-      </div>
+      <p className={styles.fine}>Notizie (IA): {evaluation.newsImpact.note}</p>
+      <p className={styles.fine}>Indicazione sintetica basata sui dati disponibili, non un consiglio di investimento.</p>
+    </section>
+  )
+}
 
-      {signals.map(({ key, title, result }, i) => (
-        <div className={`${styles.row} ${styles[`r_${tones[i]}`]}`} key={key}>
-          <div className={styles.rowHead}>
-            <span className={styles.label}>
+export function ReasonsSection({ evaluation }: { evaluation: Evaluation }) {
+  const { mediumTerm } = evaluation
+  const { signals, tones } = buildView(evaluation)
+
+  return (
+    <section className={styles.reasons} aria-labelledby="reasons-title">
+      <h2 id="reasons-title" className={styles.sectionHead}>
+        Perché questo giudizio
+      </h2>
+      <p className={styles.sectionLead}>Tre sguardi sul titolo, su tempi diversi. Il colore dice se il segnale è a favore (verde), neutro (ambra) o contrario (rosso).</p>
+      <div className={styles.reasonGrid}>
+        {signals.map(({ key, title, horizon, result }, i) => (
+          <div className={`${styles.reason} ${styles[`r_${tones[i]}`]}`} key={key}>
+            <p className={styles.reasonTitle}>
               {title}
+              <span className={styles.horizon}>per ragionare su {horizon}</span>
               <InfoTip label={`Cos’è il segnale ${title.toLowerCase()}`} source={SIGNAL_INFO[key].source} formula={SIGNAL_INFO[key].formula} align="right">
                 <strong>Segnale a {title.toLowerCase()}</strong>
                 <span>{SIGNAL_INFO[key].what}</span>
                 <span>{SIGNAL_INFO[key].how}</span>
               </InfoTip>
-            </span>
-            <span className={`${styles.value} ${styles.signal} ${styles[toneOf(result.label)]}`}>{result.label}</span>
+            </p>
+            <p className={`${styles.reasonLabel} ${styles[toneOf(result.label)]}`}>{result.label}</p>
+            {key === 'medium' && <AnalystBar m={mediumTerm} />}
+            <p className={styles.reasonNote}>{result.note}</p>
           </div>
-          {key === 'medium' && <AnalystBar m={mediumTerm} />}
-          <p className={styles.note}>{result.note}</p>
-        </div>
-      ))}
-
-      <div className={styles.target}>
-        <div className={styles.targetHead}>
-          <span>
-            Target price stimato
-            <InfoTip label="Cos’è il target price" source="calcolo interno con EPS TTM e crescita utili a 5 anni da Finnhub (/stock/metric)" formula="target = P/E equo × EPS TTM, con P/E equo = crescita utili 5 anni (%), limitato tra 5 e 40. Upside = (target − prezzo) ÷ prezzo × 100" align="right">
-              <strong>Target price stimato</strong>
-              <span>Un prezzo “equo” calcolato con la formula di Peter Lynch: il P/E giusto è pari alla crescita storica degli utili, moltiplicato per gli utili per azione.</span>
-              <span>La percentuale è la distanza dal prezzo attuale. Non è disponibile se gli utili o la crescita sono negativi. Non è una previsione.</span>
-            </InfoTip>
-          </span>
-          {targetPrice.upsidePct !== null && (
-            <span className={`${styles.upside} ${targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>
-              {fmtPct(targetPrice.upsidePct)} dal prezzo attuale
-            </span>
-          )}
-        </div>
-        <p className={`${styles.targetValue} ${targetPrice.upsidePct === null ? '' : targetPrice.upsidePct >= 0 ? styles.upPos : styles.upNeg}`}>{targetPrice.value === null ? '—' : `$${targetPrice.value.toFixed(2)}`}</p>
-        <p className={styles.note}>{targetPrice.note}</p>
+        ))}
       </div>
-
-      <p className={styles.newsNote}>Notizie (IA): {evaluation.newsImpact.note}</p>
-      <p className={styles.disclaimer}>Indicazione sintetica basata sui dati disponibili, non un consiglio di investimento.</p>
     </section>
+  )
+}
+
+export function EvaluationPanel({ evaluation }: { evaluation: Evaluation }) {
+  return (
+    <>
+      <VerdictCard evaluation={evaluation} />
+      <ReasonsSection evaluation={evaluation} />
+    </>
   )
 }

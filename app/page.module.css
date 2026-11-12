@@ -92,3 +92,10 @@
 .dash {
   color: var(--muted);
 }
+
+.sinceDelta {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 600;
+}

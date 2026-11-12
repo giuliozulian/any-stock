@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { AddStockForm } from '@/components/AddStockForm'
@@ -8,6 +9,7 @@ import { getIntradayHistory } from '@/lib/history'
 import styles from './page.module.css'
 
 async function WatchlistTable() {
+  await connection()
   const stocks = await prisma.stock.findMany({
     orderBy: { addedAt: 'asc' },
     include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } },
@@ -16,6 +18,10 @@ async function WatchlistTable() {
   if (stocks.length === 0) {
     return <p className={styles.empty}>No stocks yet. Add a symbol above to get started.</p>
   }
+
+  const firstSnapshots = await Promise.all(
+    stocks.map((stock) => prisma.priceSnapshot.findFirst({ where: { stockId: stock.id }, orderBy: { timestamp: 'asc' }, select: { price: true } }))
+  )
 
   const extended = await Promise.all(
     stocks.map(async (stock) => {
@@ -34,6 +40,7 @@ async function WatchlistTable() {
           <th className={styles.num}>Change</th>
           <th className={styles.num}>Pre/Post</th>
           <th className={styles.num}>Trend</th>
+          <th className={styles.num}>Lo segui dal</th>
           <th></th>
         </tr>
       </thead>
@@ -42,6 +49,9 @@ async function WatchlistTable() {
           const latest = stock.snapshots[0]
           const ext = extended[idx]
           const extPct = ext && stock.snapshots[0] ? ((ext.close - stock.snapshots[0].price) / stock.snapshots[0].price) * 100 : null
+          const entry = firstSnapshots[idx]
+          const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
+          const sinceClass = sincePct === null || sincePct === 0 ? styles.dash : sincePct > 0 ? styles.gain : styles.loss
           const changeClass = !latest ? styles.dash : latest.changePct >= 0 ? styles.gain : styles.loss
           return (
             <tr key={stock.id}>
@@ -69,6 +79,10 @@ async function WatchlistTable() {
               </td>
               <td className={`${styles.num} ${changeClass}`}>
                 <PriceChart snapshots={stock.snapshots} width={72} height={22} strokeWidth={1.5} compact />
+              </td>
+              <td className={styles.num}>
+                <time dateTime={stock.addedAt.toISOString()}>{stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })}</time>
+                <span className={`${styles.sinceDelta} ${sinceClass}`}>{sincePct === null ? '—' : `${sincePct >= 0 ? '+' : '−'}${Math.abs(sincePct).toFixed(1)}%`}</span>
               </td>
               <td>
                 <RemoveStockButton symbol={stock.symbol} />
