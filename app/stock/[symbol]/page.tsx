@@ -16,6 +16,10 @@ import { AlertTargets } from '@/components/AlertTargets'
 import { LiveChange, LivePrice, LiveStamp } from '@/components/live-quotes'
 import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
 import { VideoList } from '@/components/VideoList'
+import { InsiderPanel } from '@/components/InsiderPanel'
+import { CongressPanel } from '@/components/CongressPanel'
+import { getCongressTrades } from '@/lib/congress'
+import { getInsiderData } from '@/lib/insider-data'
 import { getRecentVideos, isYoutubeConfigured } from '@/lib/youtube'
 import { evaluateStock } from '@/lib/evaluate'
 import { marketCapStatus, peStatus, rangeStatus } from '@/lib/figure-status'
@@ -66,7 +70,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const [history, intraday, videos] = await Promise.all([getPriceHistory(stock.symbol), getIntradayHistory(stock.symbol), getRecentVideos(stock.symbol, stock.name)])
+  const [history, intraday, videos, insiders, congress] = await Promise.all([getPriceHistory(stock.symbol), getIntradayHistory(stock.symbol), getRecentVideos(stock.symbol, stock.name), getInsiderData(stock.symbol), getCongressTrades(stock.symbol)])
 
   const evaluation = latest
     ? evaluateStock({
@@ -264,6 +268,10 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
         {evaluation && <FundamentalsGrid details={evaluation.details} />}
       </div>
+
+      <InsiderPanel data={insiders} />
+
+      <CongressPanel trades={congress} />
 
       <section className={styles.news}>
         <h2 className={styles.sectionTitle}>

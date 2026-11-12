@@ -1,0 +1,209 @@
+.panel {
+  min-width: 0;
+  margin-top: 56px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.empty {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.mood {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+.gain {
+  color: var(--gain-bright);
+}
+
+.loss {
+  color: var(--loss-bright);
+}
+
+.flat {
+  color: var(--amber-bright);
+}
+
+.months {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.month {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.month strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.monthsLabel {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 12px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead th {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-raised);
+}
+
+.table tbody tr + tr > * {
+  border-top: 1px solid var(--rule);
+}
+
+.table tbody tr:hover {
+  background: color-mix(in srgb, var(--surface-raised) 60%, transparent);
+}
+
+.num {
+  text-align: right !important;
+}
+
+.date {
+  color: var(--muted);
+}
+
+.sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.who {
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.side {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gainBg {
+  color: var(--gain-bright);
+  background: color-mix(in srgb, var(--gain) 22%, transparent);
+}
+
+.lossBg {
+  color: var(--loss-bright);
+  background: color-mix(in srgb, var(--loss) 22%, transparent);
+}
+
+.valueCell {
+  min-width: 170px;
+}
+
+.bar {
+  display: inline-block;
+  width: 70px;
+  height: 6px;
+  margin-right: 10px;
+  vertical-align: middle;
+  border-radius: 3px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+}
+
+.barGain {
+  background: var(--gain-bright);
+}
+
+.barLoss {
+  background: var(--loss-bright);
+}
+
+.valueText {
+  display: inline-block;
+  min-width: 52px;
+  font-weight: 600;
+  color: var(--bone);
+}
+
+@media (max-width: 720px) {
+  .priceCol {
+    display: none;
+  }
+
+  .bar {
+    display: none;
+  }
+
+  .valueCell {
+    min-width: 0;
+  }
+
+  .table th,
+  .table td {
+    padding: 10px;
+  }
+}

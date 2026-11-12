@@ -1,0 +1,20 @@
+# End-of-day email with the 3 watchlist stocks that had the most insider trades filed today.
+# Uses the same repository secrets as price-alerts: APP_URL and CRON_SECRET.
+name: insider-digest
+
+on:
+  schedule:
+    # 22:30 UTC, Mon-Fri (after the US close, SEC filings of the day are in)
+    - cron: '30 22 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Call insiders digest endpoint
+        run: |
+          curl --fail --silent --show-error --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/insiders"

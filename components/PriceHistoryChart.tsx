@@ -14,6 +14,7 @@ const RANGES = [
   { key: '1M', days: 30 },
   { key: '3M', days: 91 },
   { key: '6M', days: 182 },
+  { key: 'YTD', days: 0 },
   { key: '1A', days: 365 },
 ] as const
 
@@ -27,8 +28,12 @@ export function PriceHistoryChart({ points, intraday = [], prevClose = null }: {
 
   const data = useMemo(() => {
     if (range === '1G') return intraday
-    const days = RANGES.find((r) => r.key === range)!.days
     const last = points[points.length - 1].t
+    if (range === 'YTD') {
+      const yearStart = Date.UTC(new Date(last).getUTCFullYear(), 0, 1)
+      return points.filter((p) => p.t >= yearStart)
+    }
+    const days = RANGES.find((r) => r.key === range)!.days
     return points.filter((p) => p.t >= last - days * 86_400_000)
   }, [points, intraday, range])
 
@@ -82,7 +87,7 @@ export function PriceHistoryChart({ points, intraday = [], prevClose = null }: {
         <div>
           <p className={styles.value}>${shown.close.toFixed(2)}</p>
           <p className={styles.sub}>
-            {hover !== null ? `${fmtDate(shown.t)}${shown.session && shown.session !== 'regular' ? ` · ${sessionLabel[shown.session]}` : ''}` : isDay ? `${up ? '+' : ''}${changePct.toFixed(1)}% oggi (vs chiusura prec.)` : `${up ? '+' : ''}${changePct.toFixed(1)}% in ${range === '1A' ? '1 anno' : range.replace('M', ' mesi').replace('1 mesi', '1 mese')}`}
+            {hover !== null ? `${fmtDate(shown.t)}${shown.session && shown.session !== 'regular' ? ` · ${sessionLabel[shown.session]}` : ''}` : isDay ? `${up ? '+' : ''}${changePct.toFixed(1)}% oggi (vs chiusura prec.)` : `${up ? '+' : ''}${changePct.toFixed(1)}% ${range === 'YTD' ? 'da inizio anno' : `in ${range === '1A' ? '1 anno' : range.replace('M', ' mesi').replace('1 mesi', '1 mese')}`}`}
           </p>
         </div>
         <div className={styles.tabs} role="tablist" aria-label="Periodo">
