@@ -11,6 +11,7 @@ import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
 import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
+import { CompanyOverview } from '@/components/CompanyOverview'
 import { WatchStar } from '@/components/WatchStar'
 import { getProfile, getQuote } from '@/lib/finnhub'
 import { getYahooQuote } from '@/lib/yahoo-quote'
@@ -100,6 +101,9 @@ async function StockPreview({ symbol }: { symbol: string }) {
           </div>
         )}
       </header>
+      <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
+        <CompanyOverview symbol={symbol} name={name} industry={profile?.industry} />
+      </Suspense>
       <p className={styles.stale}>
         {covered
           ? 'Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.'
@@ -235,6 +239,10 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           </div>
         )}
       </header>
+
+      <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
+        <CompanyOverview symbol={stock.symbol} name={stock.name} />
+      </Suspense>
 
       <div className={styles.alerts}>
         <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />

@@ -20,6 +20,7 @@ export interface FinnhubProfile {
   exchange: string
   currency: string
   marketCapitalization: number
+  industry?: string
 }
 
 export interface FinnhubMetrics {
@@ -95,12 +96,14 @@ export async function getProfile(symbol: string): Promise<FinnhubProfile> {
     exchange: string
     currency: string
     marketCapitalization: number
+    finnhubIndustry?: string
   }>('/stock/profile2', { symbol })
   return {
     name: data.name,
     exchange: data.exchange,
     currency: data.currency,
     marketCapitalization: data.marketCapitalization,
+    industry: data.finnhubIndustry || undefined,
   }
 }
 

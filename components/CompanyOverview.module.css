@@ -1,0 +1,20 @@
+.box {
+  border-left: 2px solid var(--brass);
+  padding: 4px 0 4px 16px;
+  margin: 0 0 24px;
+  max-width: 72ch;
+}
+
+.sector {
+  color: var(--brass);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+
+.text {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0;
+}
