@@ -13,7 +13,7 @@ import { getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
 import { WatchStar } from '@/components/WatchStar'
-import { getProfile, getQuote } from '@/lib/finnhub'
+import { getMetrics, getProfile, getQuote } from '@/lib/finnhub'
 import { getYahooQuote } from '@/lib/yahoo-quote'
 import { RefreshButton } from '@/components/RefreshButton'
 import { FundamentalsGrid } from '@/components/FundamentalsGrid'
@@ -57,6 +57,11 @@ async function StockPreview({ symbol }: { symbol: string }) {
   }
 
   const covered = Boolean(profile && profile.name)
+  const [history, intraday, metrics] = await Promise.all([
+    getPriceHistory(symbol),
+    getIntradayHistory(symbol),
+    covered ? getMetrics(symbol).catch(() => null) : Promise.resolve(null),
+  ])
   const yahoo = covered ? null : await getYahooQuote(symbol)
   if (!covered && !yahoo) notFound()
 
@@ -104,6 +109,38 @@ async function StockPreview({ symbol }: { symbol: string }) {
       <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
         <CompanyOverview symbol={symbol} name={name} industry={profile?.industry} />
       </Suspense>
+      {history.length > 1 && (
+        <section className={styles.chartCard} aria-label="Andamento del prezzo">
+          <h2 className={styles.sectionTitle}>Andamento del prezzo</h2>
+          <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} />
+        </section>
+      )}
+      {metrics && (metrics.week52Low !== null || metrics.peRatio !== null) && (
+        <dl className={styles.previewStats}>
+          {metrics.week52Low !== null && metrics.week52High !== null && (
+            <div>
+              <dt>Range 52 settimane</dt>
+              <dd>
+                {currency}
+                {metrics.week52Low.toFixed(2)} – {currency}
+                {metrics.week52High.toFixed(2)}
+              </dd>
+            </div>
+          )}
+          {metrics.peRatio !== null && (
+            <div>
+              <dt>P/E</dt>
+              <dd>{metrics.peRatio.toFixed(1)}</dd>
+            </div>
+          )}
+          {profile?.marketCapitalization ? (
+            <div>
+              <dt>Capitalizzazione</dt>
+              <dd>${(profile.marketCapitalization / 1000).toFixed(1)} mld</dd>
+            </div>
+          ) : null}
+        </dl>
+      )}
       <p className={styles.stale}>
         {covered
           ? 'Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.'

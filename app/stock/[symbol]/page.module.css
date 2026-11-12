@@ -299,3 +299,21 @@
 .starRow {
   margin-top: 16px;
 }
+
+.previewStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 40px;
+  margin: 0 0 24px;
+}
+
+.previewStats dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.previewStats dd {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
