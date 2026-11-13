@@ -3,7 +3,11 @@ import * as congress from '@/lib/congress'
 import * as politicianProfiles from '@/lib/politician-profiles'
 import * as congressSignals from '@/lib/congress-signals'
 import * as market from '@/lib/market'
-import { scoreCandidate, sourceCandidates, selectForEnrichment, type ScoreInput, type CandidateSeed } from '@/lib/discover'
+import { prisma } from '@/lib/db'
+import * as finnhub from '@/lib/finnhub'
+import * as insiderData from '@/lib/insider-data'
+import { resetDb } from '../helpers/db'
+import { scoreCandidate, sourceCandidates, selectForEnrichment, runDiscoveryScan, type ScoreInput, type CandidateSeed } from '@/lib/discover'
 
 function baseInput(overrides: Partial<ScoreInput> = {}): ScoreInput {
   return {
@@ -197,5 +201,94 @@ describe('selectForEnrichment', () => {
     const result = selectForEnrichment(seeds)
     expect(result.filter((s) => s.market === 'US')).toHaveLength(14)
     expect(result.filter((s) => s.market === 'IT')).toHaveLength(1)
+  })
+})
+
+describe('runDiscoveryScan', () => {
+  beforeEach(async () => {
+    await resetDb()
+    vi.restoreAllMocks()
+  })
+
+  it('upserts a scored candidate sourced from a US mover', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({
+      peRatio: 28, week52High: 420, week52Low: 300, pegRatio: 1.2, roe: 30, netMargin: 25, debtToEquity: 0.5, dividendYield: 0.8, payoutRatio: 20, relativePerf13W: 5, epsTTM: 10, epsGrowth5Y: 15, bookValuePerShare: 20, cashFlowPerShare: 12,
+    })
+    vi.spyOn(insiderData, 'getInsiderData').mockResolvedValue({ trades: [], sentiment: [] })
+
+    const result = await runDiscoveryScan()
+
+    expect(result.candidates).toBe(1)
+    const stored = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'MSFT' } })
+    expect(stored?.market).toBe('US')
+    expect(stored?.partial).toBe(false)
+    expect(stored?.scannedAt).toEqual(result.scannedAt)
+  })
+
+  it('flags a candidate as partial when getMetrics fails, but keeps it', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+    vi.spyOn(finnhub, 'getMetrics').mockRejectedValue(new Error('rate limited'))
+    vi.spyOn(insiderData, 'getInsiderData').mockResolvedValue({ trades: [], sentiment: [] })
+
+    const result = await runDiscoveryScan()
+
+    expect(result.candidates).toBe(1)
+    const stored = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'MSFT' } })
+    expect(stored?.partial).toBe(true)
+  })
+
+  it('drops a congress-only candidate when both getQuote and getMetrics fail (no usable price)', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([
+      { member: 'Jane Doe', chamber: 'house', state: 'CA', side: 'buy', amountLow: 50_000, amountHigh: 100_000, date: '2026-11-01', disclosedAt: '2026-11-05', ticker: 'NVDA', asset: 'Nvidia Corp', perfPct: null },
+    ])
+    vi.spyOn(market, 'getMarketBigMovers').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('down'))
+    vi.spyOn(finnhub, 'getMetrics').mockRejectedValue(new Error('down'))
+
+    const result = await runDiscoveryScan()
+
+    expect(result.candidates).toBe(0)
+    const stored = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'NVDA' } })
+    expect(stored).toBeNull()
+  })
+
+  it('does not touch existing rows when every source fails', async () => {
+    await prisma.discoveredCandidate.create({
+      data: { symbol: 'OLD', name: 'Old Co.', market: 'US', score: 70, momentumScore: 70, fundamentalsScore: 70, insiderScore: 70, reason: 'previous scan', source: 'yahoo-movers-us' },
+    })
+    vi.spyOn(congress, 'getRecentCongressBuys').mockRejectedValue(new Error('down'))
+    vi.spyOn(market, 'getMarketBigMovers').mockRejectedValue(new Error('down'))
+
+    const result = await runDiscoveryScan()
+
+    expect(result.candidates).toBe(0)
+    const stillThere = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'OLD' } })
+    expect(stillThere).not.toBeNull()
+  })
+
+  it('un-dismisses a candidate that reappears in a new scan', async () => {
+    await prisma.discoveredCandidate.create({
+      data: { symbol: 'MSFT', name: 'Microsoft', market: 'US', score: 10, momentumScore: 10, fundamentalsScore: 10, insiderScore: 10, reason: 'old', source: 'yahoo-movers-us', dismissedAt: new Date() },
+    })
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({
+      peRatio: null, week52High: null, week52Low: null, pegRatio: null, roe: null, netMargin: null, debtToEquity: null, dividendYield: null, payoutRatio: null, relativePerf13W: null, epsTTM: null, epsGrowth5Y: null,
+    })
+    vi.spyOn(insiderData, 'getInsiderData').mockResolvedValue(null)
+
+    await runDiscoveryScan()
+
+    const stored = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'MSFT' } })
+    expect(stored?.dismissedAt).toBeNull()
   })
 })

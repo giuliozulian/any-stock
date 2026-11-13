@@ -2,6 +2,9 @@ import { getRecentCongressBuys } from './congress'
 import { memberStats } from './politician-profiles'
 import { rankSignals } from './congress-signals'
 import { getMarketBigMovers } from './market'
+import { prisma } from './db'
+import { getQuote, getMetrics } from './finnhub'
+import { getInsiderData } from './insider-data'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const round = (v: number) => Math.round(v)
@@ -143,4 +146,109 @@ export async function sourceCandidates(excludeSymbols: Set<string>): Promise<Can
 
 export function selectForEnrichment(seeds: CandidateSeed[], maxUS = 14, maxIT = 6): CandidateSeed[] {
   return [...seeds.filter((s) => s.market === 'US').slice(0, maxUS), ...seeds.filter((s) => s.market === 'IT').slice(0, maxIT)]
+}
+
+async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items]
+  async function worker() {
+    while (queue.length > 0) {
+      const item = queue.shift()
+      if (!item) return
+      await fn(item)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
+async function enrichAndScore(seed: CandidateSeed): Promise<{ score: CandidateScore; partial: boolean } | null> {
+  let price = seed.seedPrice
+  let changePct = seed.seedChangePct ?? 0
+
+  if (price === null) {
+    try {
+      const quote = await getQuote(seed.symbol)
+      price = quote.currentPrice
+      changePct = quote.changePercent
+    } catch {
+      price = null
+    }
+  }
+
+  let metrics: Awaited<ReturnType<typeof getMetrics>> | null = null
+  let metricsFailed = false
+  try {
+    metrics = await getMetrics(seed.symbol)
+  } catch {
+    metricsFailed = true
+  }
+
+  if (price === null) return null
+
+  let insiderBuyerCount = 0
+  let insiderFailed = false
+  if (seed.market === 'US') {
+    try {
+      const insider = await getInsiderData(seed.symbol)
+      if (insider) {
+        const since = Date.now() - 30 * 24 * 60 * 60 * 1000
+        insiderBuyerCount = new Set(
+          insider.trades.filter((t) => t.side === 'buy' && new Date(t.date).getTime() >= since).map((t) => t.name)
+        ).size
+      } else {
+        insiderFailed = true
+      }
+    } catch {
+      insiderFailed = true
+    }
+  }
+
+  const score = scoreCandidate({
+    price,
+    week52High: metrics?.week52High ?? null,
+    week52Low: metrics?.week52Low ?? null,
+    changePct,
+    pegRatio: metrics?.pegRatio ?? null,
+    roe: metrics?.roe ?? null,
+    debtToEquity: metrics?.debtToEquity ?? null,
+    congressSignalScore: seed.congressScore,
+    insiderBuyerCount,
+    market: seed.market,
+  })
+
+  return { score, partial: metricsFailed || insiderFailed }
+}
+
+export async function runDiscoveryScan(): Promise<{ scannedAt: Date; candidates: number }> {
+  const scannedAt = new Date()
+  const watched = await prisma.stock.findMany({ select: { symbol: true } })
+  const excludeSymbols = new Set(watched.map((w) => w.symbol.toUpperCase()))
+
+  const seeds = await sourceCandidates(excludeSymbols)
+  const selected = selectForEnrichment(seeds)
+
+  const results: Array<{ seed: CandidateSeed; score: CandidateScore; partial: boolean }> = []
+  await runWithConcurrency(selected, 5, async (seed) => {
+    const enriched = await enrichAndScore(seed)
+    if (enriched) results.push({ seed, score: enriched.score, partial: enriched.partial })
+  })
+
+  if (results.length === 0) return { scannedAt, candidates: 0 }
+
+  for (const { seed, score, partial } of results) {
+    await prisma.discoveredCandidate.upsert({
+      where: { symbol: seed.symbol },
+      create: {
+        symbol: seed.symbol, name: seed.name, market: seed.market,
+        score: score.score, momentumScore: score.momentumScore, fundamentalsScore: score.fundamentalsScore, insiderScore: score.insiderScore,
+        reason: score.reason, source: seed.source.join(','), partial, scannedAt,
+      },
+      update: {
+        name: seed.name, market: seed.market,
+        score: score.score, momentumScore: score.momentumScore, fundamentalsScore: score.fundamentalsScore, insiderScore: score.insiderScore,
+        reason: score.reason, source: seed.source.join(','), partial, scannedAt, dismissedAt: null,
+      },
+    })
+  }
+
+  return { scannedAt, candidates: results.length }
 }
