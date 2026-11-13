@@ -110,3 +110,21 @@ model StockInsight {
   model       String
   generatedAt DateTime @default(now())
 }
+
+model DiscoveredCandidate {
+  id                String    @id @default(cuid())
+  symbol            String    @unique
+  name              String
+  market            String
+  score             Float
+  momentumScore     Float
+  fundamentalsScore Float
+  insiderScore      Float
+  reason            String
+  source            String
+  partial           Boolean   @default(false)
+  scannedAt         DateTime  @default(now())
+  dismissedAt       DateTime?
+
+  @@index([score])
+}

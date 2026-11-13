@@ -57,4 +57,15 @@ describe('database setup', () => {
     const orphans = await prisma.analystRecommendation.findMany({ where: { stockId: stock.id } })
     expect(orphans).toHaveLength(0)
   })
+
+  it('resetDb also clears discovered candidates (no relation to Stock)', async () => {
+    await prisma.discoveredCandidate.create({
+      data: { symbol: 'ZZZZ', name: 'Test Co.', market: 'US', score: 50, momentumScore: 50, fundamentalsScore: 50, insiderScore: 50, reason: 'test', source: 'congress' },
+    })
+
+    await resetDb()
+
+    const remaining = await prisma.discoveredCandidate.findMany()
+    expect(remaining).toHaveLength(0)
+  })
 })
