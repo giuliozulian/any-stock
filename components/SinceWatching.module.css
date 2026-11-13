@@ -7,8 +7,8 @@
   padding: 22px 28px;
   background: var(--surface-raised);
   border: 1px solid var(--rule);
-  border-left: 4px solid var(--brass);
-  border-radius: 6px;
+  border-left: var(--accent-bar) solid var(--brass);
+  border-radius: var(--radius-card);
 }
 
 .label {

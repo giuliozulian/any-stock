@@ -31,6 +31,8 @@
   --gain-bright: #4fc283;
   --loss-bright: #ef5f4f;
   --amber-bright: #e0b062;
+  --radius-card: 8px;
+  --accent-bar: 3px;
 }
 
 @layer base {

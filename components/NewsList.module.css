@@ -49,8 +49,8 @@
   padding: 14px 16px;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-top: 3px solid var(--tone);
-  border-radius: 6px;
+  border-top: var(--accent-bar) solid var(--tone);
+  border-radius: var(--radius-card);
 }
 
 .positive {

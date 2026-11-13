@@ -6,8 +6,8 @@
   padding: 24px;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-top: 4px solid var(--tone);
-  border-radius: 6px;
+  border-top: var(--accent-bar) solid var(--tone);
+  border-radius: var(--radius-card);
 }
 
 .v_positive {
@@ -171,8 +171,8 @@
   padding: 20px 22px 22px;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-left: 4px solid var(--tone);
-  border-radius: 6px;
+  border-left: var(--accent-bar) solid var(--tone);
+  border-radius: var(--radius-card);
 }
 
 .r_positive {

@@ -50,7 +50,7 @@
   padding: 12px;
   background: var(--surface-raised);
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
 }
 
 .field {

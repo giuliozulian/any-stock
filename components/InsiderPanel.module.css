@@ -59,7 +59,7 @@
   min-width: 56px;
   padding: 6px 10px;
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--surface);
   font-size: 12px;
   color: var(--muted);
@@ -79,7 +79,7 @@
 .tableWrap {
   overflow-x: auto;
   border: 1px solid var(--rule);
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 

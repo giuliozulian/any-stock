@@ -22,8 +22,8 @@
   --tone: var(--rule);
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-left: 3px solid var(--tone);
-  border-radius: 6px;
+  border-left: var(--accent-bar) solid var(--tone);
+  border-radius: var(--radius-card);
   padding: 14px 14px 12px;
 }
 
