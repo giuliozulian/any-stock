@@ -33,6 +33,7 @@ import { getCongressTrades } from '@/lib/congress'
 import { getInsiderData } from '@/lib/insider-data'
 import { getRecentVideos, isYoutubeConfigured } from '@/lib/youtube'
 import { evaluateStock } from '@/lib/evaluate'
+import { refreshStockIfStale } from '@/lib/refresh'
 import { marketCapStatus, peStatus, rangeStatus } from '@/lib/figure-status'
 import styles from './page.module.css'
 
@@ -226,6 +227,8 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   await connection()
   const { symbol: rawSymbol } = await paramsPromise
   const symbol = rawSymbol.toUpperCase()
+
+  await refreshStockIfStale(symbol).catch(() => undefined)
 
   const stock = await prisma.stock.findUnique({
     where: { symbol },

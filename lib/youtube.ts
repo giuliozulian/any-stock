@@ -6,7 +6,7 @@ export interface RecentVideo {
   thumbnail: string
 }
 
-const TTL_MS = 6 * 60 * 60 * 1000
+const TTL_MS = 60 * 60 * 1000
 const WINDOW_DAYS = 7
 const cache = new Map<string, { at: number; videos: RecentVideo[] }>()
 
@@ -58,7 +58,7 @@ async function searchVideos(query: string, key: string, language?: string): Prom
   return parseYoutubeSearch(await res.json())
 }
 
-// Due ricerche (italiano, poi generica) costano 200 unità sulle 10.000 giornaliere gratuite: cache di 6 ore per titolo.
+// Due ricerche (italiano, poi generica) costano 200 unità sulle 10.000 giornaliere gratuite: cache di 1 ora per titolo.
 // I video in italiano vengono messi per primi; la ricerca generica completa fino a 6 risultati.
 export async function getRecentVideos(symbol: string, name: string): Promise<RecentVideo[]> {
   const key = process.env.YOUTUBE_API_KEY

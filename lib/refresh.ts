@@ -150,3 +150,23 @@ export async function refreshAllStocks(): Promise<RefreshResult[]> {
   }
   return results
 }
+
+const STALE_AFTER_MS = 60 * 60 * 1000
+const inFlight = new Map<string, Promise<RefreshResult>>()
+
+// Aggiorna notizie, riassunto e prezzi quando si apre la scheda, al massimo una volta all'ora per titolo.
+export async function refreshStockIfStale(symbol: string): Promise<void> {
+  const last = await prisma.priceSnapshot.findFirst({
+    where: { stock: { symbol } },
+    orderBy: { timestamp: 'desc' },
+    select: { timestamp: true },
+  })
+  if (last && Date.now() - last.timestamp.getTime() < STALE_AFTER_MS) return
+
+  let run = inFlight.get(symbol)
+  if (!run) {
+    run = refreshStock(symbol).finally(() => inFlight.delete(symbol))
+    inFlight.set(symbol, run)
+  }
+  await run
+}
