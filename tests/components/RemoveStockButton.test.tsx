@@ -15,7 +15,7 @@ describe('RemoveStockButton', () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: () => Promise.resolve({ ok: true }) })
 
     render(<RemoveStockButton symbol="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.click(screen.getByRole('button', { name: /rimuovi/i }))
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/stocks/AAPL', expect.objectContaining({ method: 'DELETE' })))
   })
@@ -24,7 +24,7 @@ describe('RemoveStockButton', () => {
     ;(fetch as any).mockResolvedValue({ ok: false, json: () => Promise.resolve({ error: 'AAPL is not in the watchlist' }) })
 
     render(<RemoveStockButton symbol="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.click(screen.getByRole('button', { name: /rimuovi/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('AAPL is not in the watchlist')
   })
@@ -33,9 +33,9 @@ describe('RemoveStockButton', () => {
     ;(fetch as any).mockRejectedValue(new TypeError('Failed to fetch'))
 
     render(<RemoveStockButton symbol="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /remove/i }))
+    fireEvent.click(screen.getByRole('button', { name: /rimuovi/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/failed to remove/i)
-    expect(screen.getByRole('button', { name: /remove/i })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /rimuovi/i })).not.toBeDisabled()
   })
 })
