@@ -1,3 +1,8 @@
+import { getRecentCongressBuys } from './congress'
+import { memberStats } from './politician-profiles'
+import { rankSignals } from './congress-signals'
+import { getMarketBigMovers } from './market'
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const round = (v: number) => Math.round(v)
 
@@ -79,4 +84,63 @@ export function scoreCandidate(input: ScoreInput): CandidateScore {
   )
   const reason = buildReason(input, { momentumScore, fundamentalsScore, insiderScore })
   return { momentumScore, fundamentalsScore, insiderScore, score, reason }
+}
+
+export interface CandidateSeed {
+  symbol: string
+  name: string
+  market: 'US' | 'IT'
+  source: string[]
+  seedPrice: number | null
+  seedChangePct: number | null
+  congressScore: number | null
+}
+
+export async function sourceCandidates(excludeSymbols: Set<string>): Promise<CandidateSeed[]> {
+  const seedMap = new Map<string, CandidateSeed>()
+
+  function addSeed(symbol: string, name: string, market: 'US' | 'IT', source: string, seedPrice: number | null, seedChangePct: number | null, congressScore: number | null) {
+    const existing = seedMap.get(symbol)
+    if (existing) {
+      if (!existing.source.includes(source)) existing.source.push(source)
+      if (existing.seedPrice === null) existing.seedPrice = seedPrice
+      if (existing.seedChangePct === null) existing.seedChangePct = seedChangePct
+      if (existing.congressScore === null) existing.congressScore = congressScore
+    } else {
+      seedMap.set(symbol, { symbol, name, market, source: [source], seedPrice, seedChangePct, congressScore })
+    }
+  }
+
+  try {
+    const buys = await getRecentCongressBuys()
+    if (buys && buys.length > 0) {
+      const stats = memberStats(buys)
+      const signals = rankSignals(buys, new Map(), stats)
+      for (const s of signals) addSeed(s.ticker, s.asset, 'US', 'congress', null, null, s.score)
+    }
+  } catch (err) {
+    console.error('Discovery: congress sourcing failed:', err instanceof Error ? err.message : String(err))
+  }
+
+  try {
+    const usMovers = await getMarketBigMovers(15, 'us')
+    for (const m of usMovers) addSeed(m.symbol, m.name, 'US', 'yahoo-movers-us', m.price, m.changePct, null)
+  } catch (err) {
+    console.error('Discovery: US movers sourcing failed:', err instanceof Error ? err.message : String(err))
+  }
+
+  try {
+    const itMovers = await getMarketBigMovers(15, 'it')
+    for (const m of itMovers) addSeed(m.symbol, m.name, 'IT', 'yahoo-movers-it', m.price, m.changePct, null)
+  } catch (err) {
+    console.error('Discovery: IT movers sourcing failed:', err instanceof Error ? err.message : String(err))
+  }
+
+  return [...seedMap.values()]
+    .filter((s) => !excludeSymbols.has(s.symbol.toUpperCase()))
+    .sort((a, b) => b.source.length - a.source.length || Math.abs(b.seedChangePct ?? 0) - Math.abs(a.seedChangePct ?? 0))
+}
+
+export function selectForEnrichment(seeds: CandidateSeed[], maxUS = 14, maxIT = 6): CandidateSeed[] {
+  return [...seeds.filter((s) => s.market === 'US').slice(0, maxUS), ...seeds.filter((s) => s.market === 'IT').slice(0, maxIT)]
 }

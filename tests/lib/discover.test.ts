@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest'
-import { scoreCandidate, type ScoreInput } from '@/lib/discover'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import * as congress from '@/lib/congress'
+import * as politicianProfiles from '@/lib/politician-profiles'
+import * as congressSignals from '@/lib/congress-signals'
+import * as market from '@/lib/market'
+import { scoreCandidate, sourceCandidates, selectForEnrichment, type ScoreInput, type CandidateSeed } from '@/lib/discover'
 
 function baseInput(overrides: Partial<ScoreInput> = {}): ScoreInput {
   return {
@@ -98,5 +102,100 @@ describe('scoreCandidate — combined score and reason', () => {
   it('falls back to a generic reason when every pillar is weak', () => {
     const result = scoreCandidate(baseInput())
     expect(result.reason).toContain('Segnale debole')
+  })
+})
+
+describe('sourceCandidates', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('combines congress buys and US/IT movers into one deduped list', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([
+      { member: 'Jane Doe', chamber: 'house', state: 'CA', side: 'buy', amountLow: 50_000, amountHigh: 100_000, date: '2026-11-01', disclosedAt: '2026-11-05', ticker: 'NVDA', asset: 'Nvidia Corp', perfPct: null },
+    ])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([
+      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', score: 8, reasons: [] },
+    ])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us'
+        ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }]
+        : [{ symbol: 'ENI.MI', name: 'Eni', changePct: -16, price: 14, marketCap: null, volume: null, exchange: null }]
+    )
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds.map((s) => s.symbol).sort()).toEqual(['ENI.MI', 'MSFT', 'NVDA'])
+    const nvda = seeds.find((s) => s.symbol === 'NVDA')!
+    expect(nvda.market).toBe('US')
+    expect(nvda.source).toEqual(['congress'])
+    expect(nvda.congressScore).toBe(8)
+    const eni = seeds.find((s) => s.symbol === 'ENI.MI')!
+    expect(eni.market).toBe('IT')
+    expect(eni.congressScore).toBeNull()
+  })
+
+  it('merges sources for a symbol that appears in more than one feed', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([
+      { member: 'Jane Doe', chamber: 'house', state: 'CA', side: 'buy', amountLow: 50_000, amountHigh: 100_000, date: '2026-11-01', disclosedAt: '2026-11-05', ticker: 'NVDA', asset: 'Nvidia Corp', perfPct: null },
+    ])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([
+      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', score: 8, reasons: [] },
+    ])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'NVDA', name: 'Nvidia', changePct: 22, price: 500, marketCap: null, volume: null, exchange: null }] : []
+    )
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds).toHaveLength(1)
+    expect(seeds[0].source.sort()).toEqual(['congress', 'yahoo-movers-us'])
+    expect(seeds[0].seedChangePct).toBe(22)
+  })
+
+  it('excludes symbols already in the watchlist', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+
+    const seeds = await sourceCandidates(new Set(['MSFT']))
+
+    expect(seeds).toHaveLength(0)
+  })
+
+  it('does not let one failing source block the others', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockRejectedValue(new Error('down'))
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds.map((s) => s.symbol)).toEqual(['MSFT'])
+  })
+})
+
+describe('selectForEnrichment', () => {
+  function seed(symbol: string, market: 'US' | 'IT'): CandidateSeed {
+    return { symbol, name: symbol, market, source: ['yahoo-movers-us'], seedPrice: 10, seedChangePct: 20, congressScore: null }
+  }
+
+  it('takes at most 14 US and 6 IT candidates by default', () => {
+    const seeds = [...Array(20)].map((_, i) => seed(`US${i}`, 'US')).concat([...Array(10)].map((_, i) => seed(`IT${i}`, 'IT')))
+    const result = selectForEnrichment(seeds)
+    expect(result.filter((s) => s.market === 'US')).toHaveLength(14)
+    expect(result.filter((s) => s.market === 'IT')).toHaveLength(6)
+  })
+
+  it('does not give IT leftover US slots when IT has fewer candidates than its quota', () => {
+    const seeds = [...Array(20)].map((_, i) => seed(`US${i}`, 'US')).concat([seed('ENI.MI', 'IT')])
+    const result = selectForEnrichment(seeds)
+    expect(result.filter((s) => s.market === 'US')).toHaveLength(14)
+    expect(result.filter((s) => s.market === 'IT')).toHaveLength(1)
   })
 })
