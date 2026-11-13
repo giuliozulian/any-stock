@@ -277,85 +277,188 @@
 }
 
 @media (max-width: 820px) {
-  .kpis {
-    gap: 8px;
-  }
-
-  .kpi {
-    padding: 14px;
-  }
-
-  .kpiValue {
-    font-size: 32px;
-  }
-
-  .board {
-    padding: 10px;
-    border-radius: 20px;
-  }
-
   .shell {
-    padding: 36px 20px 72px;
+    padding: 16px 14px 96px;
+  }
+
+  .masthead {
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
   .title {
-    font-size: 32px;
+    font-size: 26px;
+  }
+
+  .kpis {
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .kpi {
+    padding: 10px 12px;
+    border-radius: 14px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 6px;
+  }
+
+  .kpiLabel {
+    font-size: 12px;
+  }
+
+  .kpiValue {
+    margin-top: 0;
+    font-size: 24px;
+  }
+
+  .kpiNote {
+    display: none;
+  }
+
+  .board {
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
   }
 
   .listHead {
+    display: flex;
+    gap: 14px;
+    padding: 0 4px 8px;
+    overflow-x: auto;
+    font-size: 12px;
+    white-space: nowrap;
+    scrollbar-width: none;
+  }
+
+  .listHead span:empty {
     display: none;
+  }
+
+  .list {
+    gap: 8px;
   }
 
   .row {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 14px 16px;
-    padding: 16px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "sym price"
+      "name change"
+      "sector since"
+      "ext ext"
+      "alerts actions";
+    gap: 2px 12px;
+    padding: 12px 14px;
+    border-color: var(--rule);
+    border-radius: 16px;
   }
 
-  .titleCell,
+  .titleCell {
+    display: contents;
+  }
+
+  .symbol {
+    grid-area: sym;
+    align-self: end;
+    font-size: 20px;
+  }
+
+  .name {
+    grid-area: name;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .titleCell > :nth-child(3) {
+    grid-area: alerts;
+    margin-top: 6px;
+  }
+
   .sectorCell {
-    grid-column: 1 / -1;
+    grid-area: sector;
+    align-self: center;
+    margin-top: 8px;
   }
 
-  .extEmpty {
-    display: none;
+  .priceCell {
+    grid-area: price;
+    align-items: flex-end;
+    text-align: right;
   }
 
-  .priceCell,
-  .extCell,
-  .change,
-  .sinceCell {
-    align-items: flex-start;
-    text-align: left;
-  }
-
-  .priceCell::before,
-  .extCell::before,
-  .change::before,
-  .sinceCell::before {
-    content: attr(data-label);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--muted);
+  .price {
+    font-size: 22px;
   }
 
   .change {
+    grid-area: change;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: baseline;
+    justify-self: end;
+    gap: 6px;
+    font-size: 14px;
+  }
+
+  .change::before {
+    content: "ultima chiusura";
+    font-family: var(--font-ui);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--muted);
   }
 
   .sinceCell {
-    grid-column: 1 / -1;
+    grid-area: since;
+    align-items: flex-end;
+    justify-self: end;
+    margin-top: 8px;
+    text-align: right;
   }
 
+  .sincePct {
+    font-size: 14px;
+  }
+
+  .sinceCell::before {
+    content: "da quando lo segui";
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .sinceDate {
+    display: none;
+  }
+
+  .extCell {
+    grid-area: ext;
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: flex-start;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--rule);
+    font-size: 12px;
+  }
+
+  .extEmpty,
   .trend {
     display: none;
   }
 
   .actions {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
+    grid-area: actions;
+    align-self: end;
+    justify-content: flex-end;
+    margin-top: 6px;
+    font-size: 12px;
   }
 }
 

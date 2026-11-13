@@ -29,3 +29,31 @@
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+.trash {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  color: var(--loss-bright);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.trash:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--loss) 16%, transparent);
+}
+
+.trash:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.trash:focus-visible {
+  outline: 2px solid var(--loss-bright);
+  outline-offset: 2px;
+}

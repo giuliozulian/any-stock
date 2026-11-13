@@ -239,7 +239,7 @@
 
 @media (max-width: 920px) {
   .shell {
-    padding: 28px 20px 72px;
+    padding: 16px 14px 96px;
   }
 
   .strip {
@@ -253,8 +253,8 @@
   .hero,
   .layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 32px;
-    margin-top: 28px;
+    gap: 20px;
+    margin-top: 18px;
   }
 
 

@@ -6,11 +6,11 @@ import { Logo } from './Logo'
 import styles from './SiteNav.module.css'
 
 const ITEMS = [
-  { href: '/', label: 'Watchlist' },
-  { href: '/movimenti', label: 'Movimenti forti' },
-  { href: '/trimestrali', label: 'Trimestrali' },
-  { href: '/ipo', label: 'IPO' },
-  { href: '/politici', label: 'Politici' },
+  { href: '/', label: 'Watchlist', short: 'Watchlist' },
+  { href: '/movimenti', label: 'Movimenti forti', short: 'Movimenti' },
+  { href: '/trimestrali', label: 'Trimestrali', short: 'Trimestrali' },
+  { href: '/ipo', label: 'IPO', short: 'IPO' },
+  { href: '/politici', label: 'Politici', short: 'Politici' },
 ]
 
 export function SiteNav() {
@@ -28,7 +28,8 @@ export function SiteNav() {
             return (
               <li key={item.href}>
                 <Link href={item.href} className={`${styles.link} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
-                  {item.label}
+                  <span className={styles.full}>{item.label}</span>
+                  <span className={styles.short}>{item.short}</span>
                 </Link>
               </li>
             )
