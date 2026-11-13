@@ -6,13 +6,28 @@ import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
-import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
+import { LiveChange, LiveCounts, LivePrice, LiveSince } from '@/components/live-quotes'
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
 import styles from './page.module.css'
 
-async function WatchlistTable() {
+type SortKey = 'sym' | 'settore' | 'prezzo' | 'ext' | 'oggi' | 'da'
+type Search = { ordina?: string; dir?: string }
+
+const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
+  { key: 'sym', label: 'Titolo', numeric: false },
+  { key: 'settore', label: 'Settore', numeric: false },
+  { key: 'prezzo', label: 'Prezzo', numeric: true },
+  { key: 'ext', label: 'Pre/Post-market', numeric: true },
+  { key: 'oggi', label: 'Ultima chiusura', numeric: true },
+  { key: 'da', label: 'Da quando lo segui', numeric: true },
+]
+
+async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> }) {
   await connection()
+  const { ordina, dir } = await searchParams
+  const sortKey = COLUMNS.find((c) => c.key === ordina)?.key ?? null
+  const sortDir: 'asc' | 'desc' = dir === 'asc' ? 'asc' : 'desc'
   const stocks = await prisma.stock.findMany({
     orderBy: { addedAt: 'asc' },
     include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } },
@@ -40,7 +55,7 @@ async function WatchlistTable() {
 
   const sectors = await Promise.all(stocks.map((stock) => getSector(stock.symbol)))
 
-  const rows = stocks.map((stock, idx) => {
+  const unsorted = stocks.map((stock, idx) => {
     const latest = stock.snapshots[0]
     const ext = extended[idx]
     const entry = firstSnapshots[idx]
@@ -48,24 +63,58 @@ async function WatchlistTable() {
     const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
     return { stock, latest, ext, extPct, sincePct, entryPrice: entry?.price ?? null, sector: sectors[idx] }
   })
-  const gaining = rows.filter((r) => r.sincePct !== null && r.sincePct > 0).length
-  const losing = rows.filter((r) => r.sincePct !== null && r.sincePct < 0).length
+  const sortValue = (r: (typeof unsorted)[number]): number | string | null => {
+    switch (sortKey) {
+      case 'sym': return r.stock.symbol
+      case 'settore': return r.sector
+      case 'prezzo': return r.latest?.price ?? null
+      case 'ext': return r.extPct
+      case 'oggi': return r.latest?.changePct ?? null
+      case 'da': return r.sincePct
+      default: return null
+    }
+  }
+  const rows = sortKey
+    ? [...unsorted].sort((a, b) => {
+        const x = sortValue(a)
+        const y = sortValue(b)
+        if (x === null && y === null) return 0
+        if (x === null) return 1
+        if (y === null) return -1
+        const cmp = typeof x === 'string' ? x.localeCompare(y as string) : x - (y as number)
+        return sortDir === 'asc' ? cmp : -cmp
+      })
+    : unsorted
   const tone = (n: number | null) => (n === null || n === 0 ? styles.dash : n > 0 ? styles.gain : styles.loss)
   const tones = { gain: styles.gain, loss: styles.loss, flat: styles.dash }
   const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`
 
   return (
     <>
-      <p className={styles.summary}>
-        {stocks.length} {stocks.length === 1 ? 'titolo' : 'titoli'} · <span className={styles.gain}>{gaining} in guadagno</span> · <span className={styles.loss}>{losing} in perdita</span> da quando li segui
-      </p>
-      <div className={styles.listHead} aria-hidden="true">
-        <span>Titolo</span>
-        <span>Settore</span>
-        <span className={styles.num}>Prezzo</span>
-        <span className={styles.num}>Oggi</span>
-        <span className={styles.num}>Da quando lo segui</span>
-        <span className={styles.num}>Trend</span>
+      <div className={styles.kpis}>
+        <div className={styles.kpi}>
+          <span className={styles.kpiLabel}>{stocks.length === 1 ? 'Titolo' : 'Titoli'} seguiti</span>
+          <span className={styles.kpiValue}>{stocks.length}</span>
+        </div>
+        <LiveCounts
+          items={rows.map((r) => ({ symbol: r.stock.symbol, entryPrice: r.entryPrice, price: r.latest?.price ?? null }))}
+          labels={{ gainClass: styles.gain, lossClass: styles.loss, kpi: styles.kpi, kpiLabel: styles.kpiLabel, kpiValue: styles.kpiValue, kpiNote: styles.kpiNote }}
+        />
+      </div>
+      <section className={styles.board}>
+      <div className={styles.listHead}>
+        {COLUMNS.map((c) => {
+          const active = c.key === sortKey
+          const nextDir = active && sortDir === 'desc' ? 'asc' : 'desc'
+          const href = `/?${new URLSearchParams({ ordina: c.key, dir: c.key === 'sym' || c.key === 'settore' ? (active && sortDir === 'asc' ? 'desc' : 'asc') : nextDir })}`
+          return (
+            <Link key={c.key} href={href} className={`${styles.sort} ${c.numeric ? styles.num : ''}`} data-active={active || undefined} aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}>
+              {c.label}
+              <span className={styles.arrow} aria-hidden="true">{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+            </Link>
+          )
+        })}
+        <span />
         <span />
       </div>
       <ul className={styles.list}>
@@ -89,13 +138,19 @@ async function WatchlistTable() {
               <div className={styles.sectorCell}>{sector ? <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span> : <span className={styles.dash}>—</span>}</div>
               <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
                 <span className={styles.price}>{latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}</span>
-                {ext && extPct !== null && (
-                  <span className={`${styles.ext} ${tone(extPct)}`}>
-                    {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)} ({signed(extPct)})
-                  </span>
+              </div>
+              <div className={`${styles.num} ${styles.extCell} ${ext && extPct !== null ? '' : styles.extEmpty}`} data-label="Pre/Post-market">
+                {ext && extPct !== null ? (
+                  <>
+                    <span className={styles.extKind}>{ext.session === 'pre' ? 'Pre-market' : 'After-hours'}</span>
+                    <span className={styles.extPrice}>${ext.close.toFixed(2)}</span>
+                    <span className={`${styles.ext} ${tone(extPct)}`}>{signed(extPct)}</span>
+                  </>
+                ) : (
+                  <span className={styles.dash}>—</span>
                 )}
               </div>
-              <div className={`${styles.num} ${styles.change} ${changeTone}`} data-label="Oggi">
+              <div className={`${styles.num} ${styles.change} ${changeTone}`} data-label="Ultima chiusura">
                 {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : '—'}
               </div>
               <div className={`${styles.num} ${styles.sinceCell}`} data-label="Da quando lo segui">
@@ -116,11 +171,12 @@ async function WatchlistTable() {
           )
         })}
       </ul>
+      </section>
     </>
   )
 }
 
-export default function WatchlistPage() {
+export default function WatchlistPage({ searchParams }: { searchParams: Promise<Search> }) {
   return (
     <main className={styles.shell}>
       <header className={styles.masthead}>
@@ -130,7 +186,7 @@ export default function WatchlistPage() {
         <AddStockForm />
       </header>
       <Suspense fallback={<p className={styles.empty}>Carico la watchlist…</p>}>
-        <WatchlistTable />
+        <WatchlistTable searchParams={searchParams} />
       </Suspense>
     </main>
   )

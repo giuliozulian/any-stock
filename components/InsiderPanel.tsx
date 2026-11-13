@@ -22,18 +22,25 @@ const RANGES = [
   { key: '3Y', label: '3 anni', days: 1095 },
   { key: 'ALL', label: 'Tutto', days: null },
 ] as const
+const SIDES = [
+  { key: 'all', label: 'Tutte' },
+  { key: 'buy', label: 'Acquisti' },
+  { key: 'sell', label: 'Vendite' },
+] as const
 const PAGE_SIZE = 25
 
 export function InsiderPanel({ data }: { data: InsiderData | null }) {
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('ALL')
+  const [side, setSide] = useState<(typeof SIDES)[number]['key']>('all')
   const [page, setPage] = useState(0)
   const days = RANGES.find((r) => r.key === range)!.days
   const since = days === null ? '' : daysAgoISO(days)
   const trades = (data?.trades ?? []).filter((t) => t.date >= since)
   const summary = summarizeTrades(trades)
-  const pages = Math.max(1, Math.ceil(trades.length / PAGE_SIZE))
+  const visible = side === 'all' ? trades : trades.filter((t) => t.side === side)
+  const pages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE))
   const current = Math.min(page, pages - 1)
-  const shown = trades.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
+  const shown = visible.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE)
   const maxValue = Math.max(1, ...shown.map((t) => t.value))
   return (
     <section className={styles.panel}>
@@ -67,6 +74,21 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
                 }}
               >
                 {r.label}
+              </button>
+            ))}
+            <span className={styles.rangesGap} aria-hidden="true" />
+            {SIDES.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                className={styles.range}
+                aria-pressed={side === s.key}
+                onClick={() => {
+                  setSide(s.key)
+                  setPage(0)
+                }}
+              >
+                {s.label}
               </button>
             ))}
           </div>
@@ -145,7 +167,7 @@ export function InsiderPanel({ data }: { data: InsiderData | null }) {
             </table>
           </div>
           <div className={styles.pager}>
-            <span>{trades.length === 0 ? 'Nessuna operazione nel periodo' : `${current * PAGE_SIZE + 1}–${current * PAGE_SIZE + shown.length} di ${trades.length} operazioni`}</span>
+            <span>{visible.length === 0 ? 'Nessuna operazione nel periodo' : `${current * PAGE_SIZE + 1}–${current * PAGE_SIZE + shown.length} di ${visible.length} operazioni`}</span>
             {pages > 1 && (
               <span className={styles.pagerBtns}>
                 <button type="button" disabled={current === 0} onClick={() => setPage(current - 1)}>

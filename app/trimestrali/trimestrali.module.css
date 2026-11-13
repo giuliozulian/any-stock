@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   padding: 7px 16px;
-  border-radius: 6px;
+  border-radius: 10px;
   background: var(--brass);
   color: var(--bg, #14110d);
   font-size: 14px;

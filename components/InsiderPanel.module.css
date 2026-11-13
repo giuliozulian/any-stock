@@ -211,6 +211,7 @@
 
 .ranges {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 14px;
 }
@@ -273,4 +274,8 @@
   color: var(--muted);
   opacity: 0.5;
   cursor: default;
+}
+
+.rangesGap {
+  width: 12px;
 }

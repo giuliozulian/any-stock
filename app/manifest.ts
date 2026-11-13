@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'La tua watchlist, le notizie e le valutazioni in un colpo d’occhio.',
     start_url: '/',
     display: 'standalone',
-    background_color: '#10141b',
-    theme_color: '#10141b',
+    background_color: '#09090b',
+    theme_color: '#09090b',
     lang: 'it',
     icons: [
       { src: '/pwa-icon/192', sizes: '192x192', type: 'image/png' },

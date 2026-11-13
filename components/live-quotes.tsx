@@ -11,11 +11,11 @@ interface LiveQuote {
 const POLL_MS = 30_000
 
 let quotes: Record<string, LiveQuote> = {}
-const listeners = new Map<() => void, string | null>()
+const listeners = new Map<() => void, string | string[] | null>()
 let timer: ReturnType<typeof setInterval> | null = null
 
 function symbolsInUse(): string[] {
-  return [...new Set([...listeners.values()].filter((s): s is string => !!s))]
+  return [...new Set([...listeners.values()].flat().filter((s): s is string => !!s))]
 }
 
 let lastPoll = 0
@@ -39,7 +39,7 @@ async function poll(): Promise<void> {
   }
 }
 
-function subscribe(symbol: string | null, notify: () => void): () => void {
+function subscribe(symbol: string | string[] | null, notify: () => void): () => void {
   listeners.set(notify, symbol)
   if (!timer) {
     timer = setInterval(poll, POLL_MS)
@@ -65,6 +65,14 @@ export function useLiveQuote(symbol: string | null): LiveQuote | null {
     () => null
   )
 }
+
+export function useLiveQuotes(symbols: string[]): Record<string, LiveQuote> {
+  const key = symbols.join(',')
+  const sub = useCallback((notify: () => void) => subscribe(key ? key.split(',') : null, notify), [key])
+  return useSyncExternalStore(sub, () => quotes, () => EMPTY_QUOTES)
+}
+
+const EMPTY_QUOTES: Record<string, LiveQuote> = {}
 
 export function useLivePrice(symbol: string | null, initial: number): number {
   return useLiveQuote(symbol)?.price ?? initial
@@ -92,6 +100,33 @@ export function LiveSince({ symbol, entryPrice, initialPrice, tones }: { symbol:
   const price = useLiveQuote(symbol)?.price ?? initialPrice
   const pct = entryPrice && entryPrice > 0 && price !== null ? ((price - entryPrice) / entryPrice) * 100 : null
   return <span className={toneOf(pct, tones)}>{pct === null ? '—' : signedPct(pct)}</span>
+}
+
+export function LiveCounts({ items, labels }: { items: { symbol: string; entryPrice: number | null; price: number | null }[]; labels: { gainClass: string; lossClass: string; kpi: string; kpiLabel: string; kpiValue: string; kpiNote: string } }) {
+  const live = useLiveQuotes(items.map((i) => i.symbol))
+  let gaining = 0
+  let losing = 0
+  for (const i of items) {
+    const price = live[i.symbol]?.price ?? i.price
+    if (!i.entryPrice || i.entryPrice <= 0 || price === null) continue
+    const pct = ((price - i.entryPrice) / i.entryPrice) * 100
+    if (pct > 0) gaining++
+    else if (pct < 0) losing++
+  }
+  return (
+    <>
+      <div className={labels.kpi}>
+        <span className={labels.kpiLabel}>In guadagno</span>
+        <span className={`${labels.kpiValue} ${labels.gainClass}`}>{gaining}</span>
+        <span className={labels.kpiNote}>da quando li segui</span>
+      </div>
+      <div className={labels.kpi}>
+        <span className={labels.kpiLabel}>In perdita</span>
+        <span className={`${labels.kpiValue} ${labels.lossClass}`}>{losing}</span>
+        <span className={labels.kpiNote}>da quando li segui</span>
+      </div>
+    </>
+  )
 }
 
 export function LiveStamp({ symbol, fallback }: { symbol: string; fallback: string }) {

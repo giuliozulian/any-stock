@@ -7,20 +7,18 @@
 
 .group {
   display: inline-flex;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  overflow: hidden;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-raised);
 }
 
 .group a {
   padding: 7px 14px;
+  border-radius: 9px;
   color: var(--muted);
   font-size: 14px;
   text-decoration: none;
-}
-
-.group a + a {
-  border-left: 1px solid var(--rule);
 }
 
 .group a:hover {
@@ -28,9 +26,10 @@
 }
 
 .group a[aria-current='page'] {
-  background: var(--brass);
-  color: var(--bg, #14110d);
+  background: var(--ink);
+  color: var(--bone);
   font-weight: 600;
+  box-shadow: 0 0 0 1px var(--rule);
 }
 
 .group a:focus-visible,

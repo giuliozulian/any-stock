@@ -18,19 +18,19 @@
 
 :root {
   --font-display: var(--font-ui);
-  --ink: #10141b;
-  --surface: #171c25;
-  --surface-raised: #1d2330;
-  --rule: #2a3141;
-  --bone: #e8e4da;
-  --muted: #8b93a1;
-  --brass: #b08d57;
-  --brass-dim: #8a7047;
-  --gain: #5b8c6e;
-  --loss: #b5453a;
-  --gain-bright: #4fc283;
-  --loss-bright: #ef5f4f;
-  --amber-bright: #e0b062;
+  --ink: #09090b;
+  --surface: #111113;
+  --surface-raised: #1c1c1f;
+  --rule: #27272a;
+  --bone: #fafafa;
+  --muted: #a1a1aa;
+  --brass: #3bf08c;
+  --brass-dim: #1f9d5c;
+  --gain: #12b863;
+  --loss: #e5484d;
+  --gain-bright: #3bf08c;
+  --loss-bright: #ff5a4f;
+  --amber-bright: #ffb800;
   --radius-card: 20px;
   --radius-inner: 14px;
   --card-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
