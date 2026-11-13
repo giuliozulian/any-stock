@@ -141,6 +141,12 @@
   text-align: right;
 }
 
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .titleCell {
   display: flex;
   flex-direction: column;

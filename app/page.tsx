@@ -6,6 +6,7 @@ import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
+import { CompareSelectionProvider, CompareCheckbox, CompareBar } from '@/components/CompareSelection'
 import { LiveChange, LiveCounts, LivePrice, LiveSince } from '@/components/live-quotes'
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
@@ -117,15 +118,19 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
         <span />
         <span />
       </div>
+      <CompareSelectionProvider>
       <ul className={styles.list}>
         {rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash
           return (
             <li key={stock.id} className={styles.row}>
               <div className={styles.titleCell}>
-                <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
-                  {stock.symbol}
-                </Link>
+                <div className={styles.titleRow}>
+                  <CompareCheckbox symbol={stock.symbol} />
+                  <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
+                    {stock.symbol}
+                  </Link>
+                </div>
                 <span className={styles.name}>{stock.name}</span>
                 <AlertTargets
                   symbol={stock.symbol}
@@ -171,6 +176,8 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
           )
         })}
       </ul>
+      <CompareBar maxCount={4} />
+      </CompareSelectionProvider>
       </section>
     </>
   )
