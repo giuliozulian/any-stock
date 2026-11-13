@@ -23,7 +23,7 @@
   background: var(--surface);
   border: 1px solid var(--rule);
   border-left: var(--accent-bar) solid var(--tone);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-inner);
   padding: 14px 14px 12px;
 }
 

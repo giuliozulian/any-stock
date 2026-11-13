@@ -31,7 +31,10 @@
   --gain-bright: #4fc283;
   --loss-bright: #ef5f4f;
   --amber-bright: #e0b062;
-  --radius-card: 8px;
+  --radius-card: 20px;
+  --radius-inner: 14px;
+  --card-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  --font-num: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --accent-bar: 3px;
 }
 
@@ -77,9 +80,11 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
+.num,
 .numeral {
-  font-family: var(--font-display), Georgia, serif;
-  font-feature-settings: "onum" 1, "tnum" 1;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
 }
 
 @media (prefers-reduced-motion: reduce) {

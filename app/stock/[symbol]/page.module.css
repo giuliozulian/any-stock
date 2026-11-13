@@ -53,6 +53,8 @@
 }
 
 .price {
+  font-family: var(--font-num);
+  letter-spacing: -0.04em;
   font-family: var(--font-display);
   font-size: 40px;
   line-height: 1;
@@ -130,6 +132,7 @@
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
   padding: 20px 20px 14px;
 }
 
@@ -158,7 +161,7 @@
   padding: 16px 18px;
   background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-inner);
 }
 
 .figure dt {
@@ -169,6 +172,8 @@
 }
 
 .figure dd {
+  font-family: var(--font-num);
+  letter-spacing: -0.04em;
   margin-top: 4px;
   font-size: 30px;
 }

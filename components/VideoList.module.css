@@ -10,7 +10,7 @@
   height: 100%;
   padding: 10px;
   border: 1px solid var(--rule);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-inner);
   background: var(--surface);
   color: var(--bone);
   text-decoration: none;

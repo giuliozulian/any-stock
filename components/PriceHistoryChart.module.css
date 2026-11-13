@@ -28,15 +28,18 @@
 
 .tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-raised);
 }
 
 .tab {
   min-width: 40px;
   height: 32px;
   padding: 0 10px;
-  border: 1px solid var(--rule);
-  border-radius: 999px;
+  border: 0;
+  border-radius: 9px;
   background: none;
   color: var(--muted);
   font-family: var(--font-ui);
@@ -51,8 +54,8 @@
 
 .tabActive {
   color: var(--bone);
-  border-color: var(--tone);
-  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--rule);
 }
 
 .svg {

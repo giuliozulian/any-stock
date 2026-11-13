@@ -3,10 +3,13 @@
 }
 
 .list {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  max-width: 100%;
+  gap: 2px;
+  padding: 3px;
   overflow-x: auto;
-  border-bottom: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface-raised);
   scrollbar-width: none;
 }
 
@@ -16,16 +19,17 @@
 
 .tab {
   flex: none;
-  padding: 12px 18px;
-  margin-bottom: -1px;
+  min-height: 36px;
+  padding: 0 16px;
   border: 0;
-  border-bottom: 2px solid transparent;
+  border-radius: 9px;
   background: none;
   color: var(--muted);
   font: inherit;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tab:hover {
@@ -34,16 +38,17 @@
 
 .tab[aria-selected='true'] {
   color: var(--bone);
-  border-bottom-color: var(--brass);
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--rule);
 }
 
 .tab:focus-visible {
   outline: 2px solid var(--brass);
-  outline-offset: -2px;
+  outline-offset: 1px;
 }
 
 .panel {
-  padding-top: 8px;
+  padding-top: 24px;
 }
 
 .panel[hidden] {
