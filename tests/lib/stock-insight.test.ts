@@ -21,9 +21,9 @@ describe('parseInsight', () => {
   it('accepts a valid payload', () => {
     expect(parseInsight(valid, 'm')).toMatchObject({ verdict: 'positive', score: 4, model: 'm' })
   })
-  it('truncates lists to 4 items', () => {
+  it('truncates lists to 5 items', () => {
     const r = parseInsight({ ...valid, keyPoints: ['1', '2', '3', '4', '5', '6'] }, 'm')
-    expect(r?.keyPoints).toEqual(['1', '2', '3', '4'])
+    expect(r?.keyPoints).toEqual(['1', '2', '3', '4', '5'])
   })
   it.each([
     { ...valid, verdict: 'up' },

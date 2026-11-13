@@ -91,6 +91,7 @@ model NewsAnalysis {
   scope      String
   confidence String
   rationale  String
+  digest     String?
   model      String
   analyzedAt DateTime @default(now())
 }

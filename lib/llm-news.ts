@@ -37,6 +37,7 @@ export interface LlmNewsAnalysis {
   scope: Scope;
   confidence: Confidence;
   rationale: string;
+  digest: string | null;
   model: string;
 }
 
@@ -66,6 +67,7 @@ Rispondi SOLO con un oggetto JSON con questi campi:
 - horizon: "short" (giorni/settimane) | "medium" (mesi) | "long" (anni)
 - scope: "direct" (riguarda l'azienda) | "indirect" (riguarda settore, concorrenti o mercato)
 - confidence: "low" | "medium" | "high" (quanto il testo fornito basta a giudicare)
+- digest: mini riassunto della notizia in italiano, 2 frasi (massimo 300 caratteri): cosa è successo, con i fatti e i numeri principali, senza giudizi
 - rationale: spiegazione in italiano, 1-2 frasi, massimo 220 caratteri, in parole semplici`;
 
 export function isLlmConfigured(): boolean {
@@ -84,6 +86,7 @@ export function parseLlmAnalysis(
   const confidence = r.confidence;
   const intensity =
     typeof r.intensity === "number" ? Math.round(r.intensity) : NaN;
+  const digest = typeof r.digest === "string" && r.digest.trim() ? r.digest.trim().slice(0, 400) : null;
   const rationale = typeof r.rationale === "string" ? r.rationale.trim() : "";
 
   if (
@@ -108,6 +111,7 @@ export function parseLlmAnalysis(
     scope,
     confidence,
     rationale: rationale.slice(0, 300),
+    digest,
     model,
   };
 }
@@ -148,7 +152,7 @@ export async function requestLlmJson(
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: 1500,
+        max_tokens: 3000,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: system },

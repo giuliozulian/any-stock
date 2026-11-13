@@ -16,6 +16,7 @@ interface NewsItemProps {
     scope: string
     confidence: string
     rationale: string
+    digest?: string | null
   } | null
 }
 
@@ -67,6 +68,7 @@ export function NewsList({ news, stock }: { news: NewsItemProps[]; stock?: { sym
             </a>
             {ai && (
               <>
+                {ai.digest && <p className={styles.digest}>{ai.digest}</p>}
                 <p className={styles.rationale}>{ai.rationale}</p>
                 <p className={styles.aiMeta}>
                   Intensità {ai.intensity}/5 · {HORIZON_LABEL[ai.horizon] ?? ai.horizon} · confidenza {CONFIDENCE_LABEL[ai.confidence] ?? ai.confidence}

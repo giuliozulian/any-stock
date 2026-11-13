@@ -50,8 +50,8 @@
 
 .summary {
   max-width: 64ch;
-  font-size: 20px;
-  line-height: 1.55;
+  font-size: 17px;
+  line-height: 1.6;
   color: var(--bone);
   text-wrap: pretty;
 }
@@ -70,4 +70,34 @@
   .summary {
     font-size: 18px;
   }
+}
+
+.summary + .summary {
+  margin-top: 12px;
+}
+
+.group {
+  max-width: 64ch;
+  margin-top: 20px;
+}
+
+.groupTitle {
+  margin-bottom: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 18px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.list li::marker {
+  color: var(--tone);
 }

@@ -24,7 +24,8 @@ export interface InsightResult {
 
 const MAX_NEWS = 10
 const MAX_VIDEOS = 6
-const MAX_LIST = 4
+const MAX_LIST = 5
+const PROMPT_VERSION = 2
 const SUMMARY_CHARS = 400
 
 const SYSTEM_PROMPT = `Sei un analista azionario prudente. Ricevi le ultime notizie e i titoli dei video YouTube recenti su un titolo quotato.
@@ -32,11 +33,11 @@ Scrivi un riassunto e una valutazione complessiva, solo in base al contenuto for
 Le notizie sono più affidabili dei video: i video sono opinioni di terzi, usali solo come segnale di sentiment e pesali meno.
 Se il materiale è scarso o non riguarda davvero il titolo, usa verdict "neutral" e confidence "low".
 Rispondi SOLO con un oggetto JSON con questi campi:
-- summary: riassunto in italiano di massimo 2 frasi brevi (circa 250 caratteri) che dice cosa emerge da notizie e video e come valutarli per il titolo, parole semplici
+- summary: riassunto approfondito in italiano, in 3 paragrafi separati da una riga vuota (circa 1000-1500 caratteri in tutto), parole semplici: (1) le notizie principali spiegate nel dettaglio a grandi linee, cosa è successo e perché conta; (2) l'impatto atteso di ciascun tema sul titolo (ricavi, margini, rischio, sentiment) e quanto è rilevante; (3) cosa emerge dai video e se conferma o contraddice le notizie
 - verdict: "positive" | "neutral" | "negative" (tono complessivo del materiale per il titolo)
 - score: intero da 1 (segnale debolissimo) a 5 (segnale molto forte) sulla forza del verdetto
-- keyPoints: da 1 a 4 punti chiave in italiano, ciascuno massimo 140 caratteri
-- risks: da 0 a 4 rischi o incognite in italiano, ciascuno massimo 140 caratteri
+- keyPoints: da 2 a 5 punti chiave in italiano, ciascuno nel formato "notizia: impatto sul titolo", massimo 220 caratteri
+- risks: da 0 a 4 rischi o incognite in italiano, ciascuno massimo 220 caratteri
 - confidence: "low" | "medium" | "high" (quanto il materiale basta a giudicare)`
 
 export function buildInsightInput(
@@ -60,6 +61,7 @@ export function buildInsightInput(
 
 export function computeInputHash(input: InsightInput): string {
   const payload = {
+    v: PROMPT_VERSION,
     symbol: input.stock.symbol,
     news: input.news.map((n) => [n.headline, n.publishedAt.toISOString(), n.summary]),
     // L'ordine per rilevanza di YouTube può cambiare senza che cambi il contenuto.
@@ -74,7 +76,7 @@ function stringList(value: unknown, min: number): string[] | null {
   if (!Array.isArray(value)) return null
   const items = value
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-    .map((v) => v.trim().slice(0, 200))
+    .map((v) => v.trim().slice(0, 300))
     .slice(0, MAX_LIST)
   return items.length >= min ? items : null
 }
@@ -93,7 +95,7 @@ export function parseInsight(raw: unknown, model: string): InsightResult | null 
   if (!Number.isFinite(score) || score < 1 || score > 5) return null
   if (!keyPoints || !risks) return null
 
-  return { summary: summary.slice(0, 600), verdict: r.verdict, score, keyPoints, risks, confidence: r.confidence, model }
+  return { summary: summary.slice(0, 2400), verdict: r.verdict, score, keyPoints, risks, confidence: r.confidence, model }
 }
 
 function buildUserPrompt({ stock, news, videos }: InsightInput): string {
