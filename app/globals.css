@@ -1,3 +1,21 @@
+/* Tailwind senza preflight: gli stili CSS-module esistenti restano invariati */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@theme inline {
+  --color-background: var(--ink);
+  --color-foreground: var(--bone);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--bone);
+  --color-popover: var(--surface-raised);
+  --color-popover-foreground: var(--bone);
+  --color-muted: var(--surface-raised);
+  --color-muted-foreground: var(--muted);
+  --color-border: var(--rule);
+  --color-ring: var(--brass);
+}
+
 :root {
   --font-display: var(--font-ui);
   --ink: #10141b;
@@ -15,10 +33,12 @@
   --amber-bright: #e0b062;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
+@layer base {
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
 }
 
 html {
