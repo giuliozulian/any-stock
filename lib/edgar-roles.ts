@@ -9,6 +9,13 @@ async function secJson<T>(url: string): Promise<T> {
   return (await res.json()) as T
 }
 
+// company_tickers.json ranks the primary share class first for a CIK with several (e.g. BRK.A before BRK.B) — keep that first ticker, not the last one a plain Map.set loop would leave behind.
+function byCikFirstWins(entries: { cik_str: number; ticker: string }[]): Map<number, string> {
+  const byCik = new Map<number, string>()
+  for (const v of entries) if (!byCik.has(v.cik_str)) byCik.set(v.cik_str, v.ticker.toUpperCase())
+  return byCik
+}
+
 async function ensureTickerMap(): Promise<{ map: Map<string, number>; byCik: Map<number, string> }> {
   if (!tickerMap || Date.now() - tickerMap.at > TTL_MS) {
     const data = await secJson<Record<string, { cik_str: number; ticker: string }>>('https://www.sec.gov/files/company_tickers.json')
@@ -16,7 +23,7 @@ async function ensureTickerMap(): Promise<{ map: Map<string, number>; byCik: Map
     tickerMap = {
       at: Date.now(),
       map: new Map(entries.map((v) => [v.ticker.toUpperCase(), v.cik_str])),
-      byCik: new Map(entries.map((v) => [v.cik_str, v.ticker.toUpperCase()])),
+      byCik: byCikFirstWins(entries),
     }
   }
   return tickerMap

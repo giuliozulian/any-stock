@@ -43,4 +43,20 @@ describe('getTickerByCik', () => {
   it('returns null for an unmapped CIK', async () => {
     expect(await getTickerByCik(999999999)).toBeNull()
   })
+
+  it('keeps the first ticker for a CIK with multiple share classes (company_tickers.json ranks the primary class first)', async () => {
+    // Fresh module instance: the ticker cache is module-level state shared by the tests above, and its 24h TTL would otherwise serve their stale AAPL/MSFT fixture here.
+    vi.resetModules()
+    global.fetch = vi.fn(async () =>
+      new Response(
+        JSON.stringify({
+          0: { cik_str: 1067983, ticker: 'BRK.A', title: 'Berkshire Hathaway' },
+          1: { cik_str: 1067983, ticker: 'BRK.B', title: 'Berkshire Hathaway' },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch
+    const fresh = await import('@/lib/edgar-roles')
+    expect(await fresh.getTickerByCik(1067983)).toBe('BRK.A')
+  })
 })

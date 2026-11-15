@@ -81,11 +81,11 @@ describe('getForm4ClusterSeeds', () => {
     vi.spyOn(edgarRoles, 'getTickerByCik').mockImplementation(async (cik) => ({ 1: 'AAA', 2: 'BBB' }[cik] ?? null))
     global.fetch = vi.fn(async (url: string) => {
       if (url.includes('getcurrent')) return new Response(FEED, { status: 200 })
-      // Filing URLs strip dashes from the accession number (real EDGAR archive path convention, same as lib/edgar-roles.ts).
-      if (url.includes('000000000126000001')) return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
-      if (url.includes('000000000126000002')) return new Response(xmlFor('John Roe', 'P'), { status: 200 })
-      if (url.includes('000000000126000003')) throw new Error('network blip')
-      if (url.includes('000000000226000001')) return new Response(xmlFor('Solo Buyer', 'P'), { status: 200 })
+      // Filing URLs are the complete-submission .txt file: /data/{cik}/{accession-with-dashes}.txt — a deterministic name, no filing-agent-specific XML filename to guess.
+      if (url.includes('0000000001-26-000001.txt')) return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
+      if (url.includes('0000000001-26-000002.txt')) return new Response(xmlFor('John Roe', 'P'), { status: 200 })
+      if (url.includes('0000000001-26-000003.txt')) throw new Error('network blip')
+      if (url.includes('0000000002-26-000001.txt')) return new Response(xmlFor('Solo Buyer', 'P'), { status: 200 })
       throw new Error(`unexpected URL in test: ${url}`)
     }) as unknown as typeof fetch
   })
@@ -109,6 +109,60 @@ describe('getForm4ClusterSeeds', () => {
     // AAA has 3 entries, one throws (accession ...000003); the other two (Jane, John) must still count.
     const seeds = await getForm4ClusterSeeds(100, 2)
     expect(seeds.find((s) => s.symbol === 'AAA')?.buyerCount).toBe(2)
+  })
+
+  it('fetches the filing by the complete-submission .txt URL (deterministic filename), not a guessed XML document name', async () => {
+    await getForm4ClusterSeeds(100, 2)
+    const calledUrls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0] as string)
+    expect(calledUrls.some((u) => u.includes('/data/1/0000000001-26-000001.txt'))).toBe(true)
+    expect(calledUrls.some((u) => u.includes('primary_doc.xml'))).toBe(false)
+  })
+
+  it('returns the partial result gathered so far once the overall deadline passes, instead of waiting for every filing', async () => {
+    vi.spyOn(edgarRoles, 'getTickerByCik').mockImplementation(async (cik) => ({ 1: 'AAA' }[cik] ?? null))
+    global.fetch = vi.fn(async (url: string) => {
+      if (url.includes('getcurrent')) {
+        return new Response(
+          `<feed>
+            <entry><title>4 - AAA INC (0000000001) (Reporting)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000020</id></entry>
+            <entry><title>4 - AAA INC (0000000001) (Reporting)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000021</id></entry>
+          </feed>`,
+          { status: 200 },
+        )
+      }
+      if (url.includes('000020.txt')) return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
+      // This one never resolves — simulates a stuck SEC request that would otherwise block the whole scan.
+      if (url.includes('000021.txt')) return new Promise<Response>(() => {})
+      throw new Error(`unexpected URL in test: ${url}`)
+    }) as unknown as typeof fetch
+
+    const seeds = await getForm4ClusterSeeds(100, 1, 30)
+    expect(seeds).toEqual([{ symbol: 'AAA', name: 'AAA INC', buyerCount: 1 }])
+  })
+
+  it('fetches a given accession number only once, even if the feed lists it under more than one entry', async () => {
+    vi.spyOn(edgarRoles, 'getTickerByCik').mockImplementation(async (cik) => ({ 1: 'AAA', 9: 'AAA' }[cik] ?? null))
+    let fetchCountForAccession030 = 0
+    global.fetch = vi.fn(async (url: string) => {
+      if (url.includes('getcurrent')) {
+        // Same accession number (...-000030) listed twice, e.g. once under the issuer's CIK and once under the insider's own CIK.
+        return new Response(
+          `<feed>
+            <entry><title>4 - AAA INC (0000000001) (Reporting)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000030</id></entry>
+            <entry><title>4 - SOME INSIDER (0000000009) (Reporting)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000030</id></entry>
+          </feed>`,
+          { status: 200 },
+        )
+      }
+      if (url.includes('000030.txt')) {
+        fetchCountForAccession030++
+        return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
+      }
+      throw new Error(`unexpected URL in test: ${url}`)
+    }) as unknown as typeof fetch
+
+    await getForm4ClusterSeeds(100, 1)
+    expect(fetchCountForAccession030).toBe(1)
   })
 
   it('returns an empty array when the feed itself fails', async () => {

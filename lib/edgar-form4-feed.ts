@@ -67,7 +67,7 @@ async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
 }
 
 // Market-wide insider-cluster seeds: symbols with at least `minBuyers` distinct insiders filing an open-market purchase (code P) among the `limit` most recent Form 4 filings on EDGAR, across every company — not just symbols already tracked elsewhere. Returns [] when the feed itself is unreachable; one bad filing is skipped without affecting the others.
-export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2): Promise<Form4ClusterSeed[]> {
+export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2, overallDeadlineMs = 15000): Promise<Form4ClusterSeed[]> {
   let atomXml: string
   try {
     atomXml = await fetchText(`https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company=&dateb=&owner=include&count=${limit}&output=atom`)
@@ -75,15 +75,17 @@ export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2): Promise<
     console.error('Form4 cluster feed failed:', err instanceof Error ? err.message : String(err))
     return []
   }
-  const entries = parseFeedEntries(atomXml)
+  // Dedup by accession number: safe regardless of whether the feed ever lists one filing under two entries (e.g. issuer and insider CIK) — a true duplicate is fetched once, and a feed with no duplicates is unaffected.
+  const entries = [...new Map(parseFeedEntries(atomXml).map((e) => [e.accessionNumber, e])).values()]
 
   const bySymbol = new Map<string, { name: string; buyers: Set<string> }>()
-  await runWithConcurrency(entries, 5, async (entry) => {
+  const fanOut = runWithConcurrency(entries, 5, async (entry) => {
     const symbol = await getTickerByCik(entry.cik).catch(() => null)
     if (!symbol) return
+    // The complete-submission .txt file has a deterministic name (CIK + dashed accession number) and embeds the primary document's XML inline — no per-filing-agent document filename to guess (Form 4 XML filenames vary; see lib/edgar-roles.ts's getInsiderRoles, which reads the real filename from the submissions API for the same reason).
     let xml: string
     try {
-      xml = await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${entry.accessionNumber.replace(/-/g, '')}/primary_doc.xml`)
+      xml = await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${entry.accessionNumber}.txt`)
     } catch {
       return
     }
@@ -93,6 +95,9 @@ export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2): Promise<
     existing.buyers.add(transaction.insiderName)
     bySymbol.set(symbol, existing)
   })
+
+  // Each worker already timed out individually (fetchText's AbortSignal); this overall deadline bounds the whole batch, so a scan never blocks on SEC past it — bySymbol holds whatever finished in time, and that partial result is returned.
+  await Promise.race([fanOut, new Promise<void>((resolve) => setTimeout(resolve, overallDeadlineMs))])
 
   return [...bySymbol.entries()]
     .map(([symbol, { name, buyers }]) => ({ symbol, name, buyerCount: buyers.size }))
