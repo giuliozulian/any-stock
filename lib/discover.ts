@@ -155,7 +155,20 @@ export async function sourceCandidates(excludeSymbols: Set<string>): Promise<Can
 }
 
 export function selectForEnrichment(seeds: CandidateSeed[], maxUS = 14, maxIT = 6): CandidateSeed[] {
-  return [...seeds.filter((s) => s.market === 'US').slice(0, maxUS), ...seeds.filter((s) => s.market === 'IT').slice(0, maxIT)]
+  const clusterReserved = Math.min(4, maxUS)
+  const generalCap = maxUS - clusterReserved
+
+  const us = seeds.filter((s) => s.market === 'US')
+  const clusterOnly = us
+    .filter((s) => s.source.length === 1 && s.source[0] === 'edgar-form4-cluster')
+    .sort((a, b) => (b.clusterBuyerCount ?? 0) - (a.clusterBuyerCount ?? 0))
+    .slice(0, clusterReserved)
+  const clusterOnlySymbols = new Set(clusterOnly.map((s) => s.symbol))
+  const general = us.filter((s) => !clusterOnlySymbols.has(s.symbol)).slice(0, generalCap)
+
+  const it = seeds.filter((s) => s.market === 'IT').slice(0, maxIT)
+
+  return [...general, ...clusterOnly, ...it]
 }
 
 async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {

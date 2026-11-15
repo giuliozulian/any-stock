@@ -231,22 +231,51 @@ describe('sourceCandidates', () => {
 })
 
 describe('selectForEnrichment', () => {
-  function seed(symbol: string, market: 'US' | 'IT'): CandidateSeed {
-    return { symbol, name: symbol, market, source: ['yahoo-movers-us'], seedPrice: 10, seedChangePct: 20, congressScore: null, clusterBuyerCount: null }
+  function seed(symbol: string, market: 'US' | 'IT', overrides: Partial<CandidateSeed> = {}): CandidateSeed {
+    return { symbol, name: symbol, market, source: ['yahoo-movers-us'], seedPrice: 10, seedChangePct: 20, congressScore: null, clusterBuyerCount: null, ...overrides }
+  }
+  function clusterOnlySeed(symbol: string, buyerCount: number): CandidateSeed {
+    return { symbol, name: symbol, market: 'US', source: ['edgar-form4-cluster'], seedPrice: null, seedChangePct: null, congressScore: null, clusterBuyerCount: buyerCount }
   }
 
-  it('takes at most 14 US and 6 IT candidates by default', () => {
+  it('caps the general US pool at 10 (14 minus the 4 reserved cluster slots) when there are no cluster-only candidates', () => {
     const seeds = [...Array(20)].map((_, i) => seed(`US${i}`, 'US')).concat([...Array(10)].map((_, i) => seed(`IT${i}`, 'IT')))
     const result = selectForEnrichment(seeds)
-    expect(result.filter((s) => s.market === 'US')).toHaveLength(14)
+    expect(result.filter((s) => s.market === 'US')).toHaveLength(10)
     expect(result.filter((s) => s.market === 'IT')).toHaveLength(6)
   })
 
   it('does not give IT leftover US slots when IT has fewer candidates than its quota', () => {
     const seeds = [...Array(20)].map((_, i) => seed(`US${i}`, 'US')).concat([seed('ENI.MI', 'IT')])
     const result = selectForEnrichment(seeds)
-    expect(result.filter((s) => s.market === 'US')).toHaveLength(14)
+    expect(result.filter((s) => s.market === 'US')).toHaveLength(10)
     expect(result.filter((s) => s.market === 'IT')).toHaveLength(1)
+  })
+
+  it('reserves up to 4 slots for cluster-only candidates, shrinking the general pool to 10', () => {
+    const movers = [...Array(20)].map((_, i) => seed(`US${i}`, 'US'))
+    const clusters = [clusterOnlySeed('C1', 5), clusterOnlySeed('C2', 4), clusterOnlySeed('C3', 3), clusterOnlySeed('C4', 2)]
+    const result = selectForEnrichment([...movers, ...clusters])
+    const us = result.filter((s) => s.market === 'US')
+    expect(us).toHaveLength(14)
+    expect(us.filter((s) => s.source.includes('edgar-form4-cluster')).map((s) => s.symbol).sort()).toEqual(['C1', 'C2', 'C3', 'C4'])
+  })
+
+  it('keeps only the top 4 cluster-only candidates by buyerCount when more than 4 are available', () => {
+    const movers = [...Array(20)].map((_, i) => seed(`US${i}`, 'US'))
+    const clusters = [clusterOnlySeed('LOW1', 2), clusterOnlySeed('HIGH1', 9), clusterOnlySeed('LOW2', 2), clusterOnlySeed('HIGH2', 8), clusterOnlySeed('HIGH3', 7), clusterOnlySeed('HIGH4', 6)]
+    const result = selectForEnrichment([...movers, ...clusters])
+    const chosenClusters = result.filter((s) => s.source.includes('edgar-form4-cluster')).map((s) => s.symbol)
+    expect(chosenClusters.sort()).toEqual(['HIGH1', 'HIGH2', 'HIGH3', 'HIGH4'])
+  })
+
+  it('does not hand unused reserved slots to movers when fewer than 4 cluster-only candidates exist', () => {
+    const movers = [...Array(20)].map((_, i) => seed(`US${i}`, 'US'))
+    const clusters = [clusterOnlySeed('C1', 5)]
+    const result = selectForEnrichment([...movers, ...clusters])
+    const us = result.filter((s) => s.market === 'US')
+    expect(us).toHaveLength(11) // 10 general + 1 cluster, the other 3 reserved slots stay empty
+    expect(us.some((s) => s.symbol === 'C1')).toBe(true)
   })
 })
 
