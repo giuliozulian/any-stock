@@ -165,6 +165,26 @@ describe('getForm4ClusterSeeds', () => {
     expect(fetchCountForAccession030).toBe(1)
   })
 
+  it('retries once after a 429 on the feed fetch instead of giving up immediately', async () => {
+    let calls = 0
+    global.fetch = vi.fn(async (url: string) => {
+      if (url.includes('getcurrent')) {
+        calls++
+        if (calls === 1) return new Response('rate limited', { status: 429, headers: { 'Retry-After': '0' } })
+        return new Response(FEED, { status: 200 })
+      }
+      if (url.includes('0000000001-26-000001.txt')) return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
+      if (url.includes('0000000001-26-000002.txt')) return new Response(xmlFor('John Roe', 'P'), { status: 200 })
+      if (url.includes('0000000001-26-000003.txt')) throw new Error('network blip')
+      if (url.includes('0000000002-26-000001.txt')) return new Response(xmlFor('Solo Buyer', 'P'), { status: 200 })
+      throw new Error(`unexpected URL in test: ${url}`)
+    }) as unknown as typeof fetch
+
+    const seeds = await getForm4ClusterSeeds(100, 2)
+    expect(seeds).toEqual([{ symbol: 'AAA', name: 'AAA INC', buyerCount: 2 }])
+    expect(calls).toBe(2)
+  })
+
   it('returns an empty array when the feed itself fails', async () => {
     global.fetch = vi.fn(async () => {
       throw new Error('SEC down')

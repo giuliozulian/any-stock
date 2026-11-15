@@ -44,6 +44,19 @@ describe('getTickerByCik', () => {
     expect(await getTickerByCik(999999999)).toBeNull()
   })
 
+  it('retries once after a 429 instead of failing the whole lookup', async () => {
+    vi.resetModules()
+    let calls = 0
+    global.fetch = vi.fn(async () => {
+      calls++
+      if (calls === 1) return new Response('rate limited', { status: 429, headers: { 'Retry-After': '0' } })
+      return new Response(JSON.stringify({ 0: { cik_str: 320193, ticker: 'AAPL', title: 'Apple Inc.' } }), { status: 200 })
+    }) as unknown as typeof fetch
+    const fresh = await import('@/lib/edgar-roles')
+    expect(await fresh.getTickerByCik(320193)).toBe('AAPL')
+    expect(calls).toBe(2)
+  })
+
   it('keeps the first ticker for a CIK with multiple share classes (company_tickers.json ranks the primary class first)', async () => {
     // Fresh module instance: the ticker cache is module-level state shared by the tests above, and its 24h TTL would otherwise serve their stale AAPL/MSFT fixture here.
     vi.resetModules()

@@ -3,8 +3,17 @@ const UA = 'any-stock/1.0 (personal watchlist app)'
 const roleCache = new Map<string, { at: number; roles: Record<string, string | null> }>()
 let tickerMap: { at: number; map: Map<string, number>; byCik: Map<number, string> } | null = null
 
-async function secJson<T>(url: string): Promise<T> {
+// SEC rate-limits (429) under load — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping this symbol's whole lookup.
+async function fetchFromSec(url: string): Promise<Response> {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+  if (res.status !== 429) return res
+  const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
+  await new Promise((resolve) => setTimeout(resolve, retryAfterMs))
+  return fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+}
+
+async function secJson<T>(url: string): Promise<T> {
+  const res = await fetchFromSec(url)
   if (!res.ok) throw new Error(`SEC ${res.status}`)
   return (await res.json()) as T
 }
@@ -74,7 +83,7 @@ export async function getInsiderRoles(symbol: string, latestAccessionByName: Rec
           roles[name] = null
           if (!doc) return
           try {
-            const res = await fetch(`https://www.sec.gov/Archives/edgar/data/${cik}/${acc.replace(/-/g, '')}/${doc}`, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+            const res = await fetchFromSec(`https://www.sec.gov/Archives/edgar/data/${cik}/${acc.replace(/-/g, '')}/${doc}`)
             if (res.ok) roles[name] = parseRole(await res.text())
           } catch {
             // role stays null

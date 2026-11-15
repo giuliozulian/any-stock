@@ -48,8 +48,17 @@ export interface Form4ClusterSeed {
   buyerCount: number
 }
 
-async function fetchText(url: string): Promise<string> {
+// SEC rate-limits (429) under the burst this fan-out creates — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping the whole feed or a filing.
+async function fetchFromSec(url: string): Promise<Response> {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+  if (res.status !== 429) return res
+  const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
+  await new Promise((resolve) => setTimeout(resolve, retryAfterMs))
+  return fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+}
+
+async function fetchText(url: string): Promise<string> {
+  const res = await fetchFromSec(url)
   if (!res.ok) throw new Error(`SEC ${res.status}`)
   return res.text()
 }
