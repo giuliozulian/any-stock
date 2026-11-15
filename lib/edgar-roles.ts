@@ -1,7 +1,7 @@
 const TTL_MS = 24 * 60 * 60 * 1000
 const UA = 'any-stock/1.0 (personal watchlist app)'
 const roleCache = new Map<string, { at: number; roles: Record<string, string | null> }>()
-let tickerMap: { at: number; map: Map<string, number> } | null = null
+let tickerMap: { at: number; map: Map<string, number>; byCik: Map<number, string> } | null = null
 
 async function secJson<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
@@ -9,12 +9,28 @@ async function secJson<T>(url: string): Promise<T> {
   return (await res.json()) as T
 }
 
-async function getCik(symbol: string): Promise<number | null> {
+async function ensureTickerMap(): Promise<{ map: Map<string, number>; byCik: Map<number, string> }> {
   if (!tickerMap || Date.now() - tickerMap.at > TTL_MS) {
     const data = await secJson<Record<string, { cik_str: number; ticker: string }>>('https://www.sec.gov/files/company_tickers.json')
-    tickerMap = { at: Date.now(), map: new Map(Object.values(data).map((v) => [v.ticker.toUpperCase(), v.cik_str])) }
+    const entries = Object.values(data)
+    tickerMap = {
+      at: Date.now(),
+      map: new Map(entries.map((v) => [v.ticker.toUpperCase(), v.cik_str])),
+      byCik: new Map(entries.map((v) => [v.cik_str, v.ticker.toUpperCase()])),
+    }
   }
-  return tickerMap.map.get(symbol.toUpperCase()) ?? null
+  return tickerMap
+}
+
+async function getCik(symbol: string): Promise<number | null> {
+  const { map } = await ensureTickerMap()
+  return map.get(symbol.toUpperCase()) ?? null
+}
+
+// Ticker for a CIK, from the same SEC company_tickers.json cache getCik uses. Null when the filer has no mapped ticker (fund, 13F-only filer, foreign issuer not covered by the file).
+export async function getTickerByCik(cik: number): Promise<string | null> {
+  const { byCik } = await ensureTickerMap()
+  return byCik.get(cik) ?? null
 }
 
 // Role of the reporting owner as written in a Form 4 (officer title wins, then director, then 10% owner).
