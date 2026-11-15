@@ -23,3 +23,17 @@ export function parseFeedEntries(atomXml: string): Form4FeedEntry[] {
   }
   return entries
 }
+
+export interface Form4Transaction {
+  insiderName: string
+  code: string
+}
+
+// Owner name and transaction code(s) of a Form 4. A filing with several rows (e.g. a sale and a purchase in the same document) is treated as a purchase if ANY row is code P — reading only the first row would miss real purchases that happen to be listed second.
+export function parseForm4Transaction(xml: string): Form4Transaction | null {
+  const insiderName = xml.match(/<rptOwnerName>([^<]*)<\/rptOwnerName>/)?.[1]?.trim()
+  if (!insiderName) return null
+  const codes = [...xml.matchAll(/<nonDerivativeTransaction>[\s\S]*?<transactionCode>([^<]*)<\/transactionCode>/g)].map((m) => m[1]?.trim()).filter((c): c is string => Boolean(c))
+  if (codes.length === 0) return null
+  return { insiderName, code: codes.includes('P') ? 'P' : codes[0] }
+}
