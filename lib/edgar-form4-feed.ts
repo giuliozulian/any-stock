@@ -1,3 +1,7 @@
+import { getTickerByCik } from './edgar-roles'
+
+const UA = 'any-stock/1.0 (personal watchlist app)'
+
 export interface Form4FeedEntry {
   cik: number
   companyName: string
@@ -36,4 +40,62 @@ export function parseForm4Transaction(xml: string): Form4Transaction | null {
   const codes = [...xml.matchAll(/<nonDerivativeTransaction>[\s\S]*?<transactionCode>([^<]*)<\/transactionCode>/g)].map((m) => m[1]?.trim()).filter((c): c is string => Boolean(c))
   if (codes.length === 0) return null
   return { insiderName, code: codes.includes('P') ? 'P' : codes[0] }
+}
+
+export interface Form4ClusterSeed {
+  symbol: string
+  name: string
+  buyerCount: number
+}
+
+async function fetchText(url: string): Promise<string> {
+  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+  if (!res.ok) throw new Error(`SEC ${res.status}`)
+  return res.text()
+}
+
+async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  const queue = [...items]
+  async function worker() {
+    while (queue.length > 0) {
+      const item = queue.shift()
+      if (!item) return
+      await fn(item)
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
+}
+
+// Market-wide insider-cluster seeds: symbols with at least `minBuyers` distinct insiders filing an open-market purchase (code P) among the `limit` most recent Form 4 filings on EDGAR, across every company — not just symbols already tracked elsewhere. Returns [] when the feed itself is unreachable; one bad filing is skipped without affecting the others.
+export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2): Promise<Form4ClusterSeed[]> {
+  let atomXml: string
+  try {
+    atomXml = await fetchText(`https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company=&dateb=&owner=include&count=${limit}&output=atom`)
+  } catch (err) {
+    console.error('Form4 cluster feed failed:', err instanceof Error ? err.message : String(err))
+    return []
+  }
+  const entries = parseFeedEntries(atomXml)
+
+  const bySymbol = new Map<string, { name: string; buyers: Set<string> }>()
+  await runWithConcurrency(entries, 5, async (entry) => {
+    const symbol = await getTickerByCik(entry.cik).catch(() => null)
+    if (!symbol) return
+    let xml: string
+    try {
+      xml = await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${entry.accessionNumber.replace(/-/g, '')}/primary_doc.xml`)
+    } catch {
+      return
+    }
+    const transaction = parseForm4Transaction(xml)
+    if (!transaction || transaction.code !== 'P') return
+    const existing = bySymbol.get(symbol) ?? { name: entry.companyName, buyers: new Set<string>() }
+    existing.buyers.add(transaction.insiderName)
+    bySymbol.set(symbol, existing)
+  })
+
+  return [...bySymbol.entries()]
+    .map(([symbol, { name, buyers }]) => ({ symbol, name, buyerCount: buyers.size }))
+    .filter((s) => s.buyerCount >= minBuyers)
+    .sort((a, b) => b.buyerCount - a.buyerCount)
 }
