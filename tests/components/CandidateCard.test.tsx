@@ -11,6 +11,7 @@ const CANDIDATE = {
   score: 72,
   reason: 'Movimento forte, fondamentali solidi.',
   partial: false,
+  source: 'yahoo-movers-us',
 }
 
 describe('CandidateCard', () => {
@@ -28,6 +29,16 @@ describe('CandidateCard', () => {
   it('shows a "dati parziali" badge when partial is true', () => {
     render(<CandidateCard candidate={{ ...CANDIDATE, partial: true }} />)
     expect(screen.getByText(/dati parziali/i)).toBeInTheDocument()
+  })
+
+  it('shows a "cluster insider" badge when the source includes edgar-form4-cluster', () => {
+    render(<CandidateCard candidate={{ ...CANDIDATE, source: 'yahoo-movers-us,edgar-form4-cluster' }} />)
+    expect(screen.getByText(/cluster insider/i)).toBeInTheDocument()
+  })
+
+  it('does not show the "cluster insider" badge for a candidate from other sources', () => {
+    render(<CandidateCard candidate={CANDIDATE} />)
+    expect(screen.queryByText(/cluster insider/i)).not.toBeInTheDocument()
   })
 
   it('adds the symbol to the watchlist and hides the card on success', async () => {

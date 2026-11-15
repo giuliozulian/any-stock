@@ -48,6 +48,14 @@
   padding: 2px 6px;
 }
 
+.clusterBadge {
+  font-size: 11px;
+  color: var(--gain);
+  border: 1px solid var(--gain);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
 .score {
   margin-left: auto;
   font-family: var(--font-mono);

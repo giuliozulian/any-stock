@@ -10,6 +10,7 @@ export interface CandidateCardData {
   score: number
   reason: string
   partial: boolean
+  source: string
 }
 
 export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
@@ -65,6 +66,7 @@ export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
         <span className={styles.symbol}>{candidate.symbol}</span>
         <span className={styles.name}>{candidate.name}</span>
         {candidate.partial && <span className={styles.partialBadge}>Dati parziali</span>}
+        {candidate.source.split(',').includes('edgar-form4-cluster') && <span className={styles.clusterBadge}>Cluster insider</span>}
         <span className={styles.score}>{candidate.score}</span>
       </div>
       <p className={styles.reason}>{candidate.reason}</p>

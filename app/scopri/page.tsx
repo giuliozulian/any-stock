@@ -31,7 +31,7 @@ async function Candidates() {
         candidates.map((c) => (
           <CandidateCard
             key={c.symbol}
-            candidate={{ symbol: c.symbol, name: c.name, market: c.market as 'US' | 'IT', score: c.score, reason: c.reason, partial: c.partial }}
+            candidate={{ symbol: c.symbol, name: c.name, market: c.market as 'US' | 'IT', score: c.score, reason: c.reason, partial: c.partial, source: c.source }}
           />
         ))
       )}
