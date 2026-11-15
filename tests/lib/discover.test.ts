@@ -6,6 +6,7 @@ import * as market from '@/lib/market'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as insiderData from '@/lib/insider-data'
+import * as edgarForm4Feed from '@/lib/edgar-form4-feed'
 import { resetDb } from '../helpers/db'
 import { scoreCandidate, sourceCandidates, selectForEnrichment, runDiscoveryScan, type ScoreInput, type CandidateSeed } from '@/lib/discover'
 
@@ -112,6 +113,8 @@ describe('scoreCandidate — combined score and reason', () => {
 describe('sourceCandidates', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+    // Default: no EDGAR cluster signal, so the 4 pre-existing tests below (written before this source existed) don't hit real network. Tests that care override it.
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([])
   })
 
   it('combines congress buys and US/IT movers into one deduped list', async () => {
@@ -182,11 +185,54 @@ describe('sourceCandidates', () => {
 
     expect(seeds.map((s) => s.symbol)).toEqual(['MSFT'])
   })
+
+  it('adds a cluster-only seed from EDGAR Form4 with no price/change data', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockResolvedValue([])
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([{ symbol: 'ACME', name: 'Acme Corp', buyerCount: 3 }])
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds).toHaveLength(1)
+    expect(seeds[0]).toMatchObject({ symbol: 'ACME', name: 'Acme Corp', market: 'US', source: ['edgar-form4-cluster'], seedPrice: null, seedChangePct: null, congressScore: null, clusterBuyerCount: 3 })
+  })
+
+  it('merges an EDGAR cluster signal onto a symbol already found by movers, without duplicating it', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([{ symbol: 'MSFT', name: 'Microsoft Corp', buyerCount: 2 }])
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds).toHaveLength(1)
+    expect(seeds[0].source.sort()).toEqual(['edgar-form4-cluster', 'yahoo-movers-us'])
+    expect(seeds[0].clusterBuyerCount).toBe(2)
+  })
+
+  it('does not let a failing EDGAR cluster source block the other sources', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
+    vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
+    vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
+    vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+    )
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockRejectedValue(new Error('SEC down'))
+
+    const seeds = await sourceCandidates(new Set())
+
+    expect(seeds.map((s) => s.symbol)).toEqual(['MSFT'])
+  })
 })
 
 describe('selectForEnrichment', () => {
   function seed(symbol: string, market: 'US' | 'IT'): CandidateSeed {
-    return { symbol, name: symbol, market, source: ['yahoo-movers-us'], seedPrice: 10, seedChangePct: 20, congressScore: null }
+    return { symbol, name: symbol, market, source: ['yahoo-movers-us'], seedPrice: 10, seedChangePct: 20, congressScore: null, clusterBuyerCount: null }
   }
 
   it('takes at most 14 US and 6 IT candidates by default', () => {
@@ -208,6 +254,8 @@ describe('runDiscoveryScan', () => {
   beforeEach(async () => {
     await resetDb()
     vi.restoreAllMocks()
+    // Default: no EDGAR cluster signal, so these pre-existing tests (written before this source existed) don't hit real network.
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([])
   })
 
   it('upserts a scored candidate sourced from a US mover', async () => {

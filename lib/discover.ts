@@ -5,6 +5,7 @@ import { getMarketBigMovers } from './market'
 import { prisma } from './db'
 import { getQuote, getMetrics } from './finnhub'
 import { getInsiderData } from './insider-data'
+import { getForm4ClusterSeeds } from './edgar-form4-feed'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const round = (v: number) => Math.round(v)
@@ -97,20 +98,22 @@ export interface CandidateSeed {
   seedPrice: number | null
   seedChangePct: number | null
   congressScore: number | null
+  clusterBuyerCount: number | null
 }
 
 export async function sourceCandidates(excludeSymbols: Set<string>): Promise<CandidateSeed[]> {
   const seedMap = new Map<string, CandidateSeed>()
 
-  function addSeed(symbol: string, name: string, market: 'US' | 'IT', source: string, seedPrice: number | null, seedChangePct: number | null, congressScore: number | null) {
+  function addSeed(symbol: string, name: string, market: 'US' | 'IT', source: string, seedPrice: number | null, seedChangePct: number | null, congressScore: number | null, clusterBuyerCount: number | null = null) {
     const existing = seedMap.get(symbol)
     if (existing) {
       if (!existing.source.includes(source)) existing.source.push(source)
       if (existing.seedPrice === null) existing.seedPrice = seedPrice
       if (existing.seedChangePct === null) existing.seedChangePct = seedChangePct
       if (existing.congressScore === null) existing.congressScore = congressScore
+      if (existing.clusterBuyerCount === null) existing.clusterBuyerCount = clusterBuyerCount
     } else {
-      seedMap.set(symbol, { symbol, name, market, source: [source], seedPrice, seedChangePct, congressScore })
+      seedMap.set(symbol, { symbol, name, market, source: [source], seedPrice, seedChangePct, congressScore, clusterBuyerCount })
     }
   }
 
@@ -137,6 +140,13 @@ export async function sourceCandidates(excludeSymbols: Set<string>): Promise<Can
     for (const m of itMovers) addSeed(m.symbol, m.name, 'IT', 'yahoo-movers-it', m.price, m.changePct, null)
   } catch (err) {
     console.error('Discovery: IT movers sourcing failed:', err instanceof Error ? err.message : String(err))
+  }
+
+  try {
+    const clusters = await getForm4ClusterSeeds()
+    for (const c of clusters) addSeed(c.symbol, c.name, 'US', 'edgar-form4-cluster', null, null, null, c.buyerCount)
+  } catch (err) {
+    console.error('Discovery: EDGAR Form4 cluster sourcing failed:', err instanceof Error ? err.message : String(err))
   }
 
   return [...seedMap.values()]
