@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { parseCompareSymbols, selectComparableStocks } from '@/lib/compare'
@@ -81,7 +82,7 @@ export default function ComparePage({ searchParams }: { searchParams: Promise<{ 
         ← Watchlist
       </Link>
       <h1 className={styles.title}>Confronto titoli</h1>
-      <Suspense fallback={<p className={styles.empty}>Carico il confronto…</p>}>
+      <Suspense fallback={<SectionSkeleton label="Carico il confronto…" variant="cards" />}>
         <Comparison searchParams={searchParams} />
       </Suspense>
     </main>

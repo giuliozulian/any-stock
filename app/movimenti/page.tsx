@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection, after } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
@@ -191,7 +192,7 @@ export default function MoversPage({ searchParams }: { searchParams: Promise<Sea
   return (
     <main className={styles.shell}>
       <h1 className={styles.title}>Movimenti forti</h1>
-      <Suspense fallback={<p className={styles.empty}>Carico i movimenti…</p>}>
+      <Suspense fallback={<SectionSkeleton label="Carico i movimenti…" variant="list" />}>
         <BigMovers searchParams={searchParams} />
       </Suspense>
     </main>

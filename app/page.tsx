@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { WatchlistSkeleton } from './WatchlistSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
@@ -192,7 +193,7 @@ export default function WatchlistPage({ searchParams }: { searchParams: Promise<
         </div>
         <AddStockForm />
       </header>
-      <Suspense fallback={<p className={styles.empty}>Carico la watchlist…</p>}>
+      <Suspense fallback={<WatchlistSkeleton />}>
         <WatchlistTable searchParams={searchParams} />
       </Suspense>
     </main>

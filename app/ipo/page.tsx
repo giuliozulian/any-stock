@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import Link from 'next/link'
 import { connection } from 'next/server'
 import { getIpoCalendar, type IpoEvent } from '@/lib/finnhub'
@@ -63,7 +64,7 @@ export default function IpoPage() {
   return (
     <main className={styles.shell}>
       <h1 className={styles.title}>Nuove quotazioni (IPO)</h1>
-      <Suspense fallback={<p className={styles.empty}>Carico le IPO…</p>}>
+      <Suspense fallback={<SectionSkeleton label="Carico le IPO…" variant="list" />}>
         <IpoList />
       </Suspense>
     </main>

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
@@ -180,7 +181,7 @@ export default function EarningsPage({ searchParams }: { searchParams: Promise<S
   return (
     <main className={styles.shell}>
       <h1 className={styles.title}>Calendario trimestrali</h1>
-      <Suspense fallback={<p className={styles.empty}>Carico le trimestrali…</p>}>
+      <Suspense fallback={<SectionSkeleton label="Carico le trimestrali…" variant="list" />}>
         <EarningsCalendar searchParams={searchParams} />
       </Suspense>
     </main>

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { getRecentCongressBuys, clusterBuys } from '@/lib/congress'
@@ -236,7 +237,7 @@ export default function PoliticiPage() {
   return (
     <main className={styles.shell}>
       <h1 className={styles.title}>Cosa comprano i politici americani</h1>
-      <Suspense fallback={<p className={styles.empty}>Carico le operazioni…</p>}>
+      <Suspense fallback={<SectionSkeleton label="Carico le operazioni…" variant="list" />}>
         <CongressBuys />
       </Suspense>
     </main>

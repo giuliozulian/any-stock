@@ -493,3 +493,61 @@
   color: var(--brass);
   opacity: 1;
 }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skBar {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 55%, var(--rule)) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: skShimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skBar {
+    animation: none;
+  }
+}
+
+.skKpiLabel {
+  width: 110px;
+  height: 14px;
+  margin-bottom: 10px;
+}
+
+.skKpiValue {
+  width: 70px;
+  height: 30px;
+}
+
+.skCell {
+  height: 16px;
+}
+
+.skCellWide {
+  height: 38px;
+  max-width: 160px;
+}
+
+.kpi .skBar {
+  background-color: var(--surface-raised);
+  background-image: linear-gradient(90deg, var(--surface-raised) 0%, color-mix(in srgb, var(--surface-raised) 55%, var(--rule)) 50%, var(--surface-raised) 100%);
+  background-size: 200% 100%;
+}

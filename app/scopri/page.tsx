@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
 import { ScanButton } from '@/components/ScanButton'
@@ -52,7 +53,7 @@ export default function DiscoverPage() {
           La scansione usa chiamate a servizi esterni e può richiedere fino a un minuto.
         </p>
         <ScanButton />
-        <Suspense fallback={<p className={styles.empty}>Carico i candidati…</p>}>
+        <Suspense fallback={<SectionSkeleton label="Carico i candidati…" variant="cards" />}>
           <Candidates />
         </Suspense>
       </section>
