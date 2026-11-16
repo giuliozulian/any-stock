@@ -11,6 +11,7 @@ const ITEMS = [
   { href: '/trimestrali', label: 'Trimestrali', short: 'Trimestrali' },
   { href: '/ipo', label: 'IPO', short: 'IPO' },
   { href: '/politici', label: 'Politici', short: 'Politici' },
+  { href: '/scanner', label: 'Scanner', short: 'Scanner' },
   { href: '/scopri', label: 'Scopri', short: 'Scopri', cta: true },
 ]
 

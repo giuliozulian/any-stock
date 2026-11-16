@@ -1,0 +1,14 @@
+.scannedAt {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.partial {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border: 1px solid var(--amber-bright);
+  border-radius: var(--radius-inner);
+  color: var(--amber-bright);
+  font-size: 14px;
+}

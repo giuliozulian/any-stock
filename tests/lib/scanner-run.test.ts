@@ -69,7 +69,7 @@ describe('scanner run', () => {
     const universe: UniverseEntry[] = [{ symbol: 'BRK.B', name: 'Berkshire', sector: 'Financials' }, { symbol: 'BF.B', name: 'Brown-Forman', sector: null }]
     const started = await startRun(universe)
     if (started.kind === 'too-soon') throw new Error('unexpected')
-    const fetchBars = vi.fn(async (_symbol: string) => uptrend(0.5))
+    const fetchBars = vi.fn<(symbol: string) => Promise<Bar[]>>(async () => uptrend(0.5))
 
     await stepRun(started.run.id, { universe, fetchBars })
 

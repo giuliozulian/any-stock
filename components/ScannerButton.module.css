@@ -1,0 +1,46 @@
+.wrap {
+  margin-bottom: 24px;
+}
+
+.button {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--brass);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.progress progress {
+  width: min(320px, 100%);
+  accent-color: var(--brass);
+}
+
+.hint {
+  flex-basis: 100%;
+  font-size: 13px;
+}
+
+.error {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--loss);
+}
