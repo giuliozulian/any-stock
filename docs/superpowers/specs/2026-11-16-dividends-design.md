@@ -125,7 +125,7 @@ Calcolata solo sugli anni completi, sui totali annuali:
 
 - `consecutiveIncreases`: da ultimo anno completo all'indietro, quanti
   anni di fila il totale supera quello dell'anno completo precedente.
-- `cagr5`, `cagr10`: crescita annua media composta tra il totale
+- `cagr5Pct`, `cagr10Pct`: crescita annua media composta tra il totale
   dell'ultimo anno completo e quello di 5 (o 10) anni prima, in
   percentuale. Esiste solo se entrambi gli anni sono completi e hanno
   totale positivo; altrimenti `null`.
@@ -200,6 +200,8 @@ pagina. Colori solo dai token di `app/globals.css`.
 - **Prezzo mancante**: la frase omette il rendimento.
 - **Dividendo straordinario**: incluso nei totali, avvertito nella nota.
 - **Valuta mancante**: importi senza simbolo.
+- **Valuta in pence** (`GBp`, titoli di Londra): l'importo è mostrato
+  come numero seguito da "p", mai come sterline.
 - **Più pagamenti nella stessa data**: contati una volta, l'ultimo.
 
 ## Test
