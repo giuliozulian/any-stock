@@ -48,8 +48,11 @@ Nuova funzione `getFullPriceHistory(symbol)` in `lib/history.ts`:
 
 - Chiama l'endpoint Yahoo `v8/finance/chart` già usato, con
   `interval=1d` e date esplicite `period1=0` e `period2=<adesso>`.
-- Restituisce `PricePoint[]` (`t` in millisecondi, `close`), in ordine
-  cronologico, scartando i giorni senza chiusura numerica. Usa il campo
+- Restituisce `FullHistory { points, sparseBefore }`: `points` è un
+  `PricePoint[]` (`t` in millisecondi, `close`) in ordine cronologico;
+  `sparseBefore` è la data prima della quale i dati sono più radi del
+  giornaliero, oppure `null` se tutta la serie è giornaliera. Scarta i
+  giorni senza chiusura numerica o con chiusura non positiva. Usa il campo
   `close` della risposta, che Yahoo fornisce già corretto per gli
   split; non usa `adjclose`, che include i dividendi.
 - Cache in memoria per simbolo, durata 6 ore. In caso di errore o
@@ -106,7 +109,7 @@ dalla serie: `{ year, returnPct, partial }`.
 `{ t, drawdownPct }`, dove drawdown = chiusura / massimo raggiunto fino
 a quel punto − 1 (zero o negativo).
 
-`drawdownSummary(points)` restituisce:
+`drawdownSummary(points, now)` restituisce:
 
 - drawdown attuale e data del massimo da cui si misura;
 - giorni di calendario trascorsi da quel massimo;
@@ -151,6 +154,11 @@ blocchi, ciascuno un componente:
    "Ora a −25% dal massimo del 3 ottobre 2026 (43 giorni fa). Crollo
    peggiore: −66%, da novembre 2021 a ottobre 2022." Se il titolo è sui
    massimi: "Sui massimi storici."
+
+Sotto i tre blocchi, una nota: prezzi corretti per gli split, dividendi
+esclusi, fonte Yahoo Finance. Se `sparseBefore` non è `null`, la nota
+avvisa che prima di quella data i dati sono meno fitti dei giornalieri
+e che i crolli di quel periodo possono risultare meno profondi.
 
 Testi in italiano, date e numeri formattati `it-IT` come nel resto
 dell'app. Ogni grafico ha un `aria-label` che ne riassume il contenuto.
