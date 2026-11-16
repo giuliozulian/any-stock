@@ -91,6 +91,10 @@
   background: var(--loss-bright);
 }
 
+.segment[data-state='near'] {
+  background: var(--amber-bright);
+}
+
 .verdictText,
 .next {
   max-width: 64ch;
@@ -103,6 +107,61 @@
   padding-top: 8px;
   border-top: 1px solid var(--rule);
   font-weight: 600;
+}
+
+/* Come funziona */
+.intro {
+  padding: 0 4px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.intro > p {
+  max-width: 68ch;
+}
+
+.glossary {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.glossary summary {
+  width: fit-content;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--brass);
+}
+
+.glossary summary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.glossary dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px 20px;
+  margin: 12px 0 0;
+}
+
+.glossary dt {
+  font-weight: 600;
+  color: var(--bone);
+}
+
+.glossary dd {
+  margin: 2px 0 0;
+  line-height: 1.5;
+}
+
+.scope {
+  max-width: 68ch;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  line-height: 1.5;
 }
 
 /* Passi del metodo */
@@ -181,6 +240,66 @@
   color: var(--muted);
 }
 
+/* Scala: ordine ideale e ordine di oggi */
+.ladder {
+  margin: 12px 0 0;
+}
+
+.ladderGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 4px 8px;
+  max-width: 520px;
+}
+
+.ladderHead {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ladderRow {
+  display: contents;
+}
+
+.ladderIdeal,
+.ladderActual {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.ladderIdeal {
+  border: 1px dashed var(--rule);
+  color: var(--muted);
+}
+
+.ladderActual {
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--loss-bright) 40%, transparent);
+  background: color-mix(in srgb, var(--loss-bright) 12%, var(--surface));
+}
+
+.ladderActual[data-match='true'] {
+  border-color: color-mix(in srgb, var(--gain-bright) 35%, transparent);
+  background: color-mix(in srgb, var(--gain-bright) 10%, var(--surface));
+}
+
+.ladderValue {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--bone);
+}
+
+.ladderCaption {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Criteri */
 .list {
   display: grid;
@@ -225,6 +344,11 @@
   color: var(--muted);
 }
 
+.row[data-state='near'] {
+  border-color: color-mix(in srgb, var(--amber-bright) 40%, transparent);
+  background: color-mix(in srgb, var(--amber-bright) 10%, var(--surface));
+}
+
 .row[data-state='ok'] .mark {
   background: var(--gain-bright);
   color: var(--ink);
@@ -232,6 +356,11 @@
 
 .row[data-state='ko'] .mark {
   background: var(--loss-bright);
+  color: var(--ink);
+}
+
+.row[data-state='near'] .mark {
+  background: var(--amber-bright);
   color: var(--ink);
 }
 
@@ -254,6 +383,16 @@
   align-items: flex-end;
   gap: 12px 20px;
   margin-top: 12px;
+}
+
+.barsWrap {
+  display: grid;
+  gap: 6px;
+}
+
+.barsCaption {
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .bars {
@@ -297,7 +436,7 @@
 .tiles {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 6px;
   min-width: 260px;
   margin: 0;
@@ -320,6 +459,14 @@
   font-family: var(--font-num);
   font-size: 16px;
   font-weight: 600;
+}
+
+.tile dd small {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
 }
 
 .tile dd[data-tone='gain'] {

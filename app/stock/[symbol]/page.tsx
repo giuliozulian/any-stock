@@ -524,6 +524,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           {
             id: 'minervini',
             label: 'Minervini',
+            badge: 'New',
             content: (
               <Suspense fallback={<p className={styles.stale}>Calcolo il Trend Template…</p>}>
                 <MinerviniSection symbol={stock.symbol} />

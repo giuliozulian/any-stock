@@ -6,6 +6,8 @@ import styles from './StockTabs.module.css'
 export interface StockTab {
   id: string
   label: string
+  // Short marker shown next to the label, e.g. to highlight a new section.
+  badge?: string
   content: ReactNode
 }
 
@@ -57,6 +59,7 @@ export function StockTabs({ tabs }: { tabs: StockTab[] }) {
             onKeyDown={(e) => onKey(e, i)}
           >
             {t.label}
+            {t.badge && <span className={styles.badge}>{t.badge}</span>}
           </button>
         ))}
       </div>
