@@ -7,6 +7,7 @@ import styles from './CompareSelection.module.css'
 interface CompareContextValue {
   selected: Set<string>
   toggle: (symbol: string) => void
+  clear: () => void
   maxCount: number
 }
 
@@ -24,7 +25,9 @@ export function CompareSelectionProvider({ children }: { children: React.ReactNo
     })
   }
 
-  return <CompareContext.Provider value={{ selected, toggle, maxCount: 4 }}>{children}</CompareContext.Provider>
+  const clear = () => setSelected(new Set())
+
+  return <CompareContext.Provider value={{ selected, toggle, clear, maxCount: 4 }}>{children}</CompareContext.Provider>
 }
 
 function useCompareSelection() {
@@ -44,28 +47,44 @@ export function CompareCheckbox({ symbol }: { symbol: string }) {
       aria-label={symbol}
       checked={checked}
       disabled={disabled}
-      title={disabled ? `Massimo ${maxCount} titoli` : undefined}
+      title={disabled ? `Massimo ${maxCount} titoli` : 'Aggiungi al confronto'}
       onChange={() => toggle(symbol)}
     />
   )
 }
 
 export function CompareBar({ maxCount }: { maxCount: number }) {
-  const { selected } = useCompareSelection()
+  const { selected, toggle, clear } = useCompareSelection()
   const router = useRouter()
 
   if (selected.size === 0) return null
 
+  const symbols = [...selected]
+  const missing = 2 - selected.size
+
   return (
     <div className={styles.bar} role="toolbar" aria-label="Confronto titoli">
-      <span className={styles.count}>
-        {selected.size} selezionat{selected.size === 1 ? 'o' : 'i'}
+      <ul className={styles.chips}>
+        {symbols.map((symbol) => (
+          <li key={symbol}>
+            <button type="button" className={styles.chip} onClick={() => toggle(symbol)} aria-label={`Rimuovi ${symbol} dal confronto`}>
+              {symbol}
+              <span aria-hidden="true" className={styles.chipX}>×</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <span className={styles.hint} aria-live="polite">
+        {missing > 0 ? 'Scegline un altro' : `${selected.size} di ${maxCount}`}
       </span>
+      <button type="button" className={styles.clear} onClick={clear}>
+        Annulla
+      </button>
       <button
         type="button"
         className={styles.button}
         disabled={selected.size < 2}
-        onClick={() => router.push(`/confronta?symbols=${[...selected].join(',')}`)}
+        onClick={() => router.push(`/confronta?symbols=${symbols.join(',')}`)}
       >
         Confronta
       </button>

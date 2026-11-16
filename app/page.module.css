@@ -131,6 +131,10 @@
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
+.row:has(input[type='checkbox']:checked) {
+  border-color: var(--brass);
+}
+
 .row:hover,
 .row:focus-within {
   border-color: var(--brass-dim);
