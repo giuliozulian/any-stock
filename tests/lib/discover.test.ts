@@ -101,12 +101,12 @@ describe('scoreCandidate — combined score and reason', () => {
 
   it('mentions the Italian market disclaimer in the reason', () => {
     const result = scoreCandidate(baseInput({ market: 'IT' }))
-    expect(result.reason).toContain('Mercato italiano')
+    expect(result.reason).toContain('titoli italiani')
   })
 
   it('falls back to a generic reason when every pillar is weak', () => {
     const result = scoreCandidate(baseInput())
-    expect(result.reason).toContain('Segnale debole')
+    expect(result.reason).toContain('Segnali deboli')
   })
 })
 

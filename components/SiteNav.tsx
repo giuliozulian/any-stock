@@ -11,6 +11,7 @@ const ITEMS = [
   { href: '/trimestrali', label: 'Trimestrali', short: 'Trimestrali' },
   { href: '/ipo', label: 'IPO', short: 'IPO' },
   { href: '/politici', label: 'Politici', short: 'Politici' },
+  { href: '/scopri', label: 'Scopri', short: 'Scopri', cta: true },
 ]
 
 export function SiteNav() {
@@ -26,8 +27,8 @@ export function SiteNav() {
           {ITEMS.map((item) => {
             const active = item.href === '/' ? pathname === '/' || pathname.startsWith('/stock') : pathname.startsWith(item.href)
             return (
-              <li key={item.href}>
-                <Link href={item.href} className={`${styles.link} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
+              <li key={item.href} className={item.cta ? styles.ctaItem : undefined}>
+                <Link href={item.href} className={`${styles.link} ${item.cta ? styles.cta : ''} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
                   <span className={styles.full}>{item.label}</span>
                   <span className={styles.short}>{item.short}</span>
                 </Link>

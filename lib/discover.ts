@@ -9,6 +9,15 @@ import { getForm4ClusterSeeds } from './edgar-form4-feed'
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v))
 const round = (v: number) => Math.round(v)
+const formatUsd = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} mln $` : `${Math.round(n / 1_000)}k $`)
+
+export interface CongressInfo {
+  members: number
+  trades: number
+  totalLow: number
+  totalHigh: number
+  reasons: string[]
+}
 
 export interface ScoreInput {
   price: number
@@ -20,6 +29,7 @@ export interface ScoreInput {
   debtToEquity: number | null
   congressSignalScore: number | null
   insiderBuyerCount: number
+  congressInfo?: CongressInfo | null
   market: 'US' | 'IT'
 }
 
@@ -58,23 +68,66 @@ function buildReason(input: ScoreInput, s: { momentumScore: number; fundamentals
   const parts: string[] = []
   if (s.momentumScore >= 60) {
     const sign = input.changePct >= 0 ? '+' : ''
-    parts.push(`movimento forte (${sign}${input.changePct.toFixed(1)}%)`)
+    parts.push(`oggi si muove molto (${sign}${input.changePct.toFixed(1)}%)`)
   }
   if (s.fundamentalsScore >= 60) {
-    parts.push(`fondamentali solidi (PEG ${input.pegRatio?.toFixed(1) ?? '—'}, ROE ${input.roe?.toFixed(0) ?? '—'}%)`)
+    const strong: string[] = []
+    if (input.roe !== null && input.roe > 15) strong.push(`rende bene (ROE ${input.roe.toFixed(0)}%)`)
+    if (input.debtToEquity !== null && input.debtToEquity < 1) strong.push('ha poco debito')
+    const pricey = input.pegRatio !== null && input.pegRatio > 2 ? ', anche se il prezzo è alto rispetto alla crescita' : ''
+    parts.push(`l'azienda ${strong.length ? strong.join(' e ') : 'ha conti discreti'}${pricey}`)
   }
   if (input.market === 'US' && s.insiderScore >= 50) {
-    parts.push(input.congressSignalScore !== null ? 'acquisto recente di membri del Congresso' : 'acquisti insider recenti')
+    parts.push(input.congressSignalScore !== null ? 'politici USA hanno comprato di recente' : 'dirigenti dell\'azienda hanno comprato azioni di recente')
   }
   if (parts.length === 0) {
-    parts.push('segnale debole su tutti i fronti, incluso solo perché tra i candidati del giorno')
+    parts.push('segnali deboli: è qui solo perché tra i titoli più mossi del giorno')
   }
-  let reason = parts.join(', ')
-  reason = reason.charAt(0).toUpperCase() + reason.slice(1) + '.'
-  if (input.market === 'IT') {
-    reason += ' Mercato italiano: nessun segnale insider/congress disponibile per questo titolo — solo momentum e fondamentali.'
+  let headline = parts.join(', ')
+  headline = headline.charAt(0).toUpperCase() + headline.slice(1) + '.'
+
+  const sign = input.changePct >= 0 ? '+' : ''
+  let range = ''
+  if (input.week52High !== null && input.week52Low !== null && input.week52High > input.week52Low) {
+    const pos = clamp((input.price - input.week52Low) / (input.week52High - input.week52Low), 0, 1) * 100
+    range = ` Il prezzo è al ${pos.toFixed(0)}% tra il minimo e il massimo degli ultimi 12 mesi.`
   }
-  return reason
+  const momentum = `Oggi il titolo fa ${sign}${input.changePct.toFixed(1)}%.${range} Più si muove e più è vicino ai massimi, più sale il voto.`
+
+  const pegPts = input.pegRatio === null || input.pegRatio <= 0 ? 0 : input.pegRatio <= 1 ? 40 : input.pegRatio <= 2 ? 20 : 0
+  const roePts = input.roe === null ? 0 : input.roe > 15 ? 40 : input.roe > 0 ? 20 : 0
+  const debtPts = input.debtToEquity === null ? 0 : input.debtToEquity < 1 ? 20 : input.debtToEquity < 2 ? 10 : 0
+  const fundamentals = [
+    input.pegRatio !== null && input.pegRatio > 0 ? `PEG ${input.pegRatio.toFixed(1)} (prezzo rispetto alla crescita; sotto 1 è ottimo, sotto 2 buono): ${pegPts}/40 punti.` : 'PEG non disponibile: 0/40 punti.',
+    input.roe !== null ? `ROE ${input.roe.toFixed(0)}% (quanto rende il capitale; sopra 15% è buono): ${roePts}/40 punti.` : 'ROE non disponibile: 0/40 punti.',
+    input.debtToEquity !== null ? `Debito/patrimonio ${input.debtToEquity.toFixed(1)} (sotto 1 è basso): ${debtPts}/20 punti.` : 'Debito non disponibile: 0/20 punti.',
+  ].join(' ')
+
+  const lines = [headline, momentum, fundamentals]
+  if (input.market === 'US') {
+    const bits: string[] = []
+    const c = input.congressInfo
+    let congressText = 'Nessun acquisto recente di politici USA.'
+    if (c) {
+      const who = c.members === 1 ? '1 politico ha' : `${c.members} politici hanno`
+      const amount = c.totalHigh > 0 ? ` per ${formatUsd(c.totalLow)}–${formatUsd(c.totalHigh)}` : ''
+      const why = c.reasons.length ? ` (${c.reasons.join(', ')})` : ''
+      congressText = `${who} comprato${amount} in ${c.trades} ${c.trades === 1 ? 'operazione' : 'operazioni'}${why}.`
+    } else if (input.congressSignalScore !== null) {
+      congressText = 'Acquisti recenti da parte di politici USA.'
+    }
+    bits.push(congressText)
+    bits.push(
+      input.insiderBuyerCount > 0
+        ? `${input.insiderBuyerCount} ${input.insiderBuyerCount === 1 ? 'dirigente ha comprato' : 'dirigenti hanno comprato'} azioni negli ultimi 30 giorni.`
+        : 'Nessun acquisto di dirigenti negli ultimi 30 giorni.'
+    )
+    bits.push('Il voto prende il più alto tra i due segnali: gli acquisti dei politici contano anche se i dirigenti non comprano.')
+    lines.push(bits.join(' '))
+  } else {
+    lines.push('Per i titoli italiani non ci sono dati su acquisti di dirigenti e politici, quindi il punteggio usa solo Andamento e Conti.')
+  }
+  return lines.join('\n')
 }
 
 export function scoreCandidate(input: ScoreInput): CandidateScore {
@@ -99,12 +152,13 @@ export interface CandidateSeed {
   seedChangePct: number | null
   congressScore: number | null
   clusterBuyerCount: number | null
+  congressInfo?: CongressInfo | null
 }
 
 export async function sourceCandidates(excludeSymbols: Set<string>): Promise<CandidateSeed[]> {
   const seedMap = new Map<string, CandidateSeed>()
 
-  function addSeed(symbol: string, name: string, market: 'US' | 'IT', source: string, seedPrice: number | null, seedChangePct: number | null, congressScore: number | null, clusterBuyerCount: number | null = null) {
+  function addSeed(symbol: string, name: string, market: 'US' | 'IT', source: string, seedPrice: number | null, seedChangePct: number | null, congressScore: number | null, clusterBuyerCount: number | null = null, congressInfo: CongressInfo | null = null) {
     const existing = seedMap.get(symbol)
     if (existing) {
       if (!existing.source.includes(source)) existing.source.push(source)
@@ -112,8 +166,9 @@ export async function sourceCandidates(excludeSymbols: Set<string>): Promise<Can
       if (existing.seedChangePct === null) existing.seedChangePct = seedChangePct
       if (existing.congressScore === null) existing.congressScore = congressScore
       if (existing.clusterBuyerCount === null) existing.clusterBuyerCount = clusterBuyerCount
+      if (!existing.congressInfo) existing.congressInfo = congressInfo
     } else {
-      seedMap.set(symbol, { symbol, name, market, source: [source], seedPrice, seedChangePct, congressScore, clusterBuyerCount })
+      seedMap.set(symbol, { symbol, name, market, source: [source], seedPrice, seedChangePct, congressScore, clusterBuyerCount, congressInfo })
     }
   }
 
@@ -122,7 +177,7 @@ export async function sourceCandidates(excludeSymbols: Set<string>): Promise<Can
     if (buys && buys.length > 0) {
       const stats = memberStats(buys)
       const signals = rankSignals(buys, new Map(), stats)
-      for (const s of signals) addSeed(s.ticker, s.asset, 'US', 'congress', null, null, s.score)
+      for (const s of signals) addSeed(s.ticker, s.asset, 'US', 'congress', null, null, s.score, null, { members: s.members.length, trades: s.trades, totalLow: s.totalLow, totalHigh: s.totalHigh, reasons: s.reasons })
     }
   } catch (err) {
     console.error('Discovery: congress sourcing failed:', err instanceof Error ? err.message : String(err))
@@ -235,6 +290,7 @@ async function enrichAndScore(seed: CandidateSeed): Promise<{ score: CandidateSc
     debtToEquity: metrics?.debtToEquity ?? null,
     congressSignalScore: seed.congressScore,
     insiderBuyerCount,
+    congressInfo: seed.congressInfo,
     market: seed.market,
   })
 

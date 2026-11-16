@@ -1,99 +1,323 @@
 .card {
+  --tier: var(--muted);
+  margin-bottom: 14px;
+  padding: 22px;
+  background: var(--surface);
   border: 1px solid var(--rule);
-  border-radius: var(--radius-inner);
-  padding: 16px;
-  margin-bottom: 12px;
-  background: var(--surface-raised);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+}
+
+.tierHigh {
+  --tier: var(--brass);
+}
+
+.tierMid {
+  --tier: var(--amber-bright);
+}
+
+.top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.scoreBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ringWrap {
+  position: relative;
+  width: 84px;
+  height: 84px;
+}
+
+.ring {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: conic-gradient(var(--tier) var(--pct), var(--rule) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+}
+
+.scoreValue {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-mono);
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--bone);
+}
+
+.scoreLabel {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.body {
+  min-width: 0;
 }
 
 .head {
   display: flex;
   align-items: center;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
-.marketBadge {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.us {
-  background: color-mix(in srgb, var(--brass) 20%, transparent);
-  color: var(--brass);
-}
-
-.it {
-  background: color-mix(in srgb, var(--amber-bright) 20%, transparent);
-  color: var(--amber-bright);
+.titleLink {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  color: inherit;
 }
 
 .symbol {
-  font-family: var(--font-display);
-  font-size: 16px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .name {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 
-.partialBadge {
-  font-size: 11px;
-  color: var(--muted);
-  border: 1px solid var(--rule);
+.titleLink:hover .symbol {
+  color: var(--brass);
+  text-decoration: underline;
+}
+
+.titleLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 3px;
   border-radius: 4px;
-  padding: 2px 6px;
+}
+
+.marketBadge,
+.partialBadge,
+.clusterBadge {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  color: var(--muted);
+}
+
+.us,
+.it {
+  background: var(--surface-raised);
 }
 
 .clusterBadge {
-  font-size: 11px;
-  color: var(--gain);
-  border: 1px solid var(--gain);
-  border-radius: 4px;
-  padding: 2px 6px;
+  color: var(--brass);
+  border-color: color-mix(in srgb, var(--brass) 45%, transparent);
 }
 
-.score {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 20px;
+.partialBadge {
+  color: var(--amber-bright);
+  border-color: color-mix(in srgb, var(--amber-bright) 45%, transparent);
 }
 
 .reason {
-  margin-top: 8px;
+  margin: 10px 0 0;
+  max-width: 60ch;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.meters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 20px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.meter {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 8px;
   font-size: 13px;
+}
+
+.meterLabel {
+  color: var(--muted);
+}
+
+.meterScore {
+  font-family: var(--font-mono);
+}
+
+.meterBar {
+  grid-column: 1 / -1;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.meterBar span {
+  display: block;
+  height: 100%;
+  background: var(--tier);
+}
+
+.why {
+  margin-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.whySummary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.whySummary::-webkit-details-marker {
+  display: none;
+}
+
+.whySummary::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: 10px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.15s ease;
+}
+
+.why[open] .whySummary::after {
+  transform: rotate(-135deg);
+}
+
+.whySummary:hover {
+  color: var(--bone);
+}
+
+.whySummary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.whyList {
+  display: grid;
+  gap: 14px;
+  margin: 0 0 8px;
+}
+
+.whyItem dt {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.whyItem dd {
+  margin: 2px 0 0;
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--muted);
 }
 
 .actions {
-  margin-top: 12px;
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.addButton,
+.dismissButton {
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  cursor: pointer;
 }
 
 .addButton {
-  font-size: 13px;
-  padding: 6px 14px;
   border: 1px solid var(--brass);
-  background: transparent;
-  color: var(--brass);
-  cursor: pointer;
+  background: var(--brass);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.addButton:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brass) 85%, white);
 }
 
 .dismissButton {
-  font-size: 13px;
-  padding: 6px 14px;
   border: 1px solid var(--rule);
   background: transparent;
   color: var(--muted);
-  cursor: pointer;
+}
+
+.dismissButton:hover:not(:disabled) {
+  color: var(--bone);
+  border-color: var(--muted);
+}
+
+.addButton:disabled,
+.dismissButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.addButton:focus-visible,
+.dismissButton:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
 .error {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 13px;
-  color: var(--loss);
+  color: var(--loss-bright);
+}
+
+@media (max-width: 640px) {
+  .card {
+    padding: 18px 16px;
+  }
+
+  .top {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .scoreBox {
+    flex-direction: row;
+    gap: 12px;
+  }
+
+  .ringWrap {
+    width: 64px;
+    height: 64px;
+  }
+
+  .scoreValue {
+    font-size: 20px;
+  }
+
+  .actions > button {
+    flex: 1;
+  }
 }

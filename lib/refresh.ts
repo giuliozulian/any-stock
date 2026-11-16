@@ -156,6 +156,8 @@ const inFlight = new Map<string, Promise<RefreshResult>>()
 
 // Aggiorna notizie, riassunto e prezzi quando si apre la scheda, al massimo una volta all'ora per titolo.
 export async function refreshStockIfStale(symbol: string): Promise<void> {
+  const watched = await prisma.stock.findUnique({ where: { symbol }, select: { id: true } })
+  if (!watched) return
   const last = await prisma.priceSnapshot.findFirst({
     where: { stock: { symbol } },
     orderBy: { timestamp: 'desc' },

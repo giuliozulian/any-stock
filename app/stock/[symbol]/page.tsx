@@ -17,6 +17,7 @@ import { getDividendHistory } from '@/lib/dividends'
 import { downsample } from '@/lib/performance'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
+import { DiscoveryInsight } from '@/components/DiscoveryInsight'
 import { WatchStar } from '@/components/WatchStar'
 import { getIpoCalendar, getMetrics, getProfile, getQuote, type IpoEvent } from '@/lib/finnhub'
 import { getYahooQuote } from '@/lib/yahoo-quote'
@@ -40,6 +41,7 @@ import { getRecentVideos, isYoutubeConfigured } from '@/lib/youtube'
 import { evaluateStock } from '@/lib/evaluate'
 import { refreshStockIfStale } from '@/lib/refresh'
 import { marketCapStatus, peStatus, rangeStatus } from '@/lib/figure-status'
+import { StockSkeleton } from './StockSkeleton'
 import styles from './page.module.css'
 
 function formatMarketCap(millions: number | null): string {
@@ -145,6 +147,10 @@ async function StockPreview({ symbol }: { symbol: string }) {
   const pct = covered ? quote?.changePercent ?? null : yahoo!.changePct
   const currency = covered ? '$' : yahoo!.currency === 'EUR' ? '€' : yahoo!.currency === 'USD' ? '$' : `${yahoo!.currency} `
   const up = pct === null || pct >= 0
+  const discovery = await prisma.discoveredCandidate.findUnique({
+    where: { symbol },
+    select: { score: true, momentumScore: true, fundamentalsScore: true, insiderScore: true, reason: true, market: true },
+  })
   return (
     <>
       <Link href="/" className={styles.back}>
@@ -157,11 +163,6 @@ async function StockPreview({ symbol }: { symbol: string }) {
             {symbol}
           </p>
           <h1 className={styles.name}>{name}</h1>
-          {covered && (
-            <div className={styles.starRow}>
-              <WatchStar symbol={symbol} watched={false} />
-            </div>
-          )}
         </div>
         {price > 0 && (
           <div className={styles.quote}>
@@ -180,6 +181,18 @@ async function StockPreview({ symbol }: { symbol: string }) {
           </div>
         )}
       </header>
+      <div className={styles.unwatched}>
+        <div>
+          <p className={styles.unwatchedTitle}>Non è nella tua watchlist</p>
+          <p className={styles.unwatchedText}>
+            {covered
+              ? 'Aggiungilo per scaricare notizie, valutazione e trimestrali e seguirlo nel tempo.'
+              : 'Questa borsa non è coperta dai dati gratuiti di Finnhub: puoi vedere solo il prezzo, non aggiungerlo alla watchlist.'}
+          </p>
+        </div>
+        {covered && <WatchStar symbol={symbol} watched={false} prominent />}
+      </div>
+      {discovery && <DiscoveryInsight data={discovery} />}
       <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
         <CompanyOverview symbol={symbol} name={name} industry={profile?.industry} />
       </Suspense>
@@ -221,11 +234,6 @@ async function StockPreview({ symbol }: { symbol: string }) {
           ) : null}
         </dl>
       )}
-      <p className={styles.stale}>
-        {covered
-          ? 'Questo titolo non è nella tua watchlist. Premi la stella per aggiungerlo: scarico notizie, valutazione e trimestrali e li trovi qui.'
-          : 'Questo titolo è quotato in una borsa che i dati gratuiti di Finnhub non coprono: posso mostrare solo il prezzo, non posso aggiungerlo alla watchlist.'}
-      </p>
     </>
   )
 }
@@ -372,16 +380,6 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         )}
       </header>
 
-      <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
-        <CompanyOverview symbol={stock.symbol} name={stock.name} />
-      </Suspense>
-
-      <div className={styles.alerts}>
-        <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
-      </div>
-      {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
-      <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
-
       {!evaluation && fairValueCard(false)}
 
       <div className={styles.hero}>
@@ -484,6 +482,22 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       <StockTabs
         tabs={[
           {
+            id: 'panoramica',
+            label: 'Panoramica',
+            content: (
+              <>
+                <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
+                  <CompanyOverview symbol={stock.symbol} name={stock.name} />
+                </Suspense>
+                {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
+                <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
+                <div className={styles.alerts}>
+                  <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
+                </div>
+              </>
+            ),
+          },
+          {
             id: 'valutazione',
             label: 'Valutazione',
             content: (
@@ -583,7 +597,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 export default function StockDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
   return (
     <main className={styles.shell}>
-      <Suspense fallback={<p className={styles.stale}>Loading stock…</p>}>
+      <Suspense fallback={<StockSkeleton />}>
         <StockDetail paramsPromise={params} />
       </Suspense>
     </main>

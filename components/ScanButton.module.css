@@ -3,9 +3,11 @@
 }
 
 .button {
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: 14px;
-  padding: 10px 20px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
   border: 1px solid var(--brass);
   background: transparent;
   color: var(--brass);

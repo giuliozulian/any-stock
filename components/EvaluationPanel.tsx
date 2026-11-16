@@ -79,7 +79,7 @@ function buildView(evaluation: Evaluation) {
 }
 
 export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; children?: React.ReactNode }) {
-  const { tones, overall, verdict } = buildView(evaluation)
+  const { signals, tones, overall, verdict } = buildView(evaluation)
 
   return (
     <section className={`${styles.verdictCard} ${styles[`v_${overall}`]}`} aria-labelledby="verdict-title">
@@ -92,11 +92,15 @@ export function VerdictCard({ evaluation, children }: { evaluation: Evaluation; 
         </InfoTip>
       </h2>
 
-      <div className={styles.meter} aria-hidden="true">
-        {tones.map((t, i) => (
-          <span key={i} className={`${styles.meterBar} ${styles[`m_${t}`]}`} />
+      <ul className={styles.meter}>
+        {signals.map((sig, i) => (
+          <li key={sig.key} className={styles.meterItem}>
+            <span className={`${styles.meterBar} ${styles[`m_${tones[i]}`]}`} aria-hidden="true" />
+            <span className={styles.meterName}>{sig.title.replace(' termine', '')}</span>
+            <span className={`${styles.meterLabel} ${styles[tones[i]]}`}>{sig.result.label}</span>
+          </li>
         ))}
-      </div>
+      </ul>
       <p className={styles.verdictTitle}>{verdict.title}</p>
       <p className={styles.verdictText}>{verdict.text}</p>
       {children}

@@ -1,14 +1,19 @@
 .tabs {
-  margin-top: 40px;
+  margin-top: 32px;
 }
 
 .list {
-  display: inline-flex;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  width: 100%;
   max-width: 100%;
   gap: 2px;
   padding: 3px;
   overflow-x: auto;
   border-radius: 12px;
+  border: 1px solid var(--rule);
   background: var(--surface-raised);
   scrollbar-width: none;
 }

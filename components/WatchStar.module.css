@@ -53,3 +53,18 @@
   font-size: 14px;
   color: var(--loss-bright);
 }
+
+.star.prominent {
+  min-height: 44px;
+  padding: 0 20px 0 16px;
+  border-radius: 999px;
+  border-color: var(--brass);
+  background: var(--brass);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.star.prominent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brass) 85%, white);
+  color: var(--ink);
+}

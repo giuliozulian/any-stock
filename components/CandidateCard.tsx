@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
+import { InfoTip } from './InfoTip'
 import styles from './CandidateCard.module.css'
 
 export interface CandidateCardData {
@@ -8,10 +10,15 @@ export interface CandidateCardData {
   name: string
   market: 'US' | 'IT'
   score: number
+  momentumScore: number
+  fundamentalsScore: number
+  insiderScore: number
   reason: string
   partial: boolean
   source: string
 }
+
+const PILLARS = [{ label: 'Andamento' }, { label: 'Conti' }, { label: 'Insider' }]
 
 export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
   const [hidden, setHidden] = useState(false)
@@ -19,6 +26,10 @@ export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
   const [busy, setBusy] = useState(false)
 
   if (hidden) return null
+
+  const [headline, ...allDetails] = candidate.reason.split('\n')
+  const details = allDetails.slice(0, PILLARS.length)
+  const scores = [candidate.momentumScore, candidate.fundamentalsScore, candidate.insiderScore]
 
   async function add() {
     setBusy(true)
@@ -59,20 +70,66 @@ export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
     }
   }
 
+  const tier = candidate.score >= 65 ? styles.tierHigh : candidate.score >= 40 ? styles.tierMid : styles.tierLow
+  const visibleScores = candidate.market === 'IT' ? [0, 1] : [0, 1, 2]
+
   return (
-    <div className={styles.card}>
-      <div className={styles.head}>
-        <span className={`${styles.marketBadge} ${candidate.market === 'US' ? styles.us : styles.it}`}>{candidate.market}</span>
-        <span className={styles.symbol}>{candidate.symbol}</span>
-        <span className={styles.name}>{candidate.name}</span>
-        {candidate.partial && <span className={styles.partialBadge}>Dati parziali</span>}
-        {candidate.source.split(',').includes('edgar-form4-cluster') && <span className={styles.clusterBadge}>Cluster insider</span>}
-        <span className={styles.score}>{candidate.score}</span>
+    <article className={`${styles.card} ${tier}`}>
+      <div className={styles.top}>
+        <div className={styles.scoreBox}>
+          <div className={styles.ringWrap}>
+            <div className={styles.ring} style={{ '--pct': `${candidate.score}%` } as React.CSSProperties} />
+            <span className={styles.scoreValue}>{candidate.score}</span>
+          </div>
+          <span className={styles.scoreLabel}>
+            Punteggio
+            <InfoTip label="Come è calcolato il punteggio" source="Yahoo Finance, Finnhub, SEC EDGAR, STOCK Act" formula="media di Andamento, Conti e Insider (solo Andamento e Conti per l'Italia)">
+              Da 0 a 100: più è alto, più il titolo merita un approfondimento. Non è un consiglio d'acquisto.
+            </InfoTip>
+          </span>
+        </div>
+        <div className={styles.body}>
+          <div className={styles.head}>
+            <Link href={`/stock/${encodeURIComponent(candidate.symbol)}`} className={styles.titleLink}>
+              <span className={styles.symbol}>{candidate.symbol}</span>
+              <span className={styles.name}>{candidate.name}</span>
+            </Link>
+            <span className={`${styles.marketBadge} ${candidate.market === 'US' ? styles.us : styles.it}`}>{candidate.market === 'US' ? 'USA' : 'Italia'}</span>
+            {candidate.partial && <span className={styles.partialBadge}>Dati incompleti<InfoTip label="Dati incompleti" source="Finnhub, Yahoo Finance">Alcune fonti non hanno risposto per questo titolo: il punteggio potrebbe essere sottostimato.</InfoTip></span>}
+            {candidate.source.split(',').includes('edgar-form4-cluster') && <span className={styles.clusterBadge}>Più insider comprano<InfoTip label="Più insider comprano" source="SEC EDGAR (Form 4)">Più dirigenti o grandi azionisti della società hanno comprato azioni nello stesso periodo.</InfoTip></span>}
+          </div>
+          <p className={styles.reason}>{headline}</p>
+          {details.length > 0 && (
+            <ul className={styles.meters}>
+              {visibleScores.map((i) => (
+                <li key={PILLARS[i].label} className={styles.meter}>
+                  <span className={styles.meterLabel}>{PILLARS[i].label}</span>
+                  <span className={styles.meterBar} aria-hidden="true">
+                    <span style={{ width: `${scores[i]}%` }} />
+                  </span>
+                  <span className={styles.meterScore}>{scores[i]}/100</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
-      <p className={styles.reason}>{candidate.reason}</p>
+      {details.length > 0 && (
+        <details className={styles.why}>
+          <summary className={styles.whySummary}>Perché questo punteggio</summary>
+          <dl className={styles.whyList}>
+            {details.map((text, i) => (
+              <div key={PILLARS[i].label} className={styles.whyItem}>
+                <dt>{PILLARS[i].label}</dt>
+                <dd>{text}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      )}
       <div className={styles.actions}>
         <button type="button" onClick={add} disabled={busy} className={styles.addButton}>
-          Aggiungi a watchlist
+          Aggiungi alla watchlist
         </button>
         <button type="button" onClick={dismiss} disabled={busy} className={styles.dismissButton}>
           Scarta
@@ -83,6 +140,6 @@ export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
           {error}
         </p>
       )}
-    </div>
+    </article>
   )
 }

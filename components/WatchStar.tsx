@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import styles from './WatchStar.module.css'
 
-export function WatchStar({ symbol, watched }: { symbol: string; watched: boolean }) {
+export function WatchStar({ symbol, watched, prominent = false }: { symbol: string; watched: boolean; prominent?: boolean }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [refreshing, startRefresh] = useTransition()
@@ -41,7 +41,7 @@ export function WatchStar({ symbol, watched }: { symbol: string; watched: boolea
   const label = watched ? 'Togli dalla watchlist' : 'Aggiungi alla watchlist'
   return (
     <span className={styles.wrap}>
-      <button type="button" onClick={toggle} disabled={busy || refreshing} aria-pressed={watched} aria-label={label} title={label} className={`${styles.star} ${watched ? styles.on : ''}`}>
+      <button type="button" onClick={toggle} disabled={busy || refreshing} aria-pressed={watched} aria-label={label} title={label} className={`${styles.star} ${watched ? styles.on : ''} ${prominent ? styles.prominent : ''}`}>
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
           <path d="M12 2.8l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.6l-5.8 3.1 1.1-6.5L2.6 9.6l6.5-.9z" strokeWidth="1.8" strokeLinejoin="round" />
         </svg>

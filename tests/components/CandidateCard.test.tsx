@@ -9,7 +9,10 @@ const CANDIDATE = {
   name: 'Microsoft',
   market: 'US' as const,
   score: 72,
-  reason: 'Movimento forte, fondamentali solidi.',
+  momentumScore: 80,
+  fundamentalsScore: 70,
+  insiderScore: 66,
+  reason: 'Movimento forte, fondamentali solidi.\nOggi +5%.\nConti considerati: ROE 20%.\nInsider: nessun acquisto.',
   partial: false,
   source: 'yahoo-movers-us',
 }
@@ -24,28 +27,30 @@ describe('CandidateCard', () => {
     expect(screen.getByText('MSFT')).toBeInTheDocument()
     expect(screen.getByText('72')).toBeInTheDocument()
     expect(screen.getByText(/Movimento forte/)).toBeInTheDocument()
+    expect(screen.getByText(/Conti considerati/)).toBeInTheDocument()
+    expect(screen.getByText('80/100')).toBeInTheDocument()
   })
 
   it('shows a "dati parziali" badge when partial is true', () => {
     render(<CandidateCard candidate={{ ...CANDIDATE, partial: true }} />)
-    expect(screen.getByText(/dati parziali/i)).toBeInTheDocument()
+    expect(screen.getByText(/dati incompleti/i)).toBeInTheDocument()
   })
 
   it('shows a "cluster insider" badge when the source includes edgar-form4-cluster', () => {
     render(<CandidateCard candidate={{ ...CANDIDATE, source: 'yahoo-movers-us,edgar-form4-cluster' }} />)
-    expect(screen.getByText(/cluster insider/i)).toBeInTheDocument()
+    expect(screen.getByText(/più insider comprano/i)).toBeInTheDocument()
   })
 
   it('does not show the "cluster insider" badge for a candidate from other sources', () => {
     render(<CandidateCard candidate={CANDIDATE} />)
-    expect(screen.queryByText(/cluster insider/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/più insider comprano/i)).not.toBeInTheDocument()
   })
 
   it('adds the symbol to the watchlist and hides the card on success', async () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: () => Promise.resolve({ stock: { symbol: 'MSFT' } }) })
     render(<CandidateCard candidate={CANDIDATE} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /aggiungi a watchlist/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi alla watchlist/i }))
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/stocks', expect.objectContaining({ method: 'POST' })))
     await waitFor(() => expect(screen.queryByText('MSFT')).not.toBeInTheDocument())
@@ -55,7 +60,7 @@ describe('CandidateCard', () => {
     ;(fetch as any).mockResolvedValue({ ok: false, status: 409, json: () => Promise.resolve({ error: 'MSFT is already in the watchlist' }) })
     render(<CandidateCard candidate={CANDIDATE} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /aggiungi a watchlist/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi alla watchlist/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('already in the watchlist')
   })

@@ -305,11 +305,43 @@
   margin-top: 8px;
 }
 
-.previewStats {
+.unwatched {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px 40px;
-  margin: 0 0 24px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--brass) 40%, var(--rule));
+  border-radius: var(--radius-card);
+}
+
+.unwatchedTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.unwatchedText {
+  margin-top: 2px;
+  max-width: 60ch;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.previewStats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 24px 0;
+}
+
+.previewStats > div {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-inner);
 }
 
 .previewStats dt {
@@ -321,4 +353,139 @@
   margin: 2px 0 0;
   font-size: 17px;
   font-variant-numeric: tabular-nums;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.skBar {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-raised) 0%, color-mix(in srgb, var(--surface-raised) 60%, var(--rule)) 50%, var(--surface-raised) 100%);
+  background-size: 200% 100%;
+  animation: skShimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skShimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skBar {
+    animation: none;
+  }
+}
+
+.skStack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skBack {
+  width: 80px;
+  height: 14px;
+  margin-bottom: 14px;
+}
+
+.skTicker {
+  width: 90px;
+  height: 13px;
+}
+
+.skName {
+  width: min(320px, 70vw);
+  height: 30px;
+}
+
+.skPill {
+  width: 130px;
+  height: 40px;
+  border-radius: 6px;
+}
+
+.skPrice {
+  width: 170px;
+  height: 40px;
+}
+
+.skChart {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.skTitle {
+  width: 180px;
+  height: 18px;
+}
+
+.skPriceSm {
+  width: 110px;
+  height: 26px;
+}
+
+.skPlot {
+  height: 260px;
+  border-radius: 12px;
+}
+
+.skTile {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 134px;
+}
+
+.skValue {
+  width: 110px;
+  height: 30px;
+}
+
+.skVerdict {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 420px;
+}
+
+.skMeter {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.skSeg {
+  height: 8px;
+}
+
+.skVerdictTitle {
+  width: 70%;
+  height: 32px;
+}
+
+.skLine {
+  width: 100%;
+  height: 14px;
+}
+
+.skLineShort {
+  width: 60%;
+  height: 14px;
+}
+
+.skTabs {
+  height: 44px;
+  margin-top: 32px;
+  border-radius: 12px;
 }
