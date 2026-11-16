@@ -1,4 +1,4 @@
-import type { Criterion, Level, TrendTemplate, Vcp } from '@/lib/minervini'
+import { VCP_STATUS_LABEL, type Criterion, type Level, type TrendTemplate, type Vcp } from '@/lib/minervini'
 import type { MinerviniAnalysis } from '@/lib/minervini-data'
 import styles from './MinerviniPanel.module.css'
 
@@ -168,7 +168,7 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
   const last = vcp.contractions[vcp.contractions.length - 1]
   const maxDepth = Math.max(...vcp.contractions, 0.01)
   const tone: Tone = !hasBase || vcp.status === 'failed' ? 'loss' : vcp.status === 'forming' || vcp.status === 'breakout' ? 'gain' : 'warn'
-  const chip = !hasBase ? 'Nessuna base' : { forming: 'Base pronta', breakout: 'In rottura', extended: 'Troppo tardi', failed: 'Base rotta' }[vcp.status!]
+  const chip = !hasBase ? 'Nessuna base' : VCP_STATUS_LABEL[vcp.status!]
 
   return (
     <section className={styles.card} aria-label="È il momento di entrare?">

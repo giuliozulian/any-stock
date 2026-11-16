@@ -4,6 +4,21 @@ const WEEK52 = 252
 const SLOPE_BARS = 22
 const QUARTER = 63
 
+export const RS_MIN = 70
+// weightedReturn needs four full quarters plus the starting close.
+export const RS_MIN_BARS = QUARTER * 4 + 1
+
+export const TREND_TEMPLATE_LABELS = [
+  'Prezzo sopra le medie a 150 e 200 giorni',
+  'Media a 150 giorni sopra quella a 200',
+  'Media a 200 giorni in salita da almeno un mese',
+  'Media a 50 giorni sopra quelle a 150 e 200',
+  'Prezzo sopra la media a 50 giorni',
+  'Almeno 30% sopra il minimo dell’ultimo anno',
+  'Al massimo 25% sotto il massimo dell’ultimo anno',
+  'Forza relativa almeno 70',
+] as const
+
 export function sma(values: number[], n: number, end = values.length): number | null {
   if (end < n || end > values.length) return null
   let sum = 0
@@ -14,7 +29,7 @@ export function sma(values: number[], n: number, end = values.length): number | 
 // Quarterly returns over the last year, the most recent quarter counting double.
 export function weightedReturn(closes: number[]): number | null {
   const n = closes.length
-  if (n < QUARTER * 4 + 1) return null
+  if (n < RS_MIN_BARS) return null
   const ret = (k: number) => closes[n - 1 - k * QUARTER] / closes[n - 1 - (k + 1) * QUARTER] - 1
   return 0.4 * ret(0) + 0.2 * (ret(1) + ret(2) + ret(3))
 }
@@ -92,24 +107,24 @@ export function evaluateTrendTemplate(bars: Bar[], rsPercentile: number | null):
   const m7 = price / (high52 * 0.75) - 1
 
   const criteria: Criterion[] = [
-    { id: 1, label: 'Prezzo sopra le medie a 150 e 200 giorni', ok: m1 > 0, margin: m1, value: distance(m1) },
-    { id: 2, label: 'Media a 150 giorni sopra quella a 200', ok: m2 > 0, margin: m2, value: distance(m2) },
+    { id: 1, label: TREND_TEMPLATE_LABELS[0], ok: m1 > 0, margin: m1, value: distance(m1) },
+    { id: 2, label: TREND_TEMPLATE_LABELS[1], ok: m2 > 0, margin: m2, value: distance(m2) },
     {
       id: 3,
-      label: 'Media a 200 giorni in salita da almeno un mese',
+      label: TREND_TEMPLATE_LABELS[2],
       ok: m3 > 0,
       // A slope is always a small fraction, so it never counts as a near miss.
       margin: null,
       value: months === 0 ? 'in calo nell’ultimo mese' : `in salita da ${months === MAX_RISING_MONTHS ? '5+ mesi' : months === 1 ? '1 mese' : `${months} mesi`}`,
     },
-    { id: 4, label: 'Media a 50 giorni sopra quelle a 150 e 200', ok: m4 > 0, margin: m4, value: distance(m4) },
-    { id: 5, label: 'Prezzo sopra la media a 50 giorni', ok: m5 > 0, margin: m5, value: distance(m5) },
-    { id: 6, label: 'Almeno 30% sopra il minimo dell’ultimo anno', ok: m6 >= 0, margin: m6, value: `${pct(price / low52 - 1)} dal minimo` },
-    { id: 7, label: 'Al massimo 25% sotto il massimo dell’ultimo anno', ok: m7 >= 0, margin: m7, value: `${pct(price / high52 - 1)} dal massimo` },
+    { id: 4, label: TREND_TEMPLATE_LABELS[3], ok: m4 > 0, margin: m4, value: distance(m4) },
+    { id: 5, label: TREND_TEMPLATE_LABELS[4], ok: m5 > 0, margin: m5, value: distance(m5) },
+    { id: 6, label: TREND_TEMPLATE_LABELS[5], ok: m6 >= 0, margin: m6, value: `${pct(price / low52 - 1)} dal minimo` },
+    { id: 7, label: TREND_TEMPLATE_LABELS[6], ok: m7 >= 0, margin: m7, value: `${pct(price / high52 - 1)} dal massimo` },
     {
       id: 8,
-      label: 'Forza relativa almeno 70',
-      ok: rsPercentile !== null && rsPercentile >= 70,
+      label: TREND_TEMPLATE_LABELS[7],
+      ok: rsPercentile !== null && rsPercentile >= RS_MIN,
       margin: null,
       value: rsPercentile === null ? 'non affidabile' : `${Math.round(rsPercentile)} su 100`,
     },
@@ -178,6 +193,13 @@ function swings(closes: number[], reversal: number): Swing[] {
 
 // forming: still under the pivot; breakout: up to 5% above it; extended: too far above to chase; failed: below the base's last low.
 export type VcpStatus = 'forming' | 'breakout' | 'extended' | 'failed'
+
+export const VCP_STATUS_LABEL: Record<VcpStatus, string> = {
+  forming: 'Base pronta',
+  breakout: 'In rottura',
+  extended: 'Troppo tardi',
+  failed: 'Base rotta',
+}
 
 export interface Vcp {
   contractions: number[]

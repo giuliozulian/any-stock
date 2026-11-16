@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
-import { detectVcp, evaluateTrendTemplate, percentileRank, sma, weightedReturn } from '@/lib/minervini'
+import { RS_MIN, RS_MIN_BARS, TREND_TEMPLATE_LABELS, VCP_STATUS_LABEL, detectVcp, evaluateTrendTemplate, percentileRank, sma, weightedReturn } from '@/lib/minervini'
 
 const bar = (i: number, close: number): Bar => ({ t: i * 86_400_000, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
 const series = (n: number, f: (i: number) => number): Bar[] => Array.from({ length: n }, (_, i) => bar(i, f(i)))
@@ -126,5 +126,24 @@ describe('evaluateTrendTemplate', () => {
 
   it('returns null with fewer than 222 bars', () => {
     expect(evaluateTrendTemplate(series(221, (i) => 100 + i), 80)).toBeNull()
+  })
+})
+
+describe('shared constants', () => {
+  it('exposes the RS threshold and the minimum history for the weighted return', () => {
+    expect(RS_MIN).toBe(70)
+    expect(RS_MIN_BARS).toBe(253)
+    expect(weightedReturn(Array.from({ length: RS_MIN_BARS - 1 }, () => 100))).toBeNull()
+    expect(weightedReturn(Array.from({ length: RS_MIN_BARS }, () => 100))).not.toBeNull()
+  })
+
+  it('uses the exported labels for the eight criteria, in order', () => {
+    const template = evaluateTrendTemplate(series(300, (i) => 100 + i), 80)!
+    expect(TREND_TEMPLATE_LABELS).toHaveLength(8)
+    expect(template.criteria.map((c) => c.label)).toEqual([...TREND_TEMPLATE_LABELS])
+  })
+
+  it('labels every VCP status', () => {
+    expect(VCP_STATUS_LABEL).toEqual({ forming: 'Base pronta', breakout: 'In rottura', extended: 'Troppo tardi', failed: 'Base rotta' })
   })
 })
