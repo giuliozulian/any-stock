@@ -9,7 +9,9 @@ import { AnalystTrendChart } from '@/components/AnalystTrendChart'
 import { InfoTip } from '@/components/InfoTip'
 import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
-import { getIntradayHistory, getPriceHistory } from '@/lib/history'
+import { getFullPriceHistory, getIntradayHistory, getPriceHistory } from '@/lib/history'
+import { PerformancePanel } from '@/components/PerformancePanel'
+import { downsample } from '@/lib/performance'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
 import { WatchStar } from '@/components/WatchStar'
@@ -119,12 +121,14 @@ async function StockPreview({ symbol }: { symbol: string }) {
   }
 
   const covered = Boolean(profile && profile.name)
-  const [history, intraday, metrics, years] = await Promise.all([
+  const [history, intraday, metrics, years, fullHistory] = await Promise.all([
     getPriceHistory(symbol),
     getIntradayHistory(symbol),
     covered ? getMetrics(symbol).catch(() => null) : Promise.resolve(null),
     covered ? getAnnualFinancials(symbol).catch(() => []) : Promise.resolve([]),
+    getFullPriceHistory(symbol),
   ])
+  const longHistory = downsample(fullHistory.points, new Date())
   const yahoo = covered ? null : await getYahooQuote(symbol)
   if (!covered && !yahoo) {
     const ipo = await findIpo(symbol)
@@ -179,7 +183,7 @@ async function StockPreview({ symbol }: { symbol: string }) {
       {history.length > 1 && (
         <section className={styles.chartCard} aria-label="Andamento del prezzo">
           <h2 className={styles.sectionTitle}>Andamento del prezzo</h2>
-          <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} />
+          <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} long={longHistory} />
         </section>
       )}
       {covered && price > 0 && metrics && (
@@ -258,7 +262,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const [history, intraday, videos, insiders, congress, financials, metrics] = await Promise.all([
+  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory] = await Promise.all([
     getPriceHistory(stock.symbol),
     getIntradayHistory(stock.symbol),
     getRecentVideos(stock.symbol, stock.name),
@@ -266,7 +270,10 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     getCongressTrades(stock.symbol),
     getAnnualFinancials(stock.symbol),
     getMetrics(stock.symbol).catch(() => null),
+    getFullPriceHistory(stock.symbol),
   ])
+  const now = new Date()
+  const longHistory = downsample(fullHistory.points, now)
 
   const evaluation = latest
     ? evaluateStock({
@@ -390,7 +397,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 </InfoTip>
               </h2>
               {history.length > 1 ? (
-                <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} />
+                <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} long={longHistory} />
               ) : stock.snapshots.length > 1 ? (
                 <>
                   <div className={`${styles.chart} ${seriesTrendClass}`}>
@@ -484,6 +491,11 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 </div>
               </>
             ),
+          },
+          {
+            id: 'andamento',
+            label: 'Andamento',
+            content: <PerformancePanel history={fullHistory} now={now} />,
           },
           {
             id: 'bilanci',
