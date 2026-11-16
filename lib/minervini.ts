@@ -81,3 +81,87 @@ export function evaluateTrendTemplate(bars: Bar[], rsPercentile: number | null):
     stage2: criteria.slice(0, 5).every((c) => c.ok),
   }
 }
+
+interface Swing {
+  value: number
+  type: 'high' | 'low'
+}
+
+// Zigzag on closes: a swing is confirmed once price reverses by `reversal` from its extreme.
+function swings(closes: number[], reversal: number): Swing[] {
+  const out: Swing[] = []
+  let hi = 0
+  let lo = 0
+  let dir: 'up' | 'down' | null = null
+  for (let i = 1; i < closes.length; i++) {
+    const c = closes[i]
+    if (dir === null) {
+      if (c >= closes[lo] * (1 + reversal)) {
+        out.push({ value: closes[lo], type: 'low' })
+        dir = 'up'
+        hi = i
+      } else if (c <= closes[hi] * (1 - reversal)) {
+        out.push({ value: closes[hi], type: 'high' })
+        dir = 'down'
+        lo = i
+      } else {
+        if (c > closes[hi]) hi = i
+        if (c < closes[lo]) lo = i
+      }
+    } else if (dir === 'up') {
+      if (c > closes[hi]) hi = i
+      else if (c <= closes[hi] * (1 - reversal)) {
+        out.push({ value: closes[hi], type: 'high' })
+        dir = 'down'
+        lo = i
+      }
+    } else if (c < closes[lo]) lo = i
+    else if (c >= closes[lo] * (1 + reversal)) {
+      out.push({ value: closes[lo], type: 'low' })
+      dir = 'up'
+      hi = i
+    }
+  }
+  if (dir === 'up') out.push({ value: closes[hi], type: 'high' })
+  else if (dir === 'down') out.push({ value: closes[lo], type: 'low' })
+  return out
+}
+
+export interface Vcp {
+  contractions: number[]
+  pivot: number | null
+  volumeDryUp: boolean
+  suggestedStop: number | null
+}
+
+const VCP_WINDOW = 150
+const VCP_REVERSAL = 0.05
+const STOP_BELOW_PIVOT = 0.08
+
+const avg = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
+
+export function detectVcp(bars: Bar[]): Vcp {
+  const recent = bars.slice(-VCP_WINDOW)
+  const volumes = recent.map((b) => b.volume)
+  const volumeDryUp = volumes.length >= 50 && avg(volumes.slice(-10)) < avg(volumes.slice(-50))
+
+  const points = swings(recent.map((b) => b.close), VCP_REVERSAL)
+  const depths: number[] = []
+  const highs: number[] = []
+  points.forEach((p, k) => {
+    const next = points[k + 1]
+    if (p.type === 'high' && next?.type === 'low') {
+      depths.push((p.value - next.value) / p.value)
+      highs.push(p.value)
+    }
+  })
+
+  // Walk back over the trailing run of strictly shrinking pullbacks.
+  let start = depths.length - 1
+  while (start > 0 && depths[start] < depths[start - 1]) start--
+  const contractions = start >= 0 ? depths.slice(start) : []
+  if (contractions.length < 2) return { contractions: [], pivot: null, volumeDryUp, suggestedStop: null }
+  // The pivot is the peak just before the last pullback, not a rally still in progress.
+  const pivot = highs[highs.length - 1]
+  return { contractions, pivot, volumeDryUp, suggestedStop: pivot * (1 - STOP_BELOW_PIVOT) }
+}

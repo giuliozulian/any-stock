@@ -1,9 +1,46 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
-import { evaluateTrendTemplate, percentileRank, sma, weightedReturn } from '@/lib/minervini'
+import { detectVcp, evaluateTrendTemplate, percentileRank, sma, weightedReturn } from '@/lib/minervini'
 
 const bar = (i: number, close: number): Bar => ({ t: i * 86_400_000, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
 const series = (n: number, f: (i: number) => number): Bar[] => Array.from({ length: n }, (_, i) => bar(i, f(i)))
+
+// Piecewise-linear closes through the given turning points, `leg` bars per leg.
+const path = (points: number[], leg = 10, volume = 1_000_000): Bar[] => {
+  const closes: number[] = [points[0]]
+  for (let k = 1; k < points.length; k++) {
+    for (let s = 1; s <= leg; s++) closes.push(points[k - 1] + ((points[k] - points[k - 1]) * s) / leg)
+  }
+  return closes.map((c, i) => ({ t: i * 86_400_000, high: c, low: c, close: c, volume }))
+}
+
+describe('detectVcp', () => {
+  // 25% → 12% → 6% pullbacks, each rally failing to exceed the previous peak by much.
+  const base = path([80, 100, 75, 95, 83.6, 94, 88.36, 93])
+
+  it('finds progressively smaller contractions and the pivot', () => {
+    const v = detectVcp(base)
+    expect(v.contractions).toHaveLength(3)
+    expect(v.contractions[0]).toBeCloseTo(0.25, 2)
+    expect(v.contractions[1]).toBeCloseTo(0.12, 2)
+    expect(v.contractions[2]).toBeCloseTo(0.06, 2)
+    expect(v.pivot).toBeCloseTo(94, 1)
+    expect(v.suggestedStop).toBeCloseTo(94 * 0.92, 1)
+  })
+
+  it('does not flag a base whose pullbacks grow', () => {
+    const v = detectVcp(path([80, 100, 94, 99, 80, 95]))
+    expect(v.contractions).toEqual([])
+    expect(v.pivot).toBeNull()
+    expect(v.suggestedStop).toBeNull()
+  })
+
+  it('flags volume dry-up when recent volume is below the 50-bar average', () => {
+    const quiet = base.map((b, i) => ({ ...b, volume: i >= base.length - 10 ? 300_000 : 1_000_000 }))
+    expect(detectVcp(quiet).volumeDryUp).toBe(true)
+    expect(detectVcp(base).volumeDryUp).toBe(false)
+  })
+})
 
 describe('sma', () => {
   it('averages the last n values, optionally ending before an index', () => {
