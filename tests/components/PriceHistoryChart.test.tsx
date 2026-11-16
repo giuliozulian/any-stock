@@ -64,4 +64,36 @@ describe('PriceHistoryChart long ranges', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'YTD' }))
     expect(screen.getByText(/da inizio anno/)).toBeInTheDocument()
   })
+
+  describe('with weekly points before daily ones', () => {
+    // Five years of weekly points followed by five years of daily ones, price rising by 1 per day.
+    const start = END - 3652 * DAY
+    const at = (day: number) => ({ t: start + day * DAY, close: 10 + day })
+    const mixed = [...Array.from({ length: 261 }, (_, i) => at(i * 7)), ...Array.from({ length: 3652 - 1826 }, (_, i) => at(1827 + i))]
+    const coords = (container: HTMLElement) =>
+      container
+        .querySelector('polyline')!
+        .getAttribute('points')!
+        .split(' ')
+        .map((pair) => pair.split(',').map(Number))
+
+    it('spaces points by date, so a steady climb plots as a straight line', () => {
+      const { container } = render(<PriceHistoryChart points={YEAR} long={mixed} />)
+      fireEvent.click(screen.getByRole('tab', { name: 'Max' }))
+      const pts = coords(container)
+      const middle = pts.reduce((a, b) => (Math.abs(b[0] - 320) < Math.abs(a[0] - 320) ? b : a))
+      expect(middle[1]).toBeCloseTo((pts[0][1] + pts[pts.length - 1][1]) / 2, 0)
+    })
+
+    it('shows the date under the pointer, not the point at the same share of the list', () => {
+      const { container } = render(<PriceHistoryChart points={YEAR} long={mixed} />)
+      fireEvent.click(screen.getByRole('tab', { name: 'Max' }))
+      const svg = container.querySelector('svg')!
+      svg.getBoundingClientRect = () => ({ left: 0, top: 0, width: 640, height: 220, right: 640, bottom: 220, x: 0, y: 0, toJSON: () => ({}) })
+      fireEvent.pointerMove(svg, { clientX: 320 })
+      // Halfway falls on day 1826; the nearest point is the first daily one, day 1827.
+      const halfway = new Date(start + 1827 * DAY).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' })
+      expect(screen.getByText(halfway)).toBeInTheDocument()
+    })
+  })
 })

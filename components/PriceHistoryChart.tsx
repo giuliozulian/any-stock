@@ -82,7 +82,11 @@ export function PriceHistoryChart({ points, intraday = [], prevClose = null, lon
   const min = Math.min(...data.map((d) => d.close))
   const max = Math.max(...data.map((d) => d.close))
   const span = max - min || 1
-  const x = (i: number) => PAD.left + (i / Math.max(data.length - 1, 1)) * (W - PAD.left - PAD.right)
+  // Long series mix weekly and daily points, so they are placed by date; the shorter ranges keep even spacing.
+  const byTime = LONG_RANGES.includes(range)
+  const t0 = data[0].t
+  const spanT = data[data.length - 1].t - t0 || 1
+  const x = (i: number) => PAD.left + (byTime ? (data[i].t - t0) / spanT : i / Math.max(data.length - 1, 1)) * (W - PAD.left - PAD.right)
   const y = (v: number) => PAD.top + (1 - (v - min) / span) * (H - PAD.top - PAD.bottom)
 
   const line = data.map((d, i) => `${x(i)},${y(d.close)}`).join(' ')
@@ -116,7 +120,14 @@ export function PriceHistoryChart({ points, intraday = [], prevClose = null, lon
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const rect = e.currentTarget.getBoundingClientRect()
     const ratio = (e.clientX - rect.left) / rect.width
-    const i = Math.round(((ratio * W - PAD.left) / (W - PAD.left - PAD.right)) * (data.length - 1))
+    const share = (ratio * W - PAD.left) / (W - PAD.left - PAD.right)
+    let i = Math.round(share * (data.length - 1))
+    if (byTime) {
+      const target = t0 + share * spanT
+      i = data.findIndex((d) => d.t >= target)
+      if (i < 0) i = data.length - 1
+      else if (i > 0 && target - data[i - 1].t < data[i].t - target) i -= 1
+    }
     setHover(Math.min(data.length - 1, Math.max(0, i)))
   }
 
