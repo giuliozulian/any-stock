@@ -182,3 +182,40 @@ model MoveExplanation {
 
   @@unique([symbol, day])
 }
+
+model ScanRun {
+  id          String       @id @default(cuid())
+  status      String // 'running' | 'done'
+  total       Int
+  cursor      Int          @default(0)
+  unreadCount Int          @default(0)
+  startedAt   DateTime     @default(now())
+  finishedAt  DateTime?
+  results     ScanResult[]
+
+  @@index([status, finishedAt])
+}
+
+model ScanResult {
+  id               String   @id @default(cuid())
+  runId            String
+  run              ScanRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  symbol           String
+  name             String
+  sector           String?
+  status           String // 'ok' | 'unread'
+  price            Float?
+  barDate          DateTime?
+  weightedReturn   Float?
+  criteria         Json?
+  rs               Float?
+  passedCount      Int?
+  vcpStatus        String?
+  pivot            Float?
+  pivotDistancePct Float?
+  contractions     Json?
+  volumeDryUp      Boolean?
+
+  @@unique([runId, symbol])
+  @@index([runId, passedCount])
+}
