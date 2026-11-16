@@ -1,0 +1,142 @@
+import type { Prisma } from '@prisma/client'
+import { prisma } from '@/lib/db'
+import { getDailyBars, type Bar } from '@/lib/history'
+import type { Criterion } from '@/lib/minervini'
+import { finalize, scanSymbol, type FinalizeInput, type ScanSymbolResult } from '@/lib/scanner'
+import { loadUniverse, toYahooSymbol, type UniverseEntry } from '@/lib/universe'
+
+export const BLOCK_SIZE = 25
+export const CONCURRENCY = 5
+// Block budget: 25 stocks at 5 in parallel with a 10 s timeout each is at most ~50 s without retries,
+// so the retry pass only starts early in the block to stay under the route's 60 s.
+export const RETRY_DEADLINE_MS = 30_000
+export const MIN_INTERVAL_MS = 60 * 60 * 1000
+export const KEEP_RUNS = 2
+export const PARTIAL_UNREAD_SHARE = 0.1
+
+export interface RunState {
+  id: string
+  status: string
+  total: number
+  cursor: number
+}
+
+export type StartResult = { kind: 'started' | 'resumed'; run: RunState } | { kind: 'too-soon'; retryAt: Date }
+export type StepResult = { kind: 'advanced' | 'stale' | 'done'; run: RunState } | { kind: 'not-found' }
+
+const state = (r: { id: string; status: string; total: number; cursor: number }): RunState => ({ id: r.id, status: r.status, total: r.total, cursor: r.cursor })
+
+export function runningRun() {
+  return prisma.scanRun.findFirst({ where: { status: 'running' }, orderBy: { startedAt: 'desc' } })
+}
+
+export function latestCompleteRun() {
+  return prisma.scanRun.findFirst({ where: { status: 'done' }, orderBy: { finishedAt: 'desc' } })
+}
+
+export async function startRun(universe: UniverseEntry[] = loadUniverse(), now: Date = new Date()): Promise<StartResult> {
+  const running = await runningRun()
+  if (running) return { kind: 'resumed', run: state(running) }
+  const last = await latestCompleteRun()
+  if (last?.finishedAt && now.getTime() - last.finishedAt.getTime() < MIN_INTERVAL_MS) {
+    return { kind: 'too-soon', retryAt: new Date(last.finishedAt.getTime() + MIN_INTERVAL_MS) }
+  }
+  const run = await prisma.scanRun.create({ data: { status: 'running', total: universe.length } })
+  return { kind: 'started', run: state(run) }
+}
+
+async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length)
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++
+        out[i] = await fn(items[i])
+      }
+    }),
+  )
+  return out
+}
+
+export interface StepDeps {
+  universe?: UniverseEntry[]
+  fetchBars?: (yahooSymbol: string) => Promise<Bar[]>
+  now?: () => number
+}
+
+export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepResult> {
+  const universe = deps.universe ?? loadUniverse()
+  const fetchBars = deps.fetchBars ?? getDailyBars
+  const now = deps.now ?? Date.now
+
+  const run = await prisma.scanRun.findUnique({ where: { id: runId } })
+  if (!run) return { kind: 'not-found' }
+  if (run.status === 'done') return { kind: 'done', run: state(run) }
+
+  const from = run.cursor
+  const block = universe.slice(from, from + BLOCK_SIZE)
+  const to = from + block.length
+  const startedAt = now()
+
+  const results = await mapLimit(block, CONCURRENCY, async (entry) => scanSymbol(await fetchBars(toYahooSymbol(entry.symbol))))
+  if (now() - startedAt < RETRY_DEADLINE_MS) {
+    const failed = block.map((entry, i) => [entry, i] as const).filter(([, i]) => results[i] === null)
+    const retried = await mapLimit(failed, CONCURRENCY, async ([entry]) => scanSymbol(await fetchBars(toYahooSymbol(entry.symbol))))
+    failed.forEach(([, i], k) => {
+      results[i] = retried[k]
+    })
+  }
+
+  // Rows first (idempotent through skipDuplicates), cursor second: a crash never skips a block,
+  // and a second tab running the same block only re-writes rows that already exist.
+  if (block.length > 0) {
+    await prisma.scanResult.createMany({ data: block.map((entry, i) => toRow(runId, entry, results[i])), skipDuplicates: true })
+  }
+  const claimed = await prisma.scanRun.updateMany({ where: { id: runId, cursor: from, status: 'running' }, data: { cursor: to } })
+  if (claimed.count !== 1) {
+    const current = await prisma.scanRun.findUniqueOrThrow({ where: { id: runId } })
+    return { kind: 'stale', run: state(current) }
+  }
+  if (to >= run.total) await closeRun(runId)
+  const current = await prisma.scanRun.findUniqueOrThrow({ where: { id: runId } })
+  return { kind: 'advanced', run: state(current) }
+}
+
+// Json columns reject a plain null: leave the key out for unread rows.
+function toRow(runId: string, entry: UniverseEntry, r: ScanSymbolResult | null): Prisma.ScanResultCreateManyInput {
+  const base = { runId, symbol: entry.symbol, name: entry.name, sector: entry.sector }
+  if (!r) return { ...base, status: 'unread' }
+  return {
+    ...base,
+    status: 'ok',
+    price: r.price,
+    barDate: r.barDate,
+    weightedReturn: r.weightedReturn,
+    criteria: r.criteria as unknown as Prisma.InputJsonValue,
+    vcpStatus: r.vcpStatus,
+    pivot: r.pivot,
+    pivotDistancePct: r.pivotDistancePct,
+    contractions: r.contractions,
+    volumeDryUp: r.volumeDryUp,
+  }
+}
+
+async function closeRun(runId: string): Promise<void> {
+  const rows = await prisma.scanResult.findMany({ where: { runId } })
+  const readable = rows.filter((r) => r.status === 'ok' && r.weightedReturn !== null && r.criteria !== null)
+  const inputs: FinalizeInput[] = readable.map((r) => ({ symbol: r.symbol, weightedReturn: r.weightedReturn!, criteria: r.criteria as unknown as Criterion[] }))
+  const out = new Map(finalize(inputs).map((o) => [o.symbol, o]))
+  await prisma.$transaction(
+    readable.map((r) => prisma.scanResult.update({ where: { id: r.id }, data: { rs: out.get(r.symbol)!.rs, passedCount: out.get(r.symbol)!.passedCount } })),
+  )
+
+  const closed = await prisma.scanRun.updateMany({
+    where: { id: runId, status: 'running' },
+    data: { status: 'done', finishedAt: new Date(), unreadCount: rows.length - readable.length },
+  })
+  if (closed.count !== 1) return
+  const done = await prisma.scanRun.findMany({ where: { status: 'done' }, orderBy: { finishedAt: 'desc' }, select: { id: true } })
+  const old = done.slice(KEEP_RUNS).map((r) => r.id)
+  if (old.length > 0) await prisma.scanRun.deleteMany({ where: { id: { in: old } } })
+}
