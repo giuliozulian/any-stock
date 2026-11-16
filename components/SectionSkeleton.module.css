@@ -1,0 +1,120 @@
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.bar {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-raised) 0%, color-mix(in srgb, var(--surface-raised) 60%, var(--rule)) 50%, var(--surface-raised) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+  }
+}
+
+.lead {
+  width: min(420px, 70%);
+  height: 18px;
+  margin-bottom: 20px;
+}
+
+.list,
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  box-shadow: var(--card-shadow);
+}
+
+.list {
+  padding: 0 20px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr 80px;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.row:first-child {
+  border-top: 0;
+}
+
+.date,
+.side {
+  height: 14px;
+}
+
+.main {
+  height: 16px;
+  max-width: 360px;
+}
+
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  gap: 20px;
+  padding: 20px 24px;
+}
+
+.ring {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardTitle {
+  width: 200px;
+  height: 20px;
+}
+
+.cardLine {
+  width: 100%;
+  max-width: 560px;
+  height: 14px;
+}
+
+.cardLineShort {
+  width: 40%;
+  height: 14px;
+}
+
+@media (max-width: 640px) {
+  .row {
+    grid-template-columns: 5rem 1fr 48px;
+  }
+}
