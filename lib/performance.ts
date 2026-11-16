@@ -98,3 +98,75 @@ export function formatPct(value: number): string {
   const body = Math.abs(rounded).toLocaleString('it-IT', { minimumFractionDigits: digits, maximumFractionDigits: digits })
   return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${body}%`
 }
+
+export interface DrawdownPoint {
+  t: number
+  drawdownPct: number
+}
+
+export interface DrawdownSummary {
+  currentPct: number
+  peakT: number
+  daysSincePeak: number
+  maxPct: number
+  maxPeakT: number
+  maxTroughT: number
+}
+
+// Distance of each close from the highest close reached up to that point (0 or negative).
+export function drawdownSeries(points: PricePoint[]): DrawdownPoint[] {
+  let peak = 0
+  return points.map((p) => {
+    if (p.close > peak) peak = p.close
+    return { t: p.t, drawdownPct: peak > 0 ? pct(p.close, peak) : 0 }
+  })
+}
+
+export function drawdownSummary(points: PricePoint[], now: Date): DrawdownSummary | null {
+  if (points.length < 2) return null
+  let peak = points[0]
+  let maxPct = 0
+  let maxPeakT = points[0].t
+  let maxTroughT = points[0].t
+  for (const p of points) {
+    // >= so the current drawdown is dated from the latest time the high was touched.
+    if (p.close >= peak.close) {
+      peak = p
+    } else if (peak.close > 0) {
+      const drawdown = pct(p.close, peak.close)
+      if (drawdown < maxPct) {
+        maxPct = drawdown
+        maxPeakT = peak.t
+        maxTroughT = p.t
+      }
+    }
+  }
+  const last = points[points.length - 1]
+  return {
+    currentPct: last === peak || peak.close <= 0 ? 0 : pct(last.close, peak.close),
+    peakT: peak.t,
+    daysSincePeak: Math.max(0, Math.floor(now.getTime() / DAY_MS) - Math.floor(peak.t / DAY_MS)),
+    maxPct,
+    maxPeakT,
+    maxTroughT,
+  }
+}
+
+// Series for the browser: every point of the last five years, one per week (its last) before that.
+export function downsample<T extends { t: number }>(points: T[], now: Date): T[] {
+  const cutoff = monthsBefore(now, 60)
+  const out: T[] = []
+  let week: number | null = null
+  for (const p of points) {
+    if (p.t > cutoff) {
+      out.push(p)
+      continue
+    }
+    // 1 January 1970 was a Thursday; +3 makes weeks roll over on Monday.
+    const w = Math.floor((p.t / DAY_MS + 3) / 7)
+    if (w === week) out[out.length - 1] = p
+    else out.push(p)
+    week = w
+  }
+  return out
+}

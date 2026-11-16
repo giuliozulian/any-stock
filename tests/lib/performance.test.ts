@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { PricePoint } from '@/lib/history'
-import { formatPct, periodReturns, yearlyReturns } from '@/lib/performance'
+import { downsample, drawdownSeries, drawdownSummary, formatPct, periodReturns, yearlyReturns } from '@/lib/performance'
 
 const at = (iso: string) => Date.parse(`${iso}T14:30:00Z`)
 const p = (iso: string, close: number): PricePoint => ({ t: at(iso), close })
@@ -105,5 +105,73 @@ describe('formatPct', () => {
 
   it('drops decimals and groups thousands for extreme returns', () => {
     expect(formatPct(412345.6)).toBe('+412.346%')
+  })
+})
+
+describe('drawdownSeries', () => {
+  it('measures each close against the highest close so far', () => {
+    const points = [p('2026-01-05', 100), p('2026-02-02', 120), p('2026-03-02', 60), p('2026-04-01', 90), p('2026-05-04', 130), p('2026-06-01', 117)]
+    const series = drawdownSeries(points)
+    expect(series.map((d) => d.t)).toEqual(points.map((x) => x.t))
+    const expected = [0, 0, -50, -25, 0, -10]
+    series.forEach((d, i) => expect(d.drawdownPct).toBeCloseTo(expected[i]))
+  })
+
+  it('returns an empty series for no points', () => {
+    expect(drawdownSeries([])).toEqual([])
+  })
+})
+
+describe('drawdownSummary', () => {
+  it('reports the current drawdown and the deepest one with its dates', () => {
+    const points = [p('2026-01-05', 100), p('2026-02-02', 120), p('2026-03-02', 60), p('2026-04-01', 90), p('2026-10-05', 130), p('2026-11-13', 117)]
+    const summary = drawdownSummary(points, NOW)!
+    expect(summary.currentPct).toBeCloseTo(-10)
+    expect(summary.peakT).toBe(at('2026-10-05'))
+    expect(summary.daysSincePeak).toBe(42)
+    expect(summary.maxPct).toBeCloseTo(-50)
+    expect(summary.maxPeakT).toBe(at('2026-02-02'))
+    expect(summary.maxTroughT).toBe(at('2026-03-02'))
+  })
+
+  it('reports zero current drawdown when the last close is the high', () => {
+    const summary = drawdownSummary([p('2026-01-05', 100), p('2026-02-02', 80), p('2026-11-13', 120)], NOW)!
+    expect(summary.currentPct).toBe(0)
+    expect(summary.peakT).toBe(at('2026-11-13'))
+    expect(summary.maxPct).toBeCloseTo(-20)
+  })
+
+  it('reports no historical drawdown for a series that only rises', () => {
+    const summary = drawdownSummary([p('2026-01-05', 1), p('2026-02-02', 2), p('2026-03-02', 3)], NOW)!
+    expect(summary.maxPct).toBe(0)
+    expect(summary.currentPct).toBe(0)
+  })
+
+  it('measures from the most recent time the high was touched', () => {
+    const summary = drawdownSummary([p('2026-01-05', 100), p('2026-06-01', 100), p('2026-11-13', 90)], NOW)!
+    expect(summary.peakT).toBe(at('2026-06-01'))
+  })
+
+  it('returns null with fewer than two points', () => {
+    expect(drawdownSummary([], NOW)).toBeNull()
+    expect(drawdownSummary([p('2026-11-13', 10)], NOW)).toBeNull()
+  })
+})
+
+describe('downsample', () => {
+  it('keeps the last point of each week before the five-year mark and every point after it', () => {
+    const old = ['2020-01-06', '2020-01-07', '2020-01-08', '2020-01-09', '2020-01-10', '2020-01-13', '2020-01-14', '2020-01-17'].map((d, i) => p(d, i + 1))
+    const recent = [p('2026-11-11', 50), p('2026-11-12', 51), p('2026-11-13', 52)]
+    const out = downsample([...old, ...recent], NOW)
+    expect(out.map((x) => x.close)).toEqual([5, 8, 50, 51, 52])
+  })
+
+  it('preserves the extra fields of the points it keeps', () => {
+    const series = [{ t: at('2019-03-04'), drawdownPct: -1 }, { t: at('2019-03-05'), drawdownPct: -2 }]
+    expect(downsample(series, NOW)).toEqual([{ t: at('2019-03-05'), drawdownPct: -2 }])
+  })
+
+  it('returns an empty list for no points', () => {
+    expect(downsample([], NOW)).toEqual([])
   })
 })
