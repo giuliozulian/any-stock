@@ -48,8 +48,9 @@ leggono l'orologio. Le date si leggono in UTC, come in
 ### Anni completi e finestre
 
 Un anno è **completo** se è precedente all'anno di `now` e la serie ha
-almeno un punto nell'anno prima (serve la chiusura di fine anno
-precedente come base). L'anno in corso non è mai completo.
+almeno un punto in quell'anno e almeno uno nell'anno prima (serve la
+chiusura di fine anno precedente come base). L'anno in corso non è mai
+completo.
 
 Una finestra di N anni comprende gli ultimi N anni completi. La
 finestra "tutto" comprende tutti gli anni completi. Le finestre 5, 10 e
@@ -150,21 +151,24 @@ blocchi. Dall'alto:
 3. **Curva stagionale**: linea della media da gennaio a dicembre, linea
    dell'anno in corso sovrapposta fino a oggi, linea verticale su oggi,
    linea dello zero, etichette dei mesi sull'asse.
-4. **Medie per mese**: 12 barre verdi o rosse con percentuale, sotto
-   ogni barra "8/10". Mese in corso e successivo evidenziati.
+4. **Medie per mese**: 12 barre orizzontali verdi o rosse con
+   percentuale e, accanto, "8 su 10". Mese in corso e successivo
+   evidenziati.
 5. **Anno per mese**: tabella con una riga per anno (anno in corso in
    cima, poi gli anni della finestra dal più recente), colonne
    gen–dic e totale anno. Celle verdi o rosse, vuote dove manca il
    valore; i valori parziali hanno stile attenuato. La tabella scorre
    in orizzontale dentro il suo riquadro; la pagina no.
-6. **Giorno della settimana**: 5 barre con rendimento medio e quota di
-   giorni positivi.
+6. **Giorno della settimana**: 5 barre con rendimento medio (due
+   decimali: sono centesimi di punto) e quota di giorni positivi. Il
+   blocco non compare se la finestra non ha dati giornalieri.
 7. **Ciclo presidenziale USA**: 4 barre con rendimento annuo medio e
    "X su N", tipo dell'anno in corso evidenziato. Sotto il titolo:
    "Calcolato su tutto lo storico."
 
-I tre blocchi a barre (mesi, giorni, ciclo) usano lo stesso componente
-di grafico a barre.
+I tre blocchi a barre (mesi, giorni, ciclo) usano lo stesso componente:
+barre orizzontali in una lista HTML, non SVG, così i numeri restano
+leggibili a larghezza telefono.
 
 In fondo, una nota: prezzi di chiusura corretti per gli split,
 dividendi esclusi, fonte Yahoo Finance; la stagionalità descrive il
