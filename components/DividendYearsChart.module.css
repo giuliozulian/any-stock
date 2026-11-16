@@ -1,0 +1,29 @@
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.base {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.bar {
+  fill: var(--brass);
+}
+
+.bar[data-partial='true'] {
+  opacity: 0.45;
+}
+
+.axis {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.note {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
