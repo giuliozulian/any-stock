@@ -12,6 +12,8 @@ import { InsightPanel } from '@/components/InsightPanel'
 import { getFullPriceHistory, getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { PerformancePanel } from '@/components/PerformancePanel'
 import { SeasonalityPanel } from '@/components/SeasonalityPanel'
+import { DividendsPanel } from '@/components/DividendsPanel'
+import { getDividendHistory } from '@/lib/dividends'
 import { downsample } from '@/lib/performance'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
@@ -263,7 +265,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
         })
       : null
 
-  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory] = await Promise.all([
+  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory, dividends] = await Promise.all([
     getPriceHistory(stock.symbol),
     getIntradayHistory(stock.symbol),
     getRecentVideos(stock.symbol, stock.name),
@@ -272,6 +274,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     getAnnualFinancials(stock.symbol),
     getMetrics(stock.symbol).catch(() => null),
     getFullPriceHistory(stock.symbol),
+    getDividendHistory(stock.symbol),
   ])
   const now = new Date()
   const longHistory = downsample(fullHistory.points, now)
@@ -502,6 +505,11 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             id: 'stagionalita',
             label: 'Stagionalità',
             content: <SeasonalityPanel history={fullHistory} now={now} />,
+          },
+          {
+            id: 'dividendi',
+            label: 'Dividendi',
+            content: <DividendsPanel history={dividends} price={latest?.price ?? null} now={now} />,
           },
           {
             id: 'bilanci',
