@@ -16,26 +16,65 @@ const RANGES = [
   { key: '6M', days: 182 },
   { key: 'YTD', days: 0 },
   { key: '1A', days: 365 },
+  { key: '5A', days: 1826 },
+  { key: '10A', days: 3652 },
+  { key: 'Max', days: 0 },
 ] as const
 
+type RangeKey = (typeof RANGES)[number]['key']
+
+const LONG_RANGES: readonly RangeKey[] = ['5A', '10A', 'Max']
+const PERIOD_TEXT: Record<Exclude<RangeKey, '1G'>, string> = {
+  '1M': 'in 1 mese',
+  '3M': 'in 3 mesi',
+  '6M': 'in 6 mesi',
+  YTD: 'da inizio anno',
+  '1A': 'in 1 anno',
+  '5A': 'in 5 anni',
+  '10A': 'in 10 anni',
+  Max: 'da inizio storico',
+}
+
+const DAY_MS = 86_400_000
+// A range is offered when the series starts within a week of where the range would begin.
+const COVERAGE_SLACK_DAYS = 7
 const W = 640
 const H = 220
 const PAD = { top: 12, right: 8, bottom: 22, left: 8 }
 
-export function PriceHistoryChart({ points, intraday = [], prevClose = null }: { points: Point[]; intraday?: Point[]; prevClose?: number | null }) {
-  const [range, setRange] = useState<(typeof RANGES)[number]['key']>(intraday.length > 1 ? '1G' : '3M')
+export function PriceHistoryChart({ points, intraday = [], prevClose = null, long = [] }: { points: Point[]; intraday?: Point[]; prevClose?: number | null; long?: Point[] }) {
+  const [range, setRange] = useState<RangeKey>(intraday.length > 1 ? '1G' : '3M')
   const [hover, setHover] = useState<number | null>(null)
+
+  const ranges = useMemo(
+    () =>
+      RANGES.filter((r) => {
+        if (r.key === '1G') return intraday.length > 0
+        if (r.key === 'Max') return long.length > 1
+        if (r.key === '5A' || r.key === '10A') return long.length > 1 && long[0].t <= long[long.length - 1].t - (r.days - COVERAGE_SLACK_DAYS) * DAY_MS
+        return true
+      }),
+    [intraday, long],
+  )
 
   const data = useMemo(() => {
     if (range === '1G') return intraday
-    const last = points[points.length - 1].t
+    let base = points
+    if (LONG_RANGES.includes(range)) {
+      // The long series is cached for hours; finish it with the freshest daily close.
+      const tail = points[points.length - 1]
+      base = tail && long.length > 0 && tail.t > long[long.length - 1].t ? [...long, tail] : long
+    }
+    if (base.length === 0) return []
+    if (range === 'Max') return base
+    const last = base[base.length - 1].t
     if (range === 'YTD') {
       const yearStart = Date.UTC(new Date(last).getUTCFullYear(), 0, 1)
-      return points.filter((p) => p.t >= yearStart)
+      return base.filter((p) => p.t >= yearStart)
     }
     const days = RANGES.find((r) => r.key === range)!.days
-    return points.filter((p) => p.t >= last - days * 86_400_000)
-  }, [points, intraday, range])
+    return base.filter((p) => p.t >= last - days * DAY_MS)
+  }, [points, intraday, long, range])
 
   if (data.length === 0) return null
 
@@ -87,11 +126,11 @@ export function PriceHistoryChart({ points, intraday = [], prevClose = null }: {
         <div>
           <p className={styles.value}>${shown.close.toFixed(2)}</p>
           <p className={styles.sub}>
-            {hover !== null ? `${fmtDate(shown.t)}${shown.session && shown.session !== 'regular' ? ` · ${sessionLabel[shown.session]}` : ''}` : isDay ? `${up ? '+' : ''}${changePct.toFixed(1)}% oggi (vs chiusura prec.)` : `${up ? '+' : ''}${changePct.toFixed(1)}% ${range === 'YTD' ? 'da inizio anno' : `in ${range === '1A' ? '1 anno' : range.replace('M', ' mesi').replace('1 mesi', '1 mese')}`}`}
+            {hover !== null ? `${fmtDate(shown.t)}${shown.session && shown.session !== 'regular' ? ` · ${sessionLabel[shown.session]}` : ''}` : isDay ? `${up ? '+' : ''}${changePct.toFixed(1)}% oggi (vs chiusura prec.)` : `${up ? '+' : ''}${changePct.toFixed(1)}% ${PERIOD_TEXT[range as Exclude<RangeKey, '1G'>]}`}
           </p>
         </div>
         <div className={styles.tabs} role="tablist" aria-label="Periodo">
-          {RANGES.filter((r) => r.key !== '1G' || intraday.length > 0).map((r) => (
+          {ranges.map((r) => (
             <button
               key={r.key}
               type="button"
