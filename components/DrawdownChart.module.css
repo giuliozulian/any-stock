@@ -1,0 +1,32 @@
+.summary {
+  margin-bottom: 10px;
+  font-size: 15px;
+  line-height: 1.45;
+  max-width: 70ch;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.area {
+  fill: color-mix(in srgb, var(--loss-bright) 18%, transparent);
+}
+
+.line {
+  stroke: var(--loss-bright);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.zero {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.axis {
+  font-size: 10px;
+  fill: var(--muted);
+}
