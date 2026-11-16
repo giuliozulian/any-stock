@@ -1,0 +1,71 @@
+.card {
+  min-width: 0;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.title {
+  margin-bottom: 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.windows {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 12px;
+  background: var(--surface-raised);
+}
+
+.window {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.window:hover {
+  color: var(--bone);
+}
+
+.windowActive {
+  color: var(--bone);
+  background: var(--ink);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+
+.period {
+  font-size: 13px;
+  color: var(--muted);
+  font-feature-settings: "tnum" 1;
+}
+
+.sentence {
+  margin-top: 14px;
+  font-size: 16px;
+  line-height: 1.5;
+  max-width: 75ch;
+}
+
+.hint {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--muted);
+}

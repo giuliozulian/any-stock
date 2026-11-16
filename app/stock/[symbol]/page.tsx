@@ -11,6 +11,7 @@ import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
 import { getFullPriceHistory, getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { PerformancePanel } from '@/components/PerformancePanel'
+import { SeasonalityPanel } from '@/components/SeasonalityPanel'
 import { downsample } from '@/lib/performance'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
@@ -496,6 +497,11 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             id: 'andamento',
             label: 'Andamento',
             content: <PerformancePanel history={fullHistory} now={now} />,
+          },
+          {
+            id: 'stagionalita',
+            label: 'Stagionalità',
+            content: <SeasonalityPanel history={fullHistory} now={now} />,
           },
           {
             id: 'bilanci',
