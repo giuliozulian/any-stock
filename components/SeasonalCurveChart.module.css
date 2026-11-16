@@ -1,0 +1,56 @@
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.zero {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.today {
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.average {
+  stroke: var(--bone);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.current {
+  stroke: var(--amber-bright);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.axis {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.key::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--bone);
+}
+
+.key[data-series='current']::before {
+  background: var(--amber-bright);
+}
