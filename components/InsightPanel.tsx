@@ -1,3 +1,4 @@
+import { AiNote } from './AiNote'
 import styles from './InsightPanel.module.css'
 
 interface InsightPanelProps {
@@ -19,11 +20,12 @@ const VERDICT_LABEL: Record<string, string> = {
 export function InsightPanel({ insight }: InsightPanelProps) {
   const tone = insight.verdict in VERDICT_LABEL ? insight.verdict : 'neutral'
   return (
-    <section className={`${styles.note} ${styles[tone]}`} aria-label="Sintesi IA di news e video">
-      <header className={styles.head}>
-        <h2 className={styles.title}>Sintesi IA di news e video</h2>
-        <span className={styles.verdict}>{VERDICT_LABEL[tone]}</span>
-      </header>
+    <AiNote
+      title="Sintesi di news e video"
+      ariaLabel="Sintesi IA di news e video"
+      generatedAt={insight.generatedAt}
+      aside={<span className={`${styles.verdict} ${styles[tone]}`}>{VERDICT_LABEL[tone]}</span>}
+    >
       {insight.summary.split(/\n{2,}/).map((paragraph, i) => (
         <p key={i} className={styles.summary}>
           {paragraph}
@@ -49,9 +51,6 @@ export function InsightPanel({ insight }: InsightPanelProps) {
           </ul>
         </div>
       )}
-      <p className={styles.footnote}>
-        Generata da un modello IA il {insight.generatedAt.toLocaleDateString('it-IT')}. Non è consulenza finanziaria.
-      </p>
-    </section>
+    </AiNote>
   )
 }

@@ -31,6 +31,9 @@
   --gain-bright: #3bf08c;
   --loss-bright: #ff5a4f;
   --amber-bright: #ffb800;
+  --ai: #b9a4ff;
+  --ai-surface: #15131f;
+  --ai-rule: #3a3357;
   --radius-card: 20px;
   --radius-inner: 14px;
   --card-shadow: 0 1px 2px rgb(0 0 0 / 0.25);

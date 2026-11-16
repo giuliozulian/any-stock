@@ -297,11 +297,11 @@
   color: var(--muted);
 }
 
-.alerts {
-  margin: 0 0 16px;
-}
-
 .starRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
   margin-top: 8px;
 }
 

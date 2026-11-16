@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { analyzeNewsWithLlm, parseLlmAnalysis } from '@/lib/llm-news'
+import { analyzeNewsWithLlm, parseLlmAnalysis, retryPolicy } from '@/lib/llm-news'
 import { evaluateNewsImpact } from '@/lib/evaluate'
 
 const valid = { direction: 'positive', intensity: 4, horizon: 'short', scope: 'direct', confidence: 'high', rationale: 'Conti oltre le attese.' }
@@ -45,9 +45,19 @@ describe('analyzeNewsWithLlm', () => {
     expect(await analyzeNewsWithLlm(ctx)).toMatchObject({ direction: 'positive', confidence: 'high' })
   })
 
+  it('retries a rate-limited request and succeeds', async () => {
+    retryPolicy.delaysMs = [0, 0, 0]
+    const ok = { ok: true, status: 200, text: async () => JSON.stringify({ choices: [{ message: { content: JSON.stringify(valid) } }] }) }
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false, status: 429 }).mockResolvedValueOnce({ ok: false, status: 503 }).mockResolvedValue(ok)
+    vi.stubGlobal('fetch', fetchMock)
+    expect(await analyzeNewsWithLlm(ctx)).toMatchObject({ direction: 'positive' })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
   it('returns null on malformed JSON and throws on HTTP errors', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, text: async () => JSON.stringify({ choices: [{ message: { content: 'non json' } }] }) }))
     expect(await analyzeNewsWithLlm(ctx)).toBeNull()
+    retryPolicy.delaysMs = [0, 0, 0]
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }))
     await expect(analyzeNewsWithLlm(ctx)).rejects.toThrow('429')
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, headers: new Headers({ 'content-type': 'text/plain' }), text: async () => 'OK' }))

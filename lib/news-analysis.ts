@@ -27,7 +27,7 @@ export async function analyzePendingNews(stockId: string): Promise<{ analyzed: n
 
   let analyzed = 0
   let failed = 0
-  const CONCURRENCY = 5
+  const CONCURRENCY = 3
   for (let i = 0; i < pending.length; i += CONCURRENCY) {
     const batch = pending.slice(i, i + CONCURRENCY)
     const results = await Promise.allSettled(

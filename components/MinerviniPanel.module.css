@@ -1,0 +1,354 @@
+.panel {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+  min-width: 0;
+}
+
+.empty {
+  margin-top: 24px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Verdetto */
+.verdict {
+  --tone: var(--muted);
+  min-width: 0;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--tone) 45%, var(--rule));
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--tone) 16%, var(--surface)), var(--surface) 70%);
+  box-shadow: var(--card-shadow);
+}
+
+.verdict[data-tone='gain'] {
+  --tone: var(--gain-bright);
+}
+
+.verdict[data-tone='warn'] {
+  --tone: var(--amber-bright);
+}
+
+.verdict[data-tone='loss'] {
+  --tone: var(--loss-bright);
+}
+
+.verdictHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.verdictTitle {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--tone);
+}
+
+.score {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.score strong {
+  font-family: var(--font-num);
+  font-size: 18px;
+  color: var(--bone);
+}
+
+.badge {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--gain-bright) 20%, transparent);
+  color: var(--gain-bright);
+}
+
+.meter {
+  display: flex;
+  gap: 4px;
+  margin: 12px 0;
+}
+
+.segment {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-raised);
+}
+
+.segment[data-state='ok'] {
+  background: var(--gain-bright);
+}
+
+.segment[data-state='ko'] {
+  background: var(--loss-bright);
+}
+
+.verdictText,
+.next {
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.next {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  font-weight: 600;
+}
+
+/* Passi del metodo */
+.card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.stepHead {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: center;
+  gap: 2px 10px;
+}
+
+.stepNum {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--surface-raised);
+  color: var(--bone);
+}
+
+.stepTitle {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.chip {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+
+.chip[data-tone='gain'] {
+  background: color-mix(in srgb, var(--gain-bright) 20%, transparent);
+  color: var(--gain-bright);
+}
+
+.chip[data-tone='warn'] {
+  background: color-mix(in srgb, var(--amber-bright) 20%, transparent);
+  color: var(--amber-bright);
+}
+
+.chip[data-tone='loss'] {
+  background: color-mix(in srgb, var(--loss-bright) 20%, transparent);
+  color: var(--loss-bright);
+}
+
+.why {
+  grid-column: 2 / -1;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.hint {
+  margin-top: 10px;
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+/* Criteri */
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 4px 8px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  font-size: 13px;
+}
+
+.row[data-state='ok'] {
+  border-color: color-mix(in srgb, var(--gain-bright) 35%, transparent);
+  background: color-mix(in srgb, var(--gain-bright) 10%, var(--surface));
+}
+
+.row[data-state='ko'] {
+  border-color: color-mix(in srgb, var(--loss-bright) 40%, transparent);
+  background: color-mix(in srgb, var(--loss-bright) 12%, var(--surface));
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--rule);
+  color: var(--muted);
+}
+
+.row[data-state='ok'] .mark {
+  background: var(--gain-bright);
+  color: var(--ink);
+}
+
+.row[data-state='ko'] .mark {
+  background: var(--loss-bright);
+  color: var(--ink);
+}
+
+.rowLabel {
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.rowValue {
+  font-family: var(--font-num);
+  font-size: 12px;
+  color: var(--bone);
+  text-align: right;
+}
+
+/* VCP */
+.vcp {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+  margin-top: 12px;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 84px;
+}
+
+.barCol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 44px;
+  height: 100%;
+}
+
+.barTrack {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar {
+  width: 100%;
+  border-radius: 6px 6px 3px 3px;
+  background: var(--brass-dim);
+}
+
+.bar[data-last='true'] {
+  background: var(--gain-bright);
+}
+
+.barLabel {
+  font-family: var(--font-num);
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.tiles {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+  min-width: 260px;
+  margin: 0;
+}
+
+.tile {
+  min-width: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-raised);
+}
+
+.tile dt {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tile dd {
+  margin: 1px 0 0;
+  font-family: var(--font-num);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tile dd[data-tone='gain'] {
+  color: var(--gain-bright);
+}
+
+.tile dd[data-tone='loss'] {
+  color: var(--loss-bright);
+}
+
+.note {
+  max-width: 70ch;
+  padding: 0 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .list {
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    grid-template-columns: 20px 1fr;
+  }
+
+  .rowValue {
+    grid-column: 2;
+    text-align: left;
+  }
+}

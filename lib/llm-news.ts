@@ -23,7 +23,11 @@ function config(): { key: string; baseUrl: string; model: string } | null {
   }
   return null;
 }
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 30_000;
+
+// Attese tra un tentativo e il successivo; modificabile dai test.
+export const retryPolicy = { delaysMs: [2000, 5000, 12000], maxRetryAfterMs: 15_000 };
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 
 export type Direction = "positive" | "negative" | "neutral";
 export type Horizon = "short" | "medium" | "long";
@@ -162,10 +166,13 @@ export async function requestLlmJson(
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
-  // Picchi di domanda temporanei (503) e rate limit (429): un solo nuovo tentativo.
+  // Rate limit (429) e picchi di domanda (503): nuovi tentativi con attesa crescente, rispettando Retry-After.
   let res = await request();
-  if (res.status === 503 || res.status === 429) {
-    await new Promise((r) => setTimeout(r, 2000));
+  for (const delay of retryPolicy.delaysMs) {
+    if (!RETRYABLE.has(res.status)) break;
+    const retryAfter = Number(res.headers?.get?.("retry-after")) * 1000;
+    const wait = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter, retryPolicy.maxRetryAfterMs) : delay;
+    await new Promise((r) => setTimeout(r, wait));
     res = await request();
   }
 

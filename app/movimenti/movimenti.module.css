@@ -110,3 +110,29 @@
   white-space: normal;
   min-width: 14rem;
 }
+
+.why {
+  max-width: 100%;
+  margin: 6px 0 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--bone);
+  background: var(--ai-surface);
+  border: 1px solid var(--ai-rule);
+  border-radius: 10px;
+}
+
+.whyTag {
+  margin-right: 8px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ai);
+  background: color-mix(in srgb, var(--ai) 14%, transparent);
+  border-radius: 999px;
+}
+
+.whyNote {
+  color: var(--muted);
+}

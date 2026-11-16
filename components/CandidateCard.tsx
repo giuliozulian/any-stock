@@ -14,6 +14,8 @@ export interface CandidateCardData {
   fundamentalsScore: number
   insiderScore: number
   reason: string
+  aiVerdict?: 'solid' | 'caution' | null
+  aiNote?: string | null
   partial: boolean
   source: string
 }
@@ -99,6 +101,12 @@ export function CandidateCard({ candidate }: { candidate: CandidateCardData }) {
             {candidate.source.split(',').includes('edgar-form4-cluster') && <span className={styles.clusterBadge}>Più insider comprano<InfoTip label="Più insider comprano" source="SEC EDGAR (Form 4)">Più dirigenti o grandi azionisti della società hanno comprato azioni nello stesso periodo.</InfoTip></span>}
           </div>
           <p className={styles.reason}>{headline}</p>
+          {candidate.aiVerdict && candidate.aiNote && (
+            <p className={styles.aiReview} data-verdict={candidate.aiVerdict}>
+              <span className={styles.aiTag}>IA</span>
+              <strong>{candidate.aiVerdict === 'solid' ? 'Segnali coerenti.' : 'Da prendere con cautela.'}</strong> {candidate.aiNote}
+            </p>
+          )}
           {details.length > 0 && (
             <ul className={styles.meters}>
               {visibleScores.map((i) => (

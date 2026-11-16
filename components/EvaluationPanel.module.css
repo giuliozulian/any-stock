@@ -174,7 +174,7 @@
 
 .sectionLead {
   margin-top: 6px;
-  max-width: 64ch;
+  max-width: 100%;
   font-size: 15px;
   line-height: 1.5;
   color: var(--muted);

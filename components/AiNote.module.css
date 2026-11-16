@@ -1,0 +1,49 @@
+.note {
+  margin-bottom: 32px;
+  padding: 24px 28px;
+  background: var(--ai-surface);
+  border: 1px solid var(--ai-rule);
+  border-radius: var(--radius-card);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 14px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ai);
+  background: color-mix(in srgb, var(--ai) 14%, transparent);
+  border-radius: 999px;
+}
+
+.title {
+  max-width: 60ch;
+  margin-bottom: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+}
+
+.footnote {
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .note {
+    padding: 20px 18px;
+  }
+}

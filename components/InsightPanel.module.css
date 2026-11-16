@@ -1,10 +1,3 @@
-.note {
-  --tone: var(--muted);
-  margin-bottom: 40px;
-  padding: 4px 0 4px 24px;
-  border-left: 3px solid var(--tone);
-}
-
 .positive {
   --tone: var(--gain-bright);
 }
@@ -17,25 +10,11 @@
   --tone: var(--amber-bright);
 }
 
-.head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 16px;
-  margin-bottom: 12px;
-}
-
-.title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--muted);
-}
-
 .verdict {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--tone);
 }
@@ -49,27 +28,11 @@
 }
 
 .summary {
-  max-width: 64ch;
+  max-width: 100%;
   font-size: 17px;
   line-height: 1.6;
   color: var(--bone);
   text-wrap: pretty;
-}
-
-.footnote {
-  margin-top: 12px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-@media (max-width: 600px) {
-  .note {
-    padding-left: 16px;
-  }
-
-  .summary {
-    font-size: 18px;
-  }
 }
 
 .summary + .summary {
@@ -77,7 +40,7 @@
 }
 
 .group {
-  max-width: 64ch;
+  max-width: 100%;
   margin-top: 20px;
 }
 
@@ -99,5 +62,5 @@
 }
 
 .list li::marker {
-  color: var(--tone);
+  color: var(--ai);
 }

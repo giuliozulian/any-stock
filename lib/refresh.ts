@@ -1,6 +1,9 @@
 import { prisma } from './db'
 import { analyzePendingNews } from './news-analysis'
 import { refreshStockInsight } from './stock-insight'
+import { refreshVerdictNote } from './verdict-note'
+import { refreshEarningsNote } from './earnings-note'
+import { refreshBullBearNote } from './bull-bear-note'
 import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from './finnhub'
 import { notifyTargets } from './alert-runner'
 
@@ -134,6 +137,24 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
       logFailure('Recommendation refresh', symbol, err)
     }
 
+    try {
+      await refreshVerdictNote(stock.id)
+    } catch (err) {
+      logFailure('Verdict note', symbol, err)
+    }
+
+    try {
+      await refreshEarningsNote(stock.id)
+    } catch (err) {
+      logFailure('Earnings note', symbol, err)
+    }
+
+    try {
+      await refreshBullBearNote(stock.id)
+    } catch (err) {
+      logFailure('Bull/bear note', symbol, err)
+    }
+
     return { symbol, ok: true }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -154,6 +175,8 @@ export async function refreshAllStocks(): Promise<RefreshResult[]> {
 const STALE_AFTER_MS = 60 * 60 * 1000
 const inFlight = new Map<string, Promise<RefreshResult>>()
 
+const MAX_WAIT_MS = 4000
+
 // Aggiorna notizie, riassunto e prezzi quando si apre la scheda, al massimo una volta all'ora per titolo.
 export async function refreshStockIfStale(symbol: string): Promise<void> {
   const watched = await prisma.stock.findUnique({ where: { symbol }, select: { id: true } })
@@ -166,9 +189,11 @@ export async function refreshStockIfStale(symbol: string): Promise<void> {
   if (last && Date.now() - last.timestamp.getTime() < STALE_AFTER_MS) return
 
   let run = inFlight.get(symbol)
+  if (run) return
   if (!run) {
     run = refreshStock(symbol).finally(() => inFlight.delete(symbol))
     inFlight.set(symbol, run)
   }
-  await run
+  // Non blocchiamo la pagina su notizie e IA: dopo il tempo massimo il refresh continua in background.
+  await Promise.race([run, new Promise<void>((resolve) => setTimeout(resolve, MAX_WAIT_MS))])
 }

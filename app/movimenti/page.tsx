@@ -1,8 +1,9 @@
 import { Suspense } from 'react'
-import { connection } from 'next/server'
+import { connection, after } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { getMarketBigMovers, BIG_MOVE_THRESHOLD_PCT, type Market, type MarketMover } from '@/lib/market'
+import { ensureMoveExplanations, getMoveExplanations } from '@/lib/move-explanation'
 import { InfoTip } from '@/components/InfoTip'
 import styles from '../section.module.css'
 import table from './movimenti.module.css'
@@ -78,6 +79,13 @@ async function BigMovers({ searchParams }: { searchParams: Promise<Search> }) {
     const cmp = typeof x === 'string' ? x.localeCompare(y as string) : x - (y as number)
     return sortDir === 'asc' ? cmp : -cmp
   })
+  // Le notizie arrivano da Finnhub, quindi spieghiamo solo gli USA; la generazione parte dopo la risposta.
+  const explainable = market.key === 'us' ? movers : []
+  const explanations = await getMoveExplanations(explainable.map((m) => m.symbol)).catch(() => new Map())
+  if (explainable.length > 0) {
+    const missing = explainable.filter((m) => !explanations.has(m.symbol))
+    if (missing.length > 0) after(() => ensureMoveExplanations(missing))
+  }
   const href = (over: Partial<{ mercato: string; soglia: number; ordina: string; dir: string }>) => {
     const q = new URLSearchParams({ mercato: market.key, soglia: String(threshold), ordina: sortKey, dir: sortDir, ...Object.fromEntries(Object.entries(over).map(([k, v]) => [k, String(v)])) })
     return `/movimenti?${q.toString()}`
@@ -153,6 +161,15 @@ async function BigMovers({ searchParams }: { searchParams: Promise<Search> }) {
                       {m.name}
                       {watchedSymbols.has(m.symbol) ? ' · in watchlist' : ''}
                     </span>
+                    {explanations.get(m.symbol) && (
+                      <p className={table.why}>
+                        <span className={table.whyTag}>IA</span>
+                        {explanations.get(m.symbol)!.explanation}
+                        {explanations.get(m.symbol)!.confidence === 'uncertain' && (
+                          <span className={table.whyNote}> Causa non chiara dalle notizie.</span>
+                        )}
+                      </p>
+                    )}
                   </td>
                   <td className={table.num}>
                     {market.currency}

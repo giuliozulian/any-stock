@@ -1,3 +1,4 @@
+import { reviewTopCandidates } from './candidate-review'
 import { getRecentCongressBuys } from './congress'
 import { memberStats } from './politician-profiles'
 import { rankSignals } from './congress-signals'
@@ -325,9 +326,12 @@ export async function runDiscoveryScan(): Promise<{ scannedAt: Date; candidates:
         name: seed.name, market: seed.market,
         score: score.score, momentumScore: score.momentumScore, fundamentalsScore: score.fundamentalsScore, insiderScore: score.insiderScore,
         reason: score.reason, source: seed.source.join(','), partial, scannedAt, dismissedAt: null,
+        aiVerdict: null, aiNote: null, aiCheckedAt: null,
       },
     })
   }
+
+  await reviewTopCandidates().catch((err) => console.error('Candidate review failed:', err instanceof Error ? err.message : err))
 
   return { scannedAt, candidates: results.length }
 }

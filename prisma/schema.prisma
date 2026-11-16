@@ -24,6 +24,9 @@ model Stock {
   news            NewsItem[]
   recommendations AnalystRecommendation[]
   insight         StockInsight?
+  verdictNote     StockVerdictNote?
+  earningsNote    StockEarningsNote?
+  bullBearNote    StockBullBearNote?
 }
 
 model PriceSnapshot {
@@ -111,6 +114,30 @@ model StockInsight {
   generatedAt DateTime @default(now())
 }
 
+model StockVerdictNote {
+  id          String   @id @default(cuid())
+  stockId     String   @unique
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  headline    String
+  body        String
+  watchFor    String[]
+  inputHash   String
+  model       String
+  generatedAt DateTime @default(now())
+}
+
+model StockEarningsNote {
+  id          String   @id @default(cuid())
+  stockId     String   @unique
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  headline    String
+  body        String
+  watchFor    String[]
+  inputHash   String
+  model       String
+  generatedAt DateTime @default(now())
+}
+
 model DiscoveredCandidate {
   id                String    @id @default(cuid())
   symbol            String    @unique
@@ -125,6 +152,33 @@ model DiscoveredCandidate {
   partial           Boolean   @default(false)
   scannedAt         DateTime  @default(now())
   dismissedAt       DateTime?
+  aiVerdict         String?
+  aiNote            String?
+  aiCheckedAt       DateTime?
 
   @@index([score])
+}
+
+model StockBullBearNote {
+  id          String   @id @default(cuid())
+  stockId     String   @unique
+  stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  bull        String[]
+  bear        String[]
+  inputHash   String
+  model       String
+  generatedAt DateTime @default(now())
+}
+
+model MoveExplanation {
+  id          String   @id @default(cuid())
+  symbol      String
+  day         String
+  changePct   Float
+  explanation String
+  confidence  String
+  model       String
+  generatedAt DateTime @default(now())
+
+  @@unique([symbol, day])
 }

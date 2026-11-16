@@ -11,6 +11,7 @@ import { EarningsNote } from '@/components/EarningsNote'
 import { InsightPanel } from '@/components/InsightPanel'
 import { getFullPriceHistory, getIntradayHistory, getPriceHistory } from '@/lib/history'
 import { PerformancePanel } from '@/components/PerformancePanel'
+import { MinerviniSection } from '@/components/MinerviniSection'
 import { SeasonalityPanel } from '@/components/SeasonalityPanel'
 import { DividendsPanel } from '@/components/DividendsPanel'
 import { getDividendHistory } from '@/lib/dividends'
@@ -27,6 +28,8 @@ import { SinceWatching } from '@/components/SinceWatching'
 import { AlertTargets } from '@/components/AlertTargets'
 import { LiveChange, LivePrice, LiveStamp } from '@/components/live-quotes'
 import { VerdictCard, ReasonsSection } from '@/components/EvaluationPanel'
+import { VerdictNote } from '@/components/VerdictNote'
+import { BullBearNote } from '@/components/BullBearNote'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
 import { StockTabs } from '@/components/StockTabs'
@@ -256,6 +259,9 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       },
       recommendations: { orderBy: { period: 'desc' }, take: 6 },
       insight: true,
+      verdictNote: true,
+      earningsNote: true,
+      bullBearNote: true,
     },
   })
 
@@ -354,6 +360,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           <h1 className={styles.name}>{stock.name}</h1>
           <div className={styles.starRow}>
             <WatchStar symbol={stock.symbol} watched />
+            <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
           </div>
         </div>
 
@@ -491,9 +498,6 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 </Suspense>
                 {latest && <SinceWatching symbol={stock.symbol} addedAt={stock.addedAt} entryPrice={earliestSnapshot?.price ?? latest.price} currentPrice={latest.price} />}
                 <EarningsNote date={stock.nextEarningsDate} hour={stock.nextEarningsHour} epsEstimate={stock.nextEarningsEpsEstimate} dividendYield={latest?.dividendYield ?? null} />
-                <div className={styles.alerts}>
-                  <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
-                </div>
               </>
             ),
           },
@@ -502,6 +506,8 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Valutazione',
             content: (
               <>
+                {stock.verdictNote && <VerdictNote note={stock.verdictNote} />}
+                {stock.bullBearNote && <BullBearNote note={stock.bullBearNote} />}
                 {evaluation && <ReasonsSection evaluation={evaluation} />}
                 <div className={styles.layout}>
                   {stock.recommendations.length > 0 && <AnalystTrendChart periods={stock.recommendations} />}
@@ -514,6 +520,15 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             id: 'andamento',
             label: 'Andamento',
             content: <PerformancePanel history={fullHistory} now={now} />,
+          },
+          {
+            id: 'minervini',
+            label: 'Minervini',
+            content: (
+              <Suspense fallback={<p className={styles.stale}>Calcolo il Trend Template…</p>}>
+                <MinerviniSection symbol={stock.symbol} />
+              </Suspense>
+            ),
           },
           {
             id: 'stagionalita',
@@ -530,6 +545,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Bilanci',
             content: (
               <>
+                {stock.earningsNote && <VerdictNote label="Come vanno i conti" note={stock.earningsNote} />}
                 <FinancialAnalysis years={financials} marketCapMillions={latest?.marketCap ?? null} />
               </>
             ),

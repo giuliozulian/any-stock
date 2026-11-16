@@ -321,3 +321,35 @@
     flex: 1;
   }
 }
+
+.aiReview {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--ai-surface);
+  border: 1px solid var(--ai-rule);
+  border-radius: 10px;
+}
+
+.aiReview[data-verdict='caution'] {
+  border-color: color-mix(in srgb, var(--amber-bright) 45%, var(--ai-rule));
+}
+
+.aiReview strong {
+  font-weight: 600;
+}
+
+.aiReview[data-verdict='caution'] strong {
+  color: var(--amber-bright);
+}
+
+.aiTag {
+  margin-right: 8px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ai);
+  background: color-mix(in srgb, var(--ai) 14%, transparent);
+  border-radius: 999px;
+}

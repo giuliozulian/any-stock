@@ -155,6 +155,21 @@ export async function getCompanyNews(symbol: string, fromDate: string, toDate: s
   }))
 }
 
+export interface EarningsSurprise {
+  period: string
+  actual: number | null
+  estimate: number | null
+  surprisePercent: number | null
+}
+
+// Ultimi trimestri: EPS reale contro la stima degli analisti (più recente per primo).
+export async function getEarningsSurprises(symbol: string): Promise<EarningsSurprise[]> {
+  const data = await finnhubFetch<Array<{ period: string; actual: number | null; estimate: number | null; surprisePercent: number | null }>>('/stock/earnings', { symbol, limit: '4' })
+  return data
+    .map((d) => ({ period: d.period, actual: d.actual ?? null, estimate: d.estimate ?? null, surprisePercent: d.surprisePercent ?? null }))
+    .sort((a, b) => b.period.localeCompare(a.period))
+}
+
 export interface NextEarnings {
   date: string
   hour: string | null

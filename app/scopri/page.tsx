@@ -32,7 +32,7 @@ async function Candidates() {
         candidates.map((c) => (
           <CandidateCard
             key={c.symbol}
-            candidate={{ symbol: c.symbol, name: c.name, market: c.market as 'US' | 'IT', score: c.score, momentumScore: c.momentumScore, fundamentalsScore: c.fundamentalsScore, insiderScore: c.insiderScore, reason: c.reason, partial: c.partial, source: c.source }}
+            candidate={{ symbol: c.symbol, name: c.name, market: c.market as 'US' | 'IT', score: c.score, momentumScore: c.momentumScore, fundamentalsScore: c.fundamentalsScore, insiderScore: c.insiderScore, reason: c.reason, aiVerdict: c.aiVerdict === 'solid' || c.aiVerdict === 'caution' ? c.aiVerdict : null, aiNote: c.aiNote, partial: c.partial, source: c.source }}
           />
         ))
       )}
