@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/db'
 import type { Bar } from '@/lib/history'
-import { BLOCK_SIZE, MIN_INTERVAL_MS, latestCompleteRun, startRun, stepRun } from '@/lib/scanner-run'
+import { BLOCK_SIZE, MIN_INTERVAL_MS, latestCompleteRun, runTiming, startRun, stepRun } from '@/lib/scanner-run'
 import type { UniverseEntry } from '@/lib/universe'
 import { resetDb } from '../helpers/db'
 
@@ -176,5 +176,57 @@ describe('scanner run', () => {
     const r = await stepRun(done.id, { universe: entries(1), fetchBars: async () => uptrend(0.5) })
     expect(r.kind).toBe('done')
     expect(await prisma.scanResult.count()).toBe(0)
+  })
+})
+
+describe('closing a full-size run', () => {
+  beforeEach(async () => {
+    await resetDb()
+  })
+
+  it('ranks all 500+ stocks in one go without leaving a stock unranked', async () => {
+    const universe = entries(520)
+    const started = await startRun(universe)
+    if (started.kind === 'too-soon') throw new Error('unexpected')
+    await prisma.scanRun.update({ where: { id: started.run.id }, data: { cursor: 500 } })
+    await prisma.scanResult.createMany({
+      data: universe.slice(0, 500).map((e, i) => ({
+        runId: started.run.id,
+        symbol: e.symbol,
+        name: e.name,
+        status: 'ok',
+        weightedReturn: i / 1000,
+        criteria: Array.from({ length: 7 }, (_, k) => ({ id: k + 1, label: 'x', ok: true, value: '', margin: null })),
+      })),
+    })
+
+    const step = await stepRun(started.run.id, { universe, fetchBars: async () => uptrend(0.5) })
+
+    expect(step).toMatchObject({ kind: 'advanced', run: { status: 'done' } })
+    expect(await prisma.scanResult.count({ where: { runId: started.run.id, status: 'ok', rs: null } })).toBe(0)
+    expect(await prisma.scanResult.count({ where: { runId: started.run.id, status: 'ok', passedCount: null } })).toBe(0)
+    const top = await prisma.scanResult.findFirstOrThrow({ where: { runId: started.run.id, symbol: 'S499' } })
+    expect(top.rs).toBeCloseTo(100, 6)
+    expect(top.passedCount).toBe(8)
+  })
+})
+
+describe('runTiming', () => {
+  const finished = new Date('2026-11-16T10:00:00Z')
+
+  it('locks a new scan for an hour after the last one finished', () => {
+    const t = runTiming(finished, new Date('2026-11-16T10:20:00Z'))
+    expect(t.lockedUntil).toEqual(new Date(finished.getTime() + MIN_INTERVAL_MS))
+    expect(t.ageDays).toBe(0)
+  })
+
+  it('does not lock after the hour and counts whole days of age', () => {
+    const t = runTiming(finished, new Date('2026-11-18T11:00:00Z'))
+    expect(t.lockedUntil).toBeNull()
+    expect(t.ageDays).toBe(2)
+  })
+
+  it('handles a missing scan', () => {
+    expect(runTiming(null, new Date())).toEqual({ lockedUntil: null, ageDays: 0 })
   })
 })

@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client'
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getDailyBars, type Bar } from '@/lib/history'
 import type { Criterion } from '@/lib/minervini'
@@ -32,6 +32,15 @@ export function runningRun() {
 
 export function latestCompleteRun() {
   return prisma.scanRun.findFirst({ where: { status: 'done' }, orderBy: { finishedAt: 'desc' } })
+}
+
+const DAY_MS = 86_400_000
+
+// When the next scan may start and how old the last result is, for the page.
+export function runTiming(finishedAt: Date | null, now: Date): { lockedUntil: Date | null; ageDays: number } {
+  if (!finishedAt) return { lockedUntil: null, ageDays: 0 }
+  const unlock = finishedAt.getTime() + MIN_INTERVAL_MS
+  return { lockedUntil: unlock > now.getTime() ? new Date(unlock) : null, ageDays: Math.floor((now.getTime() - finishedAt.getTime()) / DAY_MS) }
 }
 
 export async function startRun(universe: UniverseEntry[] = loadUniverse(), now: Date = new Date()): Promise<StartResult> {
@@ -127,9 +136,11 @@ async function closeRun(runId: string): Promise<void> {
   const readable = rows.filter((r) => r.status === 'ok' && r.weightedReturn !== null && r.criteria !== null)
   const inputs: FinalizeInput[] = readable.map((r) => ({ symbol: r.symbol, weightedReturn: r.weightedReturn!, criteria: r.criteria as unknown as Criterion[] }))
   const out = new Map(finalize(inputs).map((o) => [o.symbol, o]))
-  await prisma.$transaction(
-    readable.map((r) => prisma.scanResult.update({ where: { id: r.id }, data: { rs: out.get(r.symbol)!.rs, passedCount: out.get(r.symbol)!.passedCount } })),
-  )
+  // One statement for every row: hundreds of single updates in a transaction time out on a remote database.
+  if (readable.length > 0) {
+    const values = readable.map((r) => Prisma.sql`(${r.id}, ${out.get(r.symbol)!.rs}::float8, ${out.get(r.symbol)!.passedCount}::int)`)
+    await prisma.$executeRaw`UPDATE "ScanResult" AS t SET "rs" = v.rs, "passedCount" = v.pc FROM (VALUES ${Prisma.join(values)}) AS v(id, rs, pc) WHERE t."id" = v.id`
+  }
 
   const closed = await prisma.scanRun.updateMany({
     where: { id: runId, status: 'running' },
