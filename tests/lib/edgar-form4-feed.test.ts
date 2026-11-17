@@ -165,6 +165,31 @@ describe('getForm4ClusterSeeds', () => {
     expect(fetchCountForAccession030).toBe(1)
   })
 
+  describe.each([
+    ['Issuer first, Reporting last', ['Issuer', 'Reporting']],
+    ['Reporting first, Issuer last', ['Reporting', 'Issuer']],
+  ] as const)('a filing listed under its issuer and its insider (%s)', (_label, order) => {
+    it('still counts the purchase: only the issuer CIK maps to a ticker, whatever the order', async () => {
+      vi.spyOn(edgarRoles, 'getTickerByCik').mockImplementation(async (cik) => ({ 1: 'AAA' }[cik] ?? null))
+      const entry = (kind: string) =>
+        kind === 'Issuer'
+          ? '<entry><title>4 - AAA INC (0000000001) (Issuer)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000040</id></entry>'
+          : '<entry><title>4 - SOME INSIDER (0000000009) (Reporting)</title><id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000040</id></entry>'
+      const fetched: string[] = []
+      global.fetch = vi.fn(async (url: string) => {
+        if (url.includes('getcurrent')) return new Response(`<feed>${order.map(entry).join('')}</feed>`, { status: 200 })
+        fetched.push(url)
+        return new Response(xmlFor('Jane Doe', 'P'), { status: 200 })
+      }) as unknown as typeof fetch
+
+      const seeds = await getForm4ClusterSeeds(100, 1)
+
+      expect(seeds).toEqual([{ symbol: 'AAA', name: 'AAA INC', buyerCount: 1 }])
+      expect(fetched).toHaveLength(1)
+      expect(fetched[0]).toContain('/data/1/')
+    })
+  })
+
   it('retries once after a 429 on the feed fetch instead of giving up immediately', async () => {
     let calls = 0
     global.fetch = vi.fn(async (url: string) => {

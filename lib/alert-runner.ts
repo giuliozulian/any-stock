@@ -6,6 +6,8 @@ import { getQuote } from './finnhub'
 
 // Marks a target as triggered only after the email was actually sent, so failures retry on the next check.
 export async function notifyTargets(stock: Stock, price: number): Promise<void> {
+  // Finnhub answers 0 for unknown or delisted symbols: a missing price must never look like a price below the entry target.
+  if (!(price > 0)) return
   for (const kind of checkTargets(stock, price)) {
     const target = kind === 'entry' ? stock.entryPrice : stock.sellPrice
     if (target === null) continue

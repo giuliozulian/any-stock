@@ -1,6 +1,6 @@
 import { getTickerByCik } from './edgar-roles'
+import { secUserAgent } from './sec'
 
-const UA = 'any-stock/1.0 (personal watchlist app)'
 
 export interface Form4FeedEntry {
   cik: number
@@ -50,11 +50,11 @@ export interface Form4ClusterSeed {
 
 // SEC rate-limits (429) under the burst this fan-out creates — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping the whole feed or a filing.
 async function fetchFromSec(url: string): Promise<Response> {
-  const res = await fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+  const res = await fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
   if (res.status !== 429) return res
   const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
   await new Promise((resolve) => setTimeout(resolve, retryAfterMs))
-  return fetch(url, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(10000) })
+  return fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
 }
 
 async function fetchText(url: string): Promise<string> {
@@ -84,14 +84,24 @@ export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2, overallDe
     console.error('Form4 cluster feed failed:', err instanceof Error ? err.message : String(err))
     return []
   }
-  // Dedup by accession number: safe regardless of whether the feed ever lists one filing under two entries (e.g. issuer and insider CIK) — a true duplicate is fetched once, and a feed with no duplicates is unaffected.
-  const entries = [...new Map(parseFeedEntries(atomXml).map((e) => [e.accessionNumber, e])).values()]
+  // The feed lists a filing once under its issuer and once under each insider, in either order, and only the issuer's CIK maps to a ticker.
+  // Group by accession number so a filing is fetched once, and look for the ticker across all of its entries instead of trusting whichever comes last.
+  const filings = new Map<string, Form4FeedEntry[]>()
+  for (const entry of parseFeedEntries(atomXml)) filings.set(entry.accessionNumber, [...(filings.get(entry.accessionNumber) ?? []), entry])
 
   const bySymbol = new Map<string, { name: string; buyers: Set<string> }>()
-  const fanOut = runWithConcurrency(entries, 5, async (entry) => {
-    const symbol = await getTickerByCik(entry.cik).catch(() => null)
-    if (!symbol) return
-    // The complete-submission .txt file has a deterministic name (CIK + dashed accession number) and embeds the primary document's XML inline — no per-filing-agent document filename to guess (Form 4 XML filenames vary; see lib/edgar-roles.ts's getInsiderRoles, which reads the real filename from the submissions API for the same reason).
+  const fanOut = runWithConcurrency([...filings.values()], 5, async (candidates) => {
+    let entry: Form4FeedEntry | undefined
+    let symbol: string | null = null
+    for (const candidate of candidates) {
+      symbol = await getTickerByCik(candidate.cik).catch(() => null)
+      if (symbol) {
+        entry = candidate
+        break
+      }
+    }
+    if (!entry || !symbol) return
+    // The complete-submission .txt file has a deterministic name (CIK + dashed accession number) and embeds the primary document's XML inline — no per-filing-agent document filename to guess.
     let xml: string
     try {
       xml = await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${entry.accessionNumber}.txt`)

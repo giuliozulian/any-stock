@@ -43,7 +43,8 @@ export interface CandidateScore {
 }
 
 function momentumScoreOf(input: ScoreInput): number {
-  const movePoints = clamp(Math.abs(input.changePct) / 30 * 100, 0, 100)
+  // Only a rise is momentum: a crash of the same size must not score like a rally.
+  const movePoints = clamp(input.changePct / 30 * 100, 0, 100)
   if (input.week52High === null || input.week52Low === null || input.week52High <= input.week52Low) {
     return round(movePoints)
   }
@@ -51,11 +52,16 @@ function momentumScoreOf(input: ScoreInput): number {
   return round((rangePoints + movePoints) / 2)
 }
 
+// Negative equity is not low debt: it is a company whose liabilities exceed its assets, so it earns nothing.
+function debtPointsOf(debtToEquity: number | null): number {
+  if (debtToEquity === null || debtToEquity < 0) return 0
+  return debtToEquity < 1 ? 20 : debtToEquity < 2 ? 10 : 0
+}
+
 function fundamentalsScoreOf(input: ScoreInput): number {
   const pegPoints = input.pegRatio === null || input.pegRatio <= 0 ? 0 : input.pegRatio <= 1 ? 40 : input.pegRatio <= 2 ? 20 : 0
   const roePoints = input.roe === null ? 0 : input.roe > 15 ? 40 : input.roe > 0 ? 20 : 0
-  const debtPoints = input.debtToEquity === null ? 0 : input.debtToEquity < 1 ? 20 : input.debtToEquity < 2 ? 10 : 0
-  return pegPoints + roePoints + debtPoints
+  return pegPoints + roePoints + debtPointsOf(input.debtToEquity)
 }
 
 function insiderScoreOf(input: ScoreInput): number {
@@ -97,11 +103,15 @@ function buildReason(input: ScoreInput, s: { momentumScore: number; fundamentals
 
   const pegPts = input.pegRatio === null || input.pegRatio <= 0 ? 0 : input.pegRatio <= 1 ? 40 : input.pegRatio <= 2 ? 20 : 0
   const roePts = input.roe === null ? 0 : input.roe > 15 ? 40 : input.roe > 0 ? 20 : 0
-  const debtPts = input.debtToEquity === null ? 0 : input.debtToEquity < 1 ? 20 : input.debtToEquity < 2 ? 10 : 0
+  const debtPts = debtPointsOf(input.debtToEquity)
   const fundamentals = [
     input.pegRatio !== null && input.pegRatio > 0 ? `PEG ${input.pegRatio.toFixed(1)} (prezzo rispetto alla crescita; sotto 1 è ottimo, sotto 2 buono): ${pegPts}/40 punti.` : 'PEG non disponibile: 0/40 punti.',
     input.roe !== null ? `ROE ${input.roe.toFixed(0)}% (quanto rende il capitale; sopra 15% è buono): ${roePts}/40 punti.` : 'ROE non disponibile: 0/40 punti.',
-    input.debtToEquity !== null ? `Debito/patrimonio ${input.debtToEquity.toFixed(1)} (sotto 1 è basso): ${debtPts}/20 punti.` : 'Debito non disponibile: 0/20 punti.',
+    input.debtToEquity === null
+      ? 'Debito non disponibile: 0/20 punti.'
+      : input.debtToEquity < 0
+        ? 'Patrimonio netto negativo: le passività superano le attività, 0/20 punti.'
+        : `Debito/patrimonio ${input.debtToEquity.toFixed(1)} (sotto 1 è basso): ${debtPts}/20 punti.`,
   ].join(' ')
 
   const lines = [headline, momentum, fundamentals]
@@ -246,8 +256,11 @@ async function enrichAndScore(seed: CandidateSeed): Promise<{ score: CandidateSc
   if (price === null) {
     try {
       const quote = await getQuote(seed.symbol)
-      price = quote.currentPrice
-      changePct = quote.changePercent
+      // 0 is what Finnhub answers for a symbol it does not know: treat it as no price.
+      if (quote.currentPrice > 0) {
+        price = quote.currentPrice
+        changePct = quote.changePercent
+      }
     } catch {
       price = null
     }

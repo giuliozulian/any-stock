@@ -26,6 +26,41 @@ describe('refreshStock', () => {
     vi.restoreAllMocks()
   })
 
+  it('keeps an article that mentions two watched stocks for both of them, and refreshing again adds nothing', async () => {
+    const apple = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const msft = await prisma.stock.create({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149.5, previousClose: 148.9 })
+    vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'X', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 3000000 })
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS })
+    vi.spyOn(finnhub, 'getCompanyNews').mockResolvedValue([
+      { headline: 'Apple and Microsoft sign a deal', url: 'https://example.com/shared', source: 'Reuters', summary: 's', datetime: 1700000000 },
+    ])
+    vi.spyOn(finnhub, 'getRecommendationTrend').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getNextEarnings').mockResolvedValue(null)
+
+    await refreshStock('AAPL')
+    await refreshStock('MSFT')
+    await refreshStock('AAPL')
+
+    expect(await prisma.newsItem.count({ where: { stockId: apple.id } })).toBe(1)
+    expect(await prisma.newsItem.count({ where: { stockId: msft.id } })).toBe(1)
+    expect(await prisma.newsItem.count({ where: { url: 'https://example.com/shared' } })).toBe(2)
+  })
+
+  it('fails without writing a snapshot when Finnhub has no price (0) for the symbol', async () => {
+    const stock = await prisma.stock.create({ data: { symbol: 'ZZZZ', name: 'Unknown', exchange: 'NASDAQ', entryPrice: 10 } })
+    const send = vi.spyOn(notify, 'sendAlertEmail').mockResolvedValue(true)
+    vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 0, changePercent: 0, high: 0, low: 0, open: 0, previousClose: 0 })
+    vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: '', exchange: '', currency: '', marketCapitalization: 0 })
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS })
+
+    const result = await refreshStock('ZZZZ')
+
+    expect(result).toMatchObject({ symbol: 'ZZZZ', ok: false })
+    expect(await prisma.priceSnapshot.count({ where: { stockId: stock.id } })).toBe(0)
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('writes a price snapshot, news items, and recommendation rows for a known stock', async () => {
     const stock = await prisma.stock.create({
       data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },

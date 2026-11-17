@@ -32,6 +32,9 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
       getMetrics(symbol),
     ])
 
+    // Finnhub answers 0 for unknown or delisted symbols: do not store it as a price.
+    if (!(quote.currentPrice > 0)) throw new Error(`Nessun prezzo disponibile per ${symbol}`)
+
     await prisma.priceSnapshot.create({
       data: {
         stockId: stock.id,
@@ -66,7 +69,7 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
 
       for (const item of news.slice(0, 10)) {
         await prisma.newsItem.upsert({
-          where: { url: item.url },
+          where: { stockId_url: { stockId: stock.id, url: item.url } },
           create: {
             stockId: stock.id,
             headline: item.headline,

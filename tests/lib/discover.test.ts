@@ -38,9 +38,22 @@ describe('scoreCandidate — momentum', () => {
     expect(result.momentumScore).toBe(75)
   })
 
-  it('caps move points at 100 for moves at or above 30%', () => {
-    const result = scoreCandidate(baseInput({ changePct: -45 }))
+  it('caps move points at 100 for rises at or above 30%', () => {
+    const result = scoreCandidate(baseInput({ changePct: 45 }))
     expect(result.momentumScore).toBe(100)
+  })
+
+  it('gives no move points to a fall: a crash is not momentum', () => {
+    expect(scoreCandidate(baseInput({ changePct: -45 })).momentumScore).toBe(0)
+    expect(scoreCandidate(baseInput({ changePct: -30 })).momentumScore).toBe(0)
+  })
+
+  it('scores a fall below the same rise, with the same 52-week range', () => {
+    const range = { price: 150, week52High: 180, week52Low: 120 }
+    const rise = scoreCandidate(baseInput({ ...range, changePct: 30 })).momentumScore
+    const fall = scoreCandidate(baseInput({ ...range, changePct: -30 })).momentumScore
+    expect(fall).toBeLessThan(rise)
+    expect(fall).toBe(25) // only the range position counts: (50 + 0) / 2
   })
 })
 
@@ -53,6 +66,21 @@ describe('scoreCandidate — fundamentals', () => {
   it('gives partial points for mid-band values', () => {
     const result = scoreCandidate(baseInput({ pegRatio: 1.5, roe: 10, debtToEquity: 1.5 }))
     expect(result.fundamentalsScore).toBe(20 + 20 + 10)
+  })
+
+  it('gives no debt points to negative equity, and says so in the reason', () => {
+    const result = scoreCandidate(baseInput({ debtToEquity: -3 }))
+    expect(result.fundamentalsScore).toBe(0)
+    expect(result.reason).toContain('Patrimonio netto negativo')
+    expect(result.reason).toContain('0/20 punti')
+  })
+
+  it('scores the debt rule identically in the score and in the reason text', () => {
+    for (const debt of [-1, 0, 0.5, 0.99, 1, 1.5, 2, 5]) {
+      const result = scoreCandidate(baseInput({ debtToEquity: debt, pegRatio: null, roe: null }))
+      const shown = Number(result.reason.match(/(\d+)\/20 punti/)![1])
+      expect(shown).toBe(result.fundamentalsScore)
+    }
   })
 
   it('gives zero points for a loss-making, overleveraged, overpriced stock', () => {
@@ -334,6 +362,20 @@ describe('runDiscoveryScan', () => {
     expect(result.candidates).toBe(0)
     const stored = await prisma.discoveredCandidate.findUnique({ where: { symbol: 'NVDA' } })
     expect(stored).toBeNull()
+  })
+
+  it('drops a congress-only candidate whose quote comes back as 0 (unknown symbol), instead of scoring it at price 0', async () => {
+    vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([
+      { member: 'Jane Doe', chamber: 'house', state: 'CA', side: 'buy', amountLow: 50_000, amountHigh: 100_000, date: '2026-11-01', disclosedAt: '2026-11-05', ticker: 'ZZZZ', asset: 'Unknown Corp', perfPct: null },
+    ] as never)
+    vi.spyOn(market, 'getMarketBigMovers').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 0, changePercent: 0, high: 0, low: 0, open: 0, previousClose: 0 })
+    vi.spyOn(finnhub, 'getMetrics').mockRejectedValue(new Error('down'))
+
+    const result = await runDiscoveryScan()
+
+    expect(result.candidates).toBe(0)
+    expect(await prisma.discoveredCandidate.findUnique({ where: { symbol: 'ZZZZ' } })).toBeNull()
   })
 
   it('does not touch existing rows when every source fails', async () => {

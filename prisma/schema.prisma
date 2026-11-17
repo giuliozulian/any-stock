@@ -59,12 +59,14 @@ model NewsItem {
   stockId     String
   stock       Stock    @relation(fields: [stockId], references: [id], onDelete: Cascade)
   headline    String
-  url         String   @unique
+  url         String
   source      String
   summary     String?
   publishedAt DateTime
   analysis    NewsAnalysis?
 
+  // The same article can mention two watched stocks: it belongs to each of them.
+  @@unique([stockId, url])
   @@index([stockId, publishedAt])
 }
 
