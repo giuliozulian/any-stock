@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { authConfigured, authDisabled, isAllowedEmail } from '@/lib/auth-config'
+import { authConfigured, authDisabled } from '@/lib/auth-config'
 import { updateSession } from '@/lib/supabase/proxy'
 
 function toLogin(request: NextRequest, search: string): NextResponse {
@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (isApi) return session.response
-  if (session.user && isAllowedEmail(session.user.email)) return session.response
+  if (session.user) return session.response
   return toLogin(request, `?next=${encodeURIComponent(pathname + search)}`)
 }
 

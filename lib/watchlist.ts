@@ -1,4 +1,3 @@
-import { allowedEmails } from '@/lib/auth-config'
 import { getAuthedUser } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import type { Prisma, Stock, WatchlistEntry } from '@prisma/client'
@@ -36,10 +35,10 @@ export async function removeEntry(entry: { id: string; stockId: string }): Promi
   if (left === 0) await prisma.stock.delete({ where: { id: entry.stockId } })
 }
 
-// Widget and calendar feeds cannot log in, so they show one person's list: FEED_USER_EMAIL, or the first address in AUTH_ALLOWED_EMAIL.
-// With neither set (local development) they show every stock.
+// Widget and calendar feeds cannot log in, so they show one person's list: FEED_USER_EMAIL.
+// Without it (local development) they show every stock.
 export function feedOwner(): Prisma.WatchlistEntryWhereInput {
-  const email = process.env.FEED_USER_EMAIL?.trim().toLowerCase() || allowedEmails()[0]
+  const email = process.env.FEED_USER_EMAIL?.trim().toLowerCase() 
   return email ? { userEmail: { equals: email, mode: 'insensitive' } } : {}
 }
 

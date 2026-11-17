@@ -51,7 +51,6 @@ describe('protected routes', () => {
     vi.stubEnv('AUTH_DISABLED', '')
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon')
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', 'me@example.com')
     vi.stubEnv('CRON_SECRET', 's3cret')
   })
 
@@ -75,7 +74,7 @@ describe('protected routes', () => {
   })
 
   it.each(PROTECTED)('%s answers 503, not 200, when auth is not configured', async (_name, handler, url, method) => {
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     sessionOf('me@example.com')
     const res = await handler(json(url, method), ctx)
     expect(res.status).toBe(503)

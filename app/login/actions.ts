@@ -1,12 +1,12 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { authConfigured, isAllowedEmail } from '@/lib/auth-config'
+import { authConfigured } from '@/lib/auth-config'
 import { safeNext } from '@/lib/safe-next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import type { LoginState } from './state'
 
-// One message for a wrong password and for an account that is not the allowed one: nothing tells which of the two happened.
+// One message for every failed login: nothing tells a wrong password from an unknown account.
 const WRONG = 'Email o password errati.'
 
 export async function login(_previous: LoginState, formData: FormData): Promise<LoginState> {
@@ -20,10 +20,6 @@ export async function login(_previous: LoginState, formData: FormData): Promise<
     const supabase = await createSupabaseServerClient()
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error || !data.user) return { error: WRONG }
-    if (!isAllowedEmail(data.user.email)) {
-      await supabase.auth.signOut()
-      return { error: WRONG }
-    }
   } catch {
     return { error: 'Non riesco ad accedere, riprova tra poco.' }
   }

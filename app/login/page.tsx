@@ -16,7 +16,7 @@ async function LoginGate({ searchParams }: { searchParams: Promise<{ next?: stri
     <>
       {error === 'config' && (
         <p role="alert" className={styles.config}>
-          Accesso non configurato. In <code>.env.local</code> mancano <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> o <code>AUTH_ALLOWED_EMAIL</code>.
+          Accesso non configurato. In <code>.env.local</code> mancano <code>NEXT_PUBLIC_SUPABASE_URL</code>, o <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>.
         </p>
       )}
       <LoginForm next={target} />

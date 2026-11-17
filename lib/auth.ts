@@ -1,10 +1,10 @@
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { authConfigured, authDisabled, isAllowedEmail, warnAuthDisabled } from '@/lib/auth-config'
+import { authConfigured, authDisabled, warnAuthDisabled } from '@/lib/auth-config'
 import { safeEqual } from '@/lib/safe-equal'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 
-export { authConfigured, authDisabled, isAllowedEmail } from '@/lib/auth-config'
+export { authConfigured, authDisabled } from '@/lib/auth-config'
 
 export interface AuthedUser {
   id: string
@@ -23,7 +23,7 @@ async function fetchUser(): Promise<AuthedUser | null> {
     const supabase = await createSupabaseServerClient()
     // getUser() asks the Supabase server to validate the token; getSession() would trust the cookie as it is.
     const { data, error } = await supabase.auth.getUser()
-    if (error || !data.user || !data.user.email || !isAllowedEmail(data.user.email)) return null
+    if (error || !data.user || !data.user.email) return null
     return { id: data.user.id, email: data.user.email }
   } catch (err) {
     console.error('Auth check failed:', err instanceof Error ? err.message : String(err))

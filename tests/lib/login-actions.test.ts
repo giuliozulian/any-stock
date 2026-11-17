@@ -28,7 +28,6 @@ describe('login action', () => {
     client.mockReset().mockResolvedValue({ auth: { signInWithPassword, signOut } } as never)
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon')
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', 'me@example.com')
   })
 
   afterEach(() => vi.unstubAllEnvs())
@@ -65,7 +64,7 @@ describe('login action', () => {
   })
 
   it('says access is not configured, without calling Supabase', async () => {
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     expect(await login({ error: null }, form({ email: 'me@example.com', password: 'pw' }))).toEqual({ error: 'Accesso non configurato.' })
     expect(signInWithPassword).not.toHaveBeenCalled()
   })
@@ -84,7 +83,6 @@ describe('logout action', () => {
     client.mockReset().mockResolvedValue({ auth: { signInWithPassword, signOut } } as never)
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon')
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', 'me@example.com')
   })
   afterEach(() => vi.unstubAllEnvs())
 
@@ -96,7 +94,7 @@ describe('logout action', () => {
   it('goes to the login page even when Supabase fails or is not configured', async () => {
     signOut.mockRejectedValue(new Error('down'))
     await expect(logout()).rejects.toThrow('REDIRECT:/login')
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     signOut.mockClear()
     await expect(logout()).rejects.toThrow('REDIRECT:/login')
     expect(signOut).not.toHaveBeenCalled()

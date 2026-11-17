@@ -19,7 +19,6 @@ function configure() {
   vi.stubEnv('AUTH_DISABLED', '')
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon')
-  vi.stubEnv('AUTH_ALLOWED_EMAIL', 'me@example.com')
 }
 
 describe('proxy', () => {
@@ -68,14 +67,14 @@ describe('proxy', () => {
   })
 
   it('sends pages of an unconfigured app to the login page with the config error, and does not ask Supabase', async () => {
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     const res = await proxy(req('/scanner'))
     expect(res.headers.get('location')).toBe('http://localhost/login?error=config')
     expect(update).not.toHaveBeenCalled()
   })
 
   it('leaves /api to its handlers, which answer 503, when the app is unconfigured', async () => {
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     const res = await proxy(req('/api/stocks'))
     expect(res.headers.get('location')).toBeNull()
     expect(update).not.toHaveBeenCalled()
@@ -92,7 +91,7 @@ describe('proxy', () => {
   it('ignores AUTH_DISABLED in production', async () => {
     vi.stubEnv('AUTH_DISABLED', '1')
     vi.stubEnv('NODE_ENV', 'production')
-    vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     const res = await proxy(req('/scanner'))
     expect(res.headers.get('location')).toBe('http://localhost/login?error=config')
   })

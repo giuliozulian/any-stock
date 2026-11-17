@@ -21,7 +21,6 @@ function configure() {
   vi.stubEnv('AUTH_DISABLED', '')
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://x.supabase.co')
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', 'anon')
-  vi.stubEnv('AUTH_ALLOWED_EMAIL', 'me@example.com')
   vi.stubEnv('CRON_SECRET', 's3cret')
 }
 
@@ -68,7 +67,7 @@ describe('auth', () => {
     })
 
     it('returns null when auth is not configured, without calling Supabase', async () => {
-      vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
       expect(await getAuthedUser()).toBeNull()
       expect(client).not.toHaveBeenCalled()
     })
@@ -111,7 +110,7 @@ describe('auth', () => {
     it('ignores AUTH_DISABLED in production and answers 503 when unconfigured', async () => {
       vi.stubEnv('AUTH_DISABLED', '1')
       vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
       expect(await statusOf(await requireUser())).toBe(503)
     })
 
@@ -161,7 +160,7 @@ describe('auth', () => {
     })
 
     it('sends an unconfigured app to the login page, which explains what is missing', async () => {
-      vi.stubEnv('AUTH_ALLOWED_EMAIL', '')
+      vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
       await expect(requireUserOrRedirect('/scanner')).rejects.toThrow('REDIRECT:/login?error=config')
     })
 
