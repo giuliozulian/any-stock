@@ -5,7 +5,7 @@ const roleCache = new Map<string, { at: number; roles: Record<string, string | n
 let tickerMap: { at: number; map: Map<string, number>; byCik: Map<number, string> } | null = null
 
 // SEC rate-limits (429) under load — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping this symbol's whole lookup.
-async function fetchFromSec(url: string): Promise<Response> {
+export async function fetchFromSec(url: string): Promise<Response> {
   const res = await fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
   if (res.status !== 429) return res
   const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
@@ -39,7 +39,7 @@ async function ensureTickerMap(): Promise<{ map: Map<string, number>; byCik: Map
   return tickerMap
 }
 
-async function getCik(symbol: string): Promise<number | null> {
+export async function getCik(symbol: string): Promise<number | null> {
   const { map } = await ensureTickerMap()
   return map.get(symbol.toUpperCase()) ?? null
 }

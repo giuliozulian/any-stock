@@ -177,6 +177,10 @@ model MoveExplanation {
   explanation String
   confidence  String
   model       String
+  // 'fact' = built from earnings/8-K data without an LLM, 'ai' = written by the model from news.
+  kind        String   @default("ai")
+  // [{ title, url }] the explanation is based on, so the reader can check it.
+  sources     Json     @default("[]")
   generatedAt DateTime @default(now())
 
   @@unique([symbol, day])

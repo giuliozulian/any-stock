@@ -191,6 +191,24 @@ export async function getNextEarnings(symbol: string, today: Date = new Date()):
   return { date: upcoming.date, hour: upcoming.hour || null, epsEstimate: upcoming.epsEstimate ?? null }
 }
 
+export interface ReportedEarnings {
+  date: string
+  hour: string | null
+  epsActual: number | null
+  epsEstimate: number | null
+}
+
+// Results published between two dates (inclusive), with the EPS actually reported next to the analysts' estimate.
+export async function getReportedEarnings(symbol: string, from: string, to: string): Promise<ReportedEarnings[]> {
+  const data = await finnhubFetch<{
+    earningsCalendar?: Array<{ date: string; hour?: string; epsActual?: number | null; epsEstimate?: number | null }>
+  }>('/calendar/earnings', { symbol, from, to })
+  return (data.earningsCalendar ?? [])
+    .filter((e) => e.date >= from && e.date <= to)
+    .map((e) => ({ date: e.date, hour: e.hour || null, epsActual: e.epsActual ?? null, epsEstimate: e.epsEstimate ?? null }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+}
+
 export interface EarningsEvent {
   symbol: string
   date: string
