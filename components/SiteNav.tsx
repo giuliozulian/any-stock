@@ -11,9 +11,9 @@ const ITEMS = [
   { href: '/movimenti', label: 'Movimenti forti', short: 'Movimenti' },
   { href: '/trimestrali', label: 'Trimestrali', short: 'Trimestrali' },
   { href: '/ipo', label: 'IPO', short: 'IPO' },
-  { href: '/politici', label: 'Politici', short: 'Politici' },
-  { href: '/scanner', label: 'Scanner', short: 'Scanner', badge: 'New' },
-  { href: '/scopri', label: 'Scopri', short: 'Scopri', cta: true },
+  { href: '/politici', label: 'Politici USA', short: 'Politici' },
+  { href: '/scanner', label: 'Minervini SCAN', short: 'Minervini', badge: 'New' },
+  { href: '/scopri', label: 'Scopri titoli', short: 'Scopri', cta: true },
 ]
 
 export function SiteNav({ signedIn }: { signedIn: boolean }) {

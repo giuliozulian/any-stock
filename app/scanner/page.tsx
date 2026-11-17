@@ -69,7 +69,7 @@ async function ScannerContent() {
 export default function ScannerPage() {
   return (
     <main className={styles.shell}>
-      <h1 className={local.heading}>Scanner Minervini</h1>
+      <h1 className={local.heading}>Minervini SCAN</h1>
       <p className={local.lead}>Titoli dell’S&amp;P 500 che passano il Trend Template di Minervini, con lo stato della base e la distanza dal pivot.</p>
       <Suspense fallback={<ScannerSkeleton />}>
         <AuthGate path="/scanner">

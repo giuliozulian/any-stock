@@ -50,6 +50,12 @@ export interface FinnhubRecommendation {
   strongSell: number
 }
 
+// Companies Finnhub groups with the given one (same industry), the symbol itself first; empty on failure paths is up to the caller.
+export async function getPeers(symbol: string): Promise<string[]> {
+  const data = await finnhubFetch<string[]>('/stock/peers', { symbol })
+  return Array.isArray(data) ? data.filter((s) => typeof s === 'string' && s !== symbol) : []
+}
+
 export interface FinnhubNewsItem {
   headline: string
   url: string

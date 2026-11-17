@@ -1,7 +1,7 @@
 .card {
   --tier: var(--muted);
-  margin-bottom: 14px;
-  padding: 22px;
+  margin-bottom: 12px;
+  padding: 18px 20px;
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius-card);
@@ -18,8 +18,8 @@
 
 .top {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 24px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px 20px;
   align-items: start;
 }
 
@@ -352,4 +352,130 @@
   color: var(--ai);
   background: color-mix(in srgb, var(--ai) 14%, transparent);
   border-radius: 999px;
+}
+
+.market {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.price {
+  font-family: var(--font-num);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.cap {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.gain {
+  color: var(--gain-bright);
+}
+
+.loss {
+  color: var(--loss-bright);
+}
+
+.newBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 18%, transparent);
+  color: var(--brass);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.up,
+.down {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.up {
+  color: var(--gain-bright);
+}
+
+.down {
+  color: var(--loss-bright);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chip a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.chip a:hover {
+  text-decoration: underline;
+}
+
+.chipGood {
+  border-color: var(--gain-bright);
+  color: var(--gain-bright);
+}
+
+.chipWarn {
+  border-color: var(--amber-bright);
+  color: var(--amber-bright);
+}
+
+.hiddenNote {
+  margin: 0 0 12px;
+  padding: 10px 16px;
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius-inner);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.undo {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brass);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.undo:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  .top {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .market {
+    grid-column: 1 / -1;
+    grid-auto-flow: column;
+    justify-content: space-between;
+    align-items: center;
+    justify-items: start;
+  }
 }

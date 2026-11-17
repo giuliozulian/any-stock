@@ -3,6 +3,7 @@ import { yahooCrumb } from './market'
 export interface QuoteInfo {
   name: string
   marketCap: number | null
+  price: number | null
   changePct: number | null
   // Time of the latest regular-session quote, in ms.
   time: number | null
@@ -17,6 +18,7 @@ interface RawQuote {
   shortName?: string
   longName?: string
   marketCap?: number
+  regularMarketPrice?: number
   regularMarketChangePercent?: number
   regularMarketTime?: number
 }
@@ -59,6 +61,7 @@ export async function getQuoteInfo(symbols: string[]): Promise<Map<string, Quote
     const info: QuoteInfo = {
       name: q.shortName ?? q.longName ?? q.symbol,
       marketCap: q.marketCap ?? null,
+      price: q.regularMarketPrice ?? null,
       changePct: q.regularMarketChangePercent ?? null,
       time: q.regularMarketTime ? q.regularMarketTime * 1000 : null,
     }

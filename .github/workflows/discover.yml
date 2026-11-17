@@ -1,0 +1,20 @@
+# Evening search for new stocks to look at, after the Minervini scan and the insider digest.
+# Uses the same repository secrets as price-alerts: APP_URL and CRON_SECRET.
+name: discover
+
+on:
+  schedule:
+    # 23:00 UTC, Mon-Fri: after the US close and after the SEC filings of the day are in
+    - cron: '0 23 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call the discovery endpoint
+        run: |
+          curl --fail --silent --show-error --max-time 120 \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron/discover"

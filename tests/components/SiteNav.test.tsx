@@ -7,9 +7,9 @@ vi.mock('@/app/login/actions', () => ({ logout: vi.fn() }))
 import { SiteNav } from '@/components/SiteNav'
 
 describe('SiteNav', () => {
-  it('marks the Scanner entry as new', () => {
+  it('marks the Minervini SCAN entry as new', () => {
     render(<SiteNav signedIn />)
-    const scanner = screen.getByRole('link', { name: /scanner/i })
+    const scanner = screen.getByRole('link', { name: /minervini/i })
     expect(within(scanner).getByText('New')).toBeInTheDocument()
     expect(scanner).toHaveAttribute('href', '/scanner')
   })
@@ -27,7 +27,7 @@ describe('SiteNav', () => {
   it('shows only the brand, with no menu and no way out, when signed out', () => {
     render(<SiteNav signedIn={false} />)
     expect(screen.queryByRole('button', { name: 'Esci' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: /scanner/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /minervini/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('navigation')?.querySelectorAll('li')).toHaveLength(0)
     expect(screen.getByRole('link', { name: /any stock/i })).toBeInTheDocument()
   })

@@ -11,12 +11,12 @@ describe('getQuoteInfo', () => {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: () => Promise.resolve({ quoteResponse: { result: [{ symbol: 'ZZQ1', shortName: 'Zed', marketCap: 5e9, regularMarketChangePercent: 2, regularMarketTime: 1_700_000_000 }] } }),
+        json: () => Promise.resolve({ quoteResponse: { result: [{ symbol: 'ZZQ1', shortName: 'Zed', marketCap: 5e9, regularMarketPrice: 12.5, regularMarketChangePercent: 2, regularMarketTime: 1_700_000_000 }] } }),
       })
     })
     vi.stubGlobal('fetch', fetchMock)
     const first = await getQuoteInfo(['ZZQ1', 'ZZQ1'])
-    expect(first.get('ZZQ1')).toEqual({ name: 'Zed', marketCap: 5e9, changePct: 2, time: 1_700_000_000_000 })
+    expect(first.get('ZZQ1')).toEqual({ name: 'Zed', marketCap: 5e9, price: 12.5, changePct: 2, time: 1_700_000_000_000 })
     const calls = fetchMock.mock.calls.length
     await getQuoteInfo(['ZZQ1'])
     expect(fetchMock.mock.calls.length).toBe(calls)

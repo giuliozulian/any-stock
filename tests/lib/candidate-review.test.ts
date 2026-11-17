@@ -12,10 +12,16 @@ describe('parseCandidateReview', () => {
 })
 
 describe('buildReviewPrompt', () => {
+  it('shows an unmeasured pillar as n.d. and lists the warnings', () => {
+    const out = buildReviewPrompt({ symbol: 'AB', name: 'Ab', market: 'IT', score: 50, momentumScore: 50, fundamentalsScore: 50, insiderScore: -1, partial: false, reason: 'x', flags: ['Trimestrale domani'] })
+    expect(out).toContain('persone n.d.')
+    expect(out).toContain('Avvisi: Trimestrale domani')
+  })
+
   const c = { symbol: 'AB', name: 'Ab', market: 'US', score: 80, momentumScore: 70, fundamentalsScore: 60, insiderScore: 96, partial: true, reason: 'titolo\nInsider: 1 politico' }
   it('includes scores, reason and incomplete-data flag', () => {
     const out = buildReviewPrompt(c)
-    expect(out).toContain('insider e politici 96')
+    expect(out).toContain('persone 96, qualità 60, momento 70')
     expect(out).toContain('Insider: 1 politico')
     expect(out).toContain('Dati incompleti')
   })

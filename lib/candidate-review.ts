@@ -12,7 +12,8 @@ export const REVIEW_TOP_N = 8
 
 const SYSTEM_PROMPT = `Sei un analista prudente che rilegge i candidati trovati da uno scanner automatico di titoli e segnala i falsi positivi.
 Ricevi i punteggi (0-100) e la motivazione generata dallo scanner. Valuta se il punteggio alto è davvero giustificato dai dati.
-Segnali tipici di falso positivo: acquisti dei politici di piccola entità o di un solo parlamentare, un solo insider, dati incompleti, punteggio alto solo per un grosso movimento di prezzo già avvenuto, conti deboli compensati da un solo segnale.
+Il punteggio è la media di tre pilastri: Persone (insider e politici), Qualità (conti) e Momento (c'è ancora tempo? trimestrale vicina?). Un pilastro «n.d.» non è stato misurato e non entra nella media.
+Segnali tipici di falso positivo: acquisti dei politici di piccola entità o di un solo parlamentare, un solo insider, dati incompleti, punteggio alto che poggia su un solo pilastro, conti deboli compensati da un solo segnale, trimestrale imminente.
 Usa SOLO i dati forniti: non inventare numeri o fatti, non fare previsioni di prezzo, non dare consigli di acquisto.
 Rispondi SOLO con un oggetto JSON con questi campi:
 - verdict: "solid" se i segnali si rafforzano a vicenda, "caution" se il punteggio è gonfiato o poggia su un solo segnale debole
@@ -36,10 +37,13 @@ export function buildReviewPrompt(c: {
   insiderScore: number
   partial: boolean
   reason: string
+  flags?: string[]
 }): string {
+  const pillar = (v: number) => (v < 0 ? 'n.d.' : String(v))
   return [
     `Titolo: ${c.name} (${c.symbol}), mercato ${c.market}`,
-    `Punteggio totale ${c.score}/100: andamento ${c.momentumScore}, conti ${c.fundamentalsScore}, insider e politici ${c.insiderScore}`,
+    `Punteggio totale ${c.score}/100: persone ${pillar(c.insiderScore)}, qualità ${pillar(c.fundamentalsScore)}, momento ${pillar(c.momentumScore)}`,
+    c.flags && c.flags.length > 0 ? `Avvisi: ${c.flags.join('; ')}` : null,
     c.partial ? 'Dati incompleti: alcune fonti non hanno risposto.' : null,
     `Motivazione dello scanner:\n${c.reason}`,
   ]

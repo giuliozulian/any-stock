@@ -12,9 +12,9 @@ const CANDIDATE = {
   momentumScore: 80,
   fundamentalsScore: 70,
   insiderScore: 66,
-  reason: 'Movimento forte, fondamentali solidi.\nOggi +5%.\nConti considerati: ROE 20%.\nInsider: nessun acquisto.',
+  reason: 'Movimento forte, fondamentali solidi.\nNessun acquisto dei politici.\nConti considerati: ROE 20%.\nOggi +5%.',
   partial: false,
-  source: 'yahoo-movers-us',
+  source: 'peer',
 }
 
 describe('CandidateCard', () => {
@@ -29,6 +29,7 @@ describe('CandidateCard', () => {
     expect(screen.getByText(/Movimento forte/)).toBeInTheDocument()
     expect(screen.getByText(/Conti considerati/)).toBeInTheDocument()
     expect(screen.getByText('80/100')).toBeInTheDocument()
+    expect(screen.getByText('Simile a un tuo titolo')).toBeInTheDocument()
   })
 
   it('shows a "dati parziali" badge when partial is true', () => {
@@ -37,7 +38,7 @@ describe('CandidateCard', () => {
   })
 
   it('shows a "cluster insider" badge when the source includes edgar-form4-cluster', () => {
-    render(<CandidateCard candidate={{ ...CANDIDATE, source: 'yahoo-movers-us,edgar-form4-cluster' }} />)
+    render(<CandidateCard candidate={{ ...CANDIDATE, source: 'peer,edgar-form4-cluster' }} />)
     expect(screen.getByText(/più insider comprano/i)).toBeInTheDocument()
   })
 
@@ -65,13 +66,46 @@ describe('CandidateCard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('already in the watchlist')
   })
 
-  it('dismisses the candidate and hides the card', async () => {
+  it('hides the candidate for 30 days and offers an undo', async () => {
     ;(fetch as any).mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
     render(<CandidateCard candidate={CANDIDATE} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /scarta/i }))
+    fireEvent.click(screen.getByRole('button', { name: /nascondi 30 giorni/i }))
 
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/discover/MSFT', expect.objectContaining({ method: 'PATCH' })))
-    await waitFor(() => expect(screen.queryByText('MSFT')).not.toBeInTheDocument())
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/discover/MSFT', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ days: 30 }) })))
+    expect(await screen.findByRole('status')).toHaveTextContent('MSFT nascosto per 30 giorni')
+    expect(screen.queryByText('Microsoft')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /annulla/i }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/discover/MSFT', expect.objectContaining({ method: 'DELETE' })))
+    expect(await screen.findByText('Microsoft')).toBeInTheDocument()
+  })
+
+  it('can hide it for good', async () => {
+    ;(fetch as any).mockResolvedValue({ ok: true, json: () => Promise.resolve({}) })
+    render(<CandidateCard candidate={CANDIDATE} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /mai più/i }))
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/discover/MSFT', expect.objectContaining({ body: JSON.stringify({ days: null }) })))
+    expect(await screen.findByRole('status')).toHaveTextContent('per sempre')
+  })
+
+  it('shows price, change, market cap, warnings, the scanner bridge and what is new', () => {
+    render(<CandidateCard candidate={{ ...CANDIDATE, price: 410.5, changePct: -1.25, marketCap: 3.1e12, flags: ['Trimestrale domani'], scannerPassed: 7, isNew: true, scoreDelta: 8, spark: [1, 2, 3] }} />)
+    expect(screen.getByText(/\$410\.50/)).toBeInTheDocument()
+    expect(screen.getByText(/−1\.3%/)).toBeInTheDocument()
+    expect(screen.getByText(/cap\. 3\.1 mila mld/)).toBeInTheDocument()
+    expect(screen.getByText('Trimestrale domani')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Minervini SCAN: 7/8 criteri' })).toHaveAttribute('href', '/scanner')
+    expect(screen.getByText('Nuovo')).toBeInTheDocument()
+    expect(screen.getByText(/▲ 8/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /ultimi 3 mesi di MSFT/ })).toBeInTheDocument()
+  })
+
+  it('shows an unmeasured pillar as n.d. and a small score change as nothing', () => {
+    render(<CandidateCard candidate={{ ...CANDIDATE, insiderScore: -1, scoreDelta: 2 }} />)
+    expect(screen.getByText('n.d.')).toBeInTheDocument()
+    expect(screen.queryByText(/▲|▼/)).not.toBeInTheDocument()
   })
 })

@@ -3,3 +3,66 @@
   color: var(--muted);
   font-size: 14px;
 }
+
+.stale {
+  color: var(--amber-bright);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 24px;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 15px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tabs a:hover {
+  color: inherit;
+}
+
+.tabs a[aria-current='page'] {
+  border-bottom-color: var(--brass);
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.tabs a:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.tabCount {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.verdict {
+  margin: 0 0 8px;
+  max-width: 72ch;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.caveat {
+  margin: 0 0 24px;
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}

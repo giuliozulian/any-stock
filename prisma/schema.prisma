@@ -154,8 +154,42 @@ model DiscoveredCandidate {
   aiVerdict         String?
   aiNote            String?
   aiCheckedAt       DateTime?
+  // Snapshot at scan time, so the page lists candidates without calling any service.
+  price             Float?
+  changePct         Float?
+  marketCap         Float?
+  // Short warnings shown on the row: earnings close, already ran, others selling...
+  flags             String[]  @default([])
+  // Last ~60 daily closes, for the mini chart.
+  spark             Json?
+  firstSeenAt       DateTime  @default(now())
+  // Score of the previous scan, to show whether the candidate is gaining or losing.
+  prevScore         Float?
 
   @@index([score])
+}
+
+// One row per candidate per scan: the record that lets the page say how past proposals performed.
+model DiscoveryHistory {
+  id        String   @id @default(cuid())
+  symbol    String
+  scannedAt DateTime
+  score     Float
+  price     Float?
+
+  @@index([symbol, scannedAt])
+  @@index([scannedAt])
+}
+
+// A candidate a user hid: until a date, or for good when `until` is null. Per user, so one person's choice never hides ideas from another.
+model DiscoveryDismissal {
+  id        String    @id @default(cuid())
+  userId    String
+  symbol    String
+  until     DateTime?
+  createdAt DateTime  @default(now())
+
+  @@unique([userId, symbol])
 }
 
 model StockBullBearNote {

@@ -3,7 +3,7 @@ import { compareEvents, quoteReaction, reactionPct, slotOf, surprise, tierOf, ty
 import type { EarningsEvent } from '@/lib/finnhub'
 
 const event = (symbol: string, extra: Partial<EarningsEvent> = {}): EarningsEvent => ({ symbol, date: '2026-11-17', hour: null, epsEstimate: null, revenueEstimate: null, epsActual: null, revenueActual: null, ...extra })
-const info = (marketCap: number | null, extra = {}) => ({ name: 'n', marketCap, changePct: null, time: null, ...extra })
+const info = (marketCap: number | null, extra = {}) => ({ name: 'n', marketCap, price: null, changePct: null, time: null, ...extra })
 // A bar at 15:00 UTC falls inside the New York session of that date.
 const bar = (date: string, close: number) => ({ t: Date.parse(`${date}T15:00:00Z`), high: close, low: close, close, volume: 1 })
 
@@ -71,7 +71,7 @@ describe('reactionPct', () => {
 })
 
 describe('quoteReaction', () => {
-  const quote = (changePct: number | null, time: string) => ({ name: 'n', marketCap: null, changePct, time: Date.parse(time) })
+  const quote = (changePct: number | null, time: string) => ({ name: 'n', marketCap: null, price: null, changePct, time: Date.parse(time) })
   it('counts only when the quote is from the session that followed the report', () => {
     expect(quoteReaction({ date: '2026-11-17', hour: 'bmo' }, quote(5, '2026-11-17T20:00:00Z'))).toBe(5)
     expect(quoteReaction({ date: '2026-11-16', hour: 'amc' }, quote(-3, '2026-11-17T20:00:00Z'))).toBe(-3)

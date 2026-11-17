@@ -221,7 +221,7 @@ async function EarningsCalendar({ searchParams }: { searchParams: Promise<Search
     .map((e) => {
       const info = infos.get(e.symbol)
       const name = names.get(e.symbol)
-      return { e, tier: tierOf(e, watchedSymbols, info), info: info ? { ...info, name: name ?? info.name } : name ? { name, marketCap: null, changePct: null, time: null } : undefined }
+      return { e, tier: tierOf(e, watchedSymbols, info), info: info ? { ...info, name: name ?? info.name } : name ? { name, marketCap: null, price: null, changePct: null, time: null } : undefined }
     })
     .filter((r) => (view === 'watch' ? r.tier === 'watch' : view === 'big' ? r.tier !== 'minor' : true))
     .filter((r) => !query || r.e.symbol.toLowerCase().includes(query) || (r.info?.name ?? '').toLowerCase().includes(query))
