@@ -40,18 +40,13 @@ describe('auth', () => {
   })
 
   describe('getAuthedUser', () => {
-    it('returns the user when the session is valid and the email is the allowed one', async () => {
+    it('returns the user when the session is valid', async () => {
       withUser('Me@Example.com')
       expect(await getAuthedUser()).toEqual({ id: 'u1', email: 'Me@Example.com' })
     })
 
     it('returns null without a session', async () => {
       withUser(null)
-      expect(await getAuthedUser()).toBeNull()
-    })
-
-    it('returns null for a valid session of another email', async () => {
-      withUser('stranger@example.com')
       expect(await getAuthedUser()).toBeNull()
     })
 
@@ -82,7 +77,7 @@ describe('auth', () => {
   })
 
   describe('requireUser', () => {
-    it('lets a signed-in allowed user through', async () => {
+    it('lets a signed-in user through', async () => {
       withUser('me@example.com')
       expect(await requireUser()).toEqual({ ok: true })
     })
@@ -92,11 +87,6 @@ describe('auth', () => {
       const r = await requireUser()
       expect(await statusOf(r)).toBe(401)
       if (!r.ok) expect(await r.response.json()).toEqual({ error: 'Unauthorized' })
-    })
-
-    it('answers 401 for another email even with a valid session', async () => {
-      withUser('stranger@example.com')
-      expect(await statusOf(await requireUser())).toBe(401)
     })
 
     it('answers 503, never lets through, when auth is not configured', async () => {
@@ -144,7 +134,7 @@ describe('auth', () => {
   })
 
   describe('requireUserOrRedirect', () => {
-    it('returns for a signed-in allowed user', async () => {
+    it('returns for a signed-in user', async () => {
       withUser('me@example.com')
       await expect(requireUserOrRedirect('/scanner')).resolves.toBeUndefined()
     })

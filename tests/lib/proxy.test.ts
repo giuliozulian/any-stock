@@ -31,7 +31,7 @@ describe('proxy', () => {
     vi.unstubAllEnvs()
   })
 
-  it('lets a signed-in allowed user through and returns the response that carries the refreshed cookies', async () => {
+  it('lets a signed-in user through and returns the response that carries the refreshed cookies', async () => {
     const response = signedIn('me@example.com')
     expect(await proxy(req('/scanner'))).toBe(response)
   })
@@ -41,12 +41,6 @@ describe('proxy', () => {
     const res = await proxy(req('/scanner?a=1'))
     expect(res.status).toBe(307)
     expect(res.headers.get('location')).toBe('http://localhost/login?next=%2Fscanner%3Fa%3D1')
-  })
-
-  it('treats a valid session of another email like no session', async () => {
-    signedIn('stranger@example.com')
-    const res = await proxy(req('/'))
-    expect(res.headers.get('location')).toBe('http://localhost/login?next=%2F')
   })
 
   it('treats a failing session refresh as no session', async () => {

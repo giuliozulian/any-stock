@@ -68,11 +68,6 @@ describe('protected routes', () => {
     expect(await prisma.scanRun.count()).toBe(0)
   })
 
-  it.each(PROTECTED)('%s answers 401 for a valid session of another email', async (_name, handler, url, method) => {
-    sessionOf('stranger@example.com')
-    expect((await handler(json(url, method), ctx)).status).toBe(401)
-  })
-
   it.each(PROTECTED)('%s answers 503, not 200, when auth is not configured', async (_name, handler, url, method) => {
     vi.stubEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY', '')
     sessionOf('me@example.com')

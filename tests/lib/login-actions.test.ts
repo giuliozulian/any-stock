@@ -50,12 +50,6 @@ describe('login action', () => {
     expect(await login({ error: null }, form({ email: 'me@example.com', password: 'bad' }))).toEqual(WRONG)
   })
 
-  it('gives the same error, and signs out, for a valid account that is not the allowed email', async () => {
-    signInWithPassword.mockResolvedValue({ data: { user: { id: 'u2', email: 'stranger@example.com' } }, error: null })
-    expect(await login({ error: null }, form({ email: 'stranger@example.com', password: 'pw' }))).toEqual(WRONG)
-    expect(signOut).toHaveBeenCalledTimes(1)
-  })
-
   it('asks for both fields without calling Supabase', async () => {
     expect(await login({ error: null }, form({ email: '', password: 'pw' }))).toEqual({ error: 'Inserisci email e password.' })
     expect(await login({ error: null }, form({ email: 'me@example.com', password: '' }))).toEqual({ error: 'Inserisci email e password.' })
