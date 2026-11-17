@@ -279,13 +279,12 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
   const latest = stock.snapshots[0]
 
-  const earliestSnapshot =
-    stock.snapshots.length > 1
-      ? await prisma.priceSnapshot.findFirst({
-          where: { stockId: stock.id },
-          orderBy: { timestamp: 'asc' },
-        })
-      : null
+  // Snapshots belong to the stock, shared by everyone who watches it: the baseline is the first one taken since this user added it.
+  const firstSinceAdded = await prisma.priceSnapshot.findFirst({
+    where: { stockId: stock.id, timestamp: { gte: stock.addedAt } },
+    orderBy: { timestamp: 'asc' },
+  })
+  const earliestSnapshot = firstSinceAdded && firstSinceAdded.id !== latest?.id ? firstSinceAdded : null
 
   const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory, dividends] = await Promise.all([
     getPriceHistory(stock.symbol),
