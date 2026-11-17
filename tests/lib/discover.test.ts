@@ -155,8 +155,8 @@ describe('sourceCandidates', () => {
     ])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
       m === 'us'
-        ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }]
-        : [{ symbol: 'ENI.MI', name: 'Eni', changePct: -16, price: 14, marketCap: null, volume: null, exchange: null }]
+        ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }]
+        : [{ symbol: 'ENI.MI', name: 'Eni', changePct: -16, price: 14, marketCap: null, volume: null, relVolume: null, exchange: null }]
     )
 
     const seeds = await sourceCandidates(new Set())
@@ -180,7 +180,7 @@ describe('sourceCandidates', () => {
       { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', score: 8, reasons: [] },
     ])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'NVDA', name: 'Nvidia', changePct: 22, price: 500, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'NVDA', name: 'Nvidia', changePct: 22, price: 500, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
 
     const seeds = await sourceCandidates(new Set())
@@ -195,7 +195,7 @@ describe('sourceCandidates', () => {
     vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
     vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
 
     const seeds = await sourceCandidates(new Set(['MSFT']))
@@ -206,7 +206,7 @@ describe('sourceCandidates', () => {
   it('does not let one failing source block the others', async () => {
     vi.spyOn(congress, 'getRecentCongressBuys').mockRejectedValue(new Error('down'))
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
 
     const seeds = await sourceCandidates(new Set())
@@ -232,7 +232,7 @@ describe('sourceCandidates', () => {
     vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
     vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
     vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([{ symbol: 'MSFT', name: 'Microsoft Corp', buyerCount: 2 }])
 
@@ -248,7 +248,7 @@ describe('sourceCandidates', () => {
     vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
     vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
     vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockRejectedValue(new Error('SEC down'))
 
@@ -318,7 +318,7 @@ describe('runDiscoveryScan', () => {
   it('upserts a scored candidate sourced from a US mover', async () => {
     vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
     vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({
       peRatio: 28, week52High: 420, week52Low: 300, pegRatio: 1.2, roe: 30, netMargin: 25, debtToEquity: 0.5, dividendYield: 0.8, payoutRatio: 20, relativePerf13W: 5, epsTTM: 10, epsGrowth5Y: 15, bookValuePerShare: 20, cashFlowPerShare: 12,
@@ -337,7 +337,7 @@ describe('runDiscoveryScan', () => {
   it('flags a candidate as partial when getMetrics fails, but keeps it', async () => {
     vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
     vi.spyOn(finnhub, 'getMetrics').mockRejectedValue(new Error('rate limited'))
     vi.spyOn(insiderData, 'getInsiderData').mockResolvedValue({ trades: [], sentiment: [] })
@@ -398,7 +398,7 @@ describe('runDiscoveryScan', () => {
     })
     vi.spyOn(congress, 'getRecentCongressBuys').mockResolvedValue([])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
-      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, exchange: null }] : []
+      m === 'us' ? [{ symbol: 'MSFT', name: 'Microsoft', changePct: 18, price: 400, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
     )
     vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({
       peRatio: null, week52High: null, week52Low: null, pegRatio: null, roe: null, netMargin: null, debtToEquity: null, dividendYield: null, payoutRatio: null, relativePerf13W: null, epsTTM: null, epsGrowth5Y: null,
