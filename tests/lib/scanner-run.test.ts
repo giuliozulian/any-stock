@@ -51,6 +51,17 @@ describe('scanner run', () => {
     expect(fetchBars).toHaveBeenCalledTimes(BLOCK_SIZE)
   })
 
+  it('stores the volume ratio of each stock', async () => {
+    const universe = entries(1)
+    const started = await startRun(universe)
+    if (started.kind === 'too-soon') throw new Error('unexpected')
+
+    await stepRun(started.run.id, { universe, fetchBars: async () => uptrend(0.5) })
+
+    const stored = await prisma.scanResult.findFirstOrThrow({ where: { runId: started.run.id } })
+    expect(stored.volumeRatio).toBeCloseTo(1, 6)
+  })
+
   it('marks short or missing history as unread and keeps going', async () => {
     const universe = entries(6)
     const started = await startRun(universe)

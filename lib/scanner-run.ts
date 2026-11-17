@@ -128,6 +128,7 @@ function toRow(runId: string, entry: UniverseEntry, r: ScanSymbolResult | null):
     pivotDistancePct: r.pivotDistancePct,
     contractions: r.contractions,
     volumeDryUp: r.volumeDryUp,
+    volumeRatio: r.volumeRatio,
   }
 }
 

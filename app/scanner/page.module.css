@@ -1,14 +1,35 @@
-.scannedAt {
+.heading {
+  margin: 0 0 8px;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.lead {
+  margin: 0 0 14px;
+  max-width: 68ch;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.meta {
   margin: 0 0 16px;
   color: var(--muted);
   font-size: 14px;
 }
 
-.partial {
+.stale {
   margin: 0 0 16px;
   padding: 10px 14px;
   border: 1px solid var(--amber-bright);
   border-radius: var(--radius-inner);
   color: var(--amber-bright);
   font-size: 14px;
+}
+
+@media (max-width: 820px) {
+  .heading {
+    font-size: 28px;
+    line-height: 1.1;
+  }
 }

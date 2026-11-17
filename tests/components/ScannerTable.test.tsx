@@ -4,50 +4,227 @@ import { ScannerTable, type ScannerRow } from '@/components/ScannerTable'
 import { TREND_TEMPLATE_LABELS } from '@/lib/minervini'
 
 const row = (over: Partial<ScannerRow>): ScannerRow => ({
-  symbol: 'AAA', name: 'Alpha', sector: 'Tech', price: 100, rs: 90, passedCount: 8, vcpStatus: null, pivot: null, pivotDistancePct: null, missing: null, ...over,
+  symbol: 'AAA', name: 'Alpha', sector: 'Tech', price: 100, rs: 90, passedCount: 8, vcpStatus: null, pivot: null, pivotDistancePct: null, volumeRatio: null, missing: null, ...over,
 })
 
-describe('ScannerTable', () => {
-  const rows = [
-    row({ symbol: 'LOW', name: 'Low RS', rs: 75 }),
-    row({ symbol: 'TOP', name: 'Top RS', rs: 99, vcpStatus: 'forming', pivot: 105, pivotDistancePct: -4.8 }),
-    row({ symbol: 'NEAR', name: 'Near miss', rs: 60, passedCount: 7, missing: TREND_TEMPLATE_LABELS[7] }),
-  ]
+const rows = [
+  row({ symbol: 'LOW', name: 'Low RS', rs: 75, sector: 'Energy' }),
+  row({ symbol: 'TOP', name: 'Top RS', rs: 99, price: 100, vcpStatus: 'forming', pivot: 105, pivotDistancePct: -4.8 }),
+  row({ symbol: 'BRK', name: 'Breaking', rs: 80, price: 50.6, vcpStatus: 'breakout', pivot: 50, pivotDistancePct: 1.2, volumeRatio: 1.8 }),
+  row({ symbol: 'NEAR', name: 'Near miss', rs: 60, passedCount: 7, missing: TREND_TEMPLATE_LABELS[7] }),
+]
 
-  it('sorts the 8/8 stocks by RS and links each to its page', () => {
+const hrefs = () => within(screen.getByRole('list')).getAllByRole('link').map((a) => a.getAttribute('href'))
+const rowOf = (symbol: string) => within(screen.getByRole('list')).getByText(symbol, { selector: 'span' }).closest('a')!
+
+describe('ScannerTable groups and order', () => {
+  it('shows the 8-of-8 stocks first, sorted by RS, each linking to its page', () => {
     render(<ScannerTable rows={rows} />)
-    const section = screen.getByRole('region', { name: /8 criteri su 8/i })
-    const links = within(section).getAllByRole('link').map((a) => a.getAttribute('href'))
-    expect(links).toEqual(['/stock/TOP', '/stock/LOW'])
+    expect(hrefs()).toEqual(['/stock/TOP', '/stock/BRK', '/stock/LOW'])
   })
 
-  it('shows VCP state, pivot and distance', () => {
+  it('counts each group on its switch', () => {
     render(<ScannerTable rows={rows} />)
-    expect(screen.getByText('Base pronta')).toBeInTheDocument()
-    expect(screen.getByText('105.00')).toBeInTheDocument()
-    expect(screen.getByText(/4,8% sotto/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /8 su 8/ })).toHaveTextContent('3')
+    expect(screen.getByRole('button', { name: /quasi/i })).toHaveTextContent('1')
+    expect(screen.getByRole('button', { name: /8 su 8/ })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('lists the 7/8 stocks apart with the criterion they miss', () => {
+  it('switches to the stocks that miss one criterion and names it', () => {
     render(<ScannerTable rows={rows} />)
-    const near = screen.getByRole('region', { name: /quasi/i })
-    expect(within(near).getByText('Near miss')).toBeInTheDocument()
-    expect(within(near).getByText(TREND_TEMPLATE_LABELS[7])).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
+    expect(hrefs()).toEqual(['/stock/NEAR'])
+    expect(within(rowOf('NEAR')).getByText(new RegExp(TREND_TEMPLATE_LABELS[7]))).toBeInTheDocument()
   })
 
-  it('filters to bases forming or breaking out', () => {
+  it('says what to do when nothing passes', () => {
+    render(<ScannerTable rows={[row({ symbol: 'NEAR', passedCount: 7, missing: 'x' })]} />)
+    expect(screen.getByText(/nessun titolo supera tutti i criteri/i)).toBeInTheDocument()
+  })
+})
+
+describe('what to do, at what price, until when', () => {
+  it('says "Si può comprare" with the buy range, the stop and the profit zone for a confirmed breakout', () => {
     render(<ScannerTable rows={rows} />)
-    fireEvent.click(screen.getByRole('checkbox', { name: /solo vcp/i }))
-    const section = screen.getByRole('region', { name: /8 criteri su 8/i })
-    expect(within(section).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(['/stock/TOP'])
+    const r = within(rowOf('BRK'))
+    expect(r.getByText('Si può comprare')).toBeInTheDocument()
+    expect(r.getByText('tra 50,00 e 52,50')).toBeInTheDocument()
+    expect(r.getByText('46,00')).toBeInTheDocument()
+    expect(r.getByText(/perdita massima circa 9,1%/i)).toBeInTheDocument()
+    expect(r.getByText('verso 60,72–63,25')).toBeInTheDocument()
+    expect(r.getByText(/\+80%/)).toBeInTheDocument()
   })
 
-  it('shows an empty message when no stock passes', () => {
-    render(<ScannerTable rows={[]} />)
-    expect(screen.getAllByText(/nessun titolo/i).length).toBeGreaterThan(0)
+  it('says to wait while the price is below the pivot, and only buy above it', () => {
+    render(<ScannerTable rows={rows} />)
+    const r = within(rowOf('TOP'))
+    expect(r.getByText('Da tenere d’occhio')).toBeInTheDocument()
+    expect(r.getByText('sopra 105,00')).toBeInTheDocument()
+    expect(r.getByText('96,60')).toBeInTheDocument()
   })
 
-  it('writes a dash for a missing RS or pivot', () => {
+  it('says to wait for confirmation when the breakout has weak volume', () => {
+    render(<ScannerTable rows={[row({ symbol: 'WEAK', vcpStatus: 'breakout', pivot: 30, price: 30.3, pivotDistancePct: 1, volumeRatio: 0.9 })]} />)
+    const r = within(rowOf('WEAK'))
+    expect(r.getByText('Aspetta conferma')).toBeInTheDocument()
+    expect(r.getByText(/pochi scambi/i)).toBeInTheDocument()
+  })
+
+  it('gives no prices when there is nothing to buy', () => {
+    render(<ScannerTable rows={rows} />)
+    const r = within(rowOf('LOW'))
+    expect(r.getByText('Nessun punto d’ingresso')).toBeInTheDocument()
+    expect(r.queryByText(/^tra /)).not.toBeInTheDocument()
+    expect(r.queryByText('Vendi sotto')).not.toBeInTheDocument()
+  })
+
+  it.each([
+    ['extended', 'Troppo tardi', /inseguire/i],
+    ['failed', 'Da evitare', /setup è saltato/i],
+  ] as const)('explains a %s base in plain words', (vcpStatus, label, text) => {
+    render(<ScannerTable rows={[row({ symbol: 'X', vcpStatus, pivot: 10, price: 12, pivotDistancePct: 20 })]} />)
+    const r = within(rowOf('X'))
+    expect(r.getByText(label)).toBeInTheDocument()
+    expect(r.getByText(text)).toBeInTheDocument()
+  })
+
+  it('tells how to exit and what to do if it rises', () => {
+    render(<ScannerTable rows={rows} />)
+    expect(screen.getByText(/vendi se il prezzo chiude sotto lo stop/i)).toBeInTheDocument()
+    expect(screen.getByText(/non è consulenza finanziaria/i)).toBeInTheDocument()
+  })
+
+  it('names the stocks to buy above the list, with their prices', () => {
+    render(<ScannerTable rows={rows} />)
+    const note = screen.getByText(/si può comprare ora secondo il metodo/i).closest('p')!
+    expect(within(note).getByRole('link', { name: 'BRK' })).toHaveAttribute('href', '/stock/BRK')
+    expect(note).toHaveTextContent('tra 50,00 e 52,50')
+    expect(note).toHaveTextContent('stop 46,00')
+    expect(within(note).queryByRole('link', { name: 'TOP' })).not.toBeInTheDocument()
+  })
+
+  it('says so when none can be bought now', () => {
+    render(<ScannerTable rows={[row({ symbol: 'LOW' })]} />)
+    expect(screen.getByText(/nessun titolo da comprare adesso/i)).toBeInTheDocument()
+  })
+})
+
+describe('sortable columns', () => {
+  it('sorts by symbol, and a second click reverses it', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Titolo' }))
+    expect(hrefs()).toEqual(['/stock/BRK', '/stock/LOW', '/stock/TOP'])
+    fireEvent.click(screen.getByRole('button', { name: 'Titolo' }))
+    expect(hrefs()).toEqual(['/stock/TOP', '/stock/LOW', '/stock/BRK'])
+  })
+
+  it('reverses the default RS order to lowest first', () => {
+    render(<ScannerTable rows={rows} />)
+    const rsHeader = screen.getByRole('button', { name: 'Forza relativa' })
+    expect(rsHeader).toHaveAttribute('data-sort', 'desc')
+    fireEvent.click(rsHeader)
+    expect(hrefs()).toEqual(['/stock/LOW', '/stock/BRK', '/stock/TOP'])
+    expect(rsHeader).toHaveAttribute('data-sort', 'asc')
+  })
+
+  it('sorts by what to do: buy first, then watch, then the rest', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cosa fare' }))
+    expect(hrefs()).toEqual(['/stock/BRK', '/stock/TOP', '/stock/LOW'])
+  })
+
+  it('keeps stocks without a pivot last in either direction', () => {
+    render(<ScannerTable rows={rows} />)
+    const header = screen.getByRole('button', { name: 'Distanza dal pivot' })
+    fireEvent.click(header)
+    expect(hrefs()).toEqual(['/stock/BRK', '/stock/TOP', '/stock/LOW'])
+    fireEvent.click(header)
+    expect(hrefs()).toEqual(['/stock/TOP', '/stock/BRK', '/stock/LOW'])
+  })
+
+  it('also sorts from the select used on small screens', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.change(screen.getByRole('combobox', { name: /ordina/i }), { target: { value: 'pivot' } })
+    expect(hrefs()).toEqual(['/stock/BRK', '/stock/TOP', '/stock/LOW'])
+  })
+})
+
+describe('filters', () => {
+  it('filters by what to do', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Si può comprare' }))
+    expect(hrefs()).toEqual(['/stock/BRK'])
+    fireEvent.click(screen.getByRole('button', { name: 'Da tenere d’occhio' }))
+    expect(hrefs()).toEqual(['/stock/TOP'])
+    fireEvent.click(screen.getByRole('button', { name: 'Tutti' }))
+    expect(hrefs()).toHaveLength(3)
+  })
+
+  it('counts a filtered-out group fully on its switch', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Si può comprare' }))
+    expect(screen.getByRole('button', { name: /8 su 8/ })).toHaveTextContent('3')
+  })
+
+  it('searches by symbol or name, ignoring case', () => {
+    render(<ScannerTable rows={rows} />)
+    const search = screen.getByRole('searchbox', { name: /cerca/i })
+    fireEvent.change(search, { target: { value: 'break' } })
+    expect(hrefs()).toEqual(['/stock/BRK'])
+    fireEvent.change(search, { target: { value: 'top' } })
+    expect(hrefs()).toEqual(['/stock/TOP'])
+  })
+
+  it('filters by sector, listing only sectors that exist', () => {
+    render(<ScannerTable rows={rows} />)
+    const sector = screen.getByRole('combobox', { name: /settore/i })
+    expect(within(sector).getAllByRole('option').map((o) => o.textContent)).toEqual(['Tutti i settori', 'Energy', 'Tech'])
+    fireEvent.change(sector, { target: { value: 'Energy' } })
+    expect(hrefs()).toEqual(['/stock/LOW'])
+  })
+
+  it('filters by minimum RS', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.change(screen.getByRole('combobox', { name: /rs minima/i }), { target: { value: '80' } })
+    expect(hrefs()).toEqual(['/stock/TOP', '/stock/BRK'])
+  })
+
+  it('shows how many of the group are visible and resets every filter', () => {
+    render(<ScannerTable rows={rows} />)
+    expect(screen.queryByRole('button', { name: /azzera/i })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('searchbox', { name: /cerca/i }), { target: { value: 'top' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Si può comprare' }))
+    expect(screen.getByText('Mostro 0 di 3')).toBeInTheDocument()
+    expect(screen.getByText(/nessun titolo con questi filtri/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /azzera/i }))
+    expect(screen.getByText('Mostro 3 di 3')).toBeInTheDocument()
+    expect(screen.getByRole('searchbox', { name: /cerca/i })).toHaveValue('')
+  })
+
+  it('keeps filters when switching group', () => {
+    render(<ScannerTable rows={rows} />)
+    fireEvent.change(screen.getByRole('searchbox', { name: /cerca/i }), { target: { value: 'near' } })
+    expect(screen.getByText(/nessun titolo con questi filtri/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
+    expect(hrefs()).toEqual(['/stock/NEAR'])
+  })
+})
+
+describe('explanations', () => {
+  it('explains the groups, what to do, prices, relative strength and pivot distance with tooltips', () => {
+    render(<ScannerTable rows={rows} />)
+    for (const name of ['Spiegazione dei gruppi', 'Come leggere Cosa fare', 'Come leggere i prezzi', 'Cos’è la forza relativa', 'Cos’è la distanza dal pivot']) {
+      expect(screen.getByRole('button', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('spells out every verdict, each price line and the pivot scale', () => {
+    render(<ScannerTable rows={rows} />)
+    const tips = screen.getAllByRole('tooltip').map((t) => t.textContent ?? '').join(' ')
+    for (const word of ['Si può comprare', 'Aspetta conferma', 'Da tenere d’occhio', 'Troppo tardi', 'Da evitare', 'Compra', 'Vendi sotto', 'Profitto', 'zona verde']) expect(tips).toContain(word)
+  })
+
+  it('writes a dash for a missing RS', () => {
     render(<ScannerTable rows={[row({ symbol: 'NORS', rs: null })]} />)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })

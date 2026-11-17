@@ -11,7 +11,7 @@ const ITEMS = [
   { href: '/trimestrali', label: 'Trimestrali', short: 'Trimestrali' },
   { href: '/ipo', label: 'IPO', short: 'IPO' },
   { href: '/politici', label: 'Politici', short: 'Politici' },
-  { href: '/scanner', label: 'Scanner', short: 'Scanner' },
+  { href: '/scanner', label: 'Scanner', short: 'Scanner', badge: 'New' },
   { href: '/scopri', label: 'Scopri', short: 'Scopri', cta: true },
 ]
 
@@ -32,6 +32,7 @@ export function SiteNav() {
                 <Link href={item.href} className={`${styles.link} ${item.cta ? styles.cta : ''} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
                   <span className={styles.full}>{item.label}</span>
                   <span className={styles.short}>{item.short}</span>
+                  {'badge' in item && <span className={styles.badge}>{item.badge}</span>}
                 </Link>
               </li>
             )

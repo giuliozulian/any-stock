@@ -62,4 +62,39 @@ describe('ScannerButton', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
+
+  it('is disabled with the unlock time when a scan finished a moment ago, and never calls the API', () => {
+    render(<ScannerButton resumable={false} lockedLabel="Disponibile dalle 23:40" />)
+    expect(screen.getByRole('button', { name: /avvia scansione/i })).toBeDisabled()
+    expect(screen.getByText('Disponibile dalle 23:40')).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('shows the percentage while scanning', async () => {
+    let release: (v: unknown) => void = () => {}
+    ;(fetch as any)
+      .mockResolvedValueOnce(ok({ runId: 'r1', cursor: 125, total: 500, status: 'running', resumed: false }))
+      .mockImplementationOnce(() => new Promise((r) => { release = r }))
+    render(<ScannerButton resumable={false} />)
+    fireEvent.click(screen.getByRole('button', { name: /avvia scansione/i }))
+    expect(await screen.findByText('25%')).toBeInTheDocument()
+    expect(screen.getByText(/125 di 500/)).toBeInTheDocument()
+    release(ok({ cursor: 500, total: 500, status: 'done', advanced: true }))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
+
+  it('says when it is best to scan, and swaps it for the wait message while scanning', async () => {
+    let release: (v: unknown) => void = () => {}
+    ;(fetch as any)
+      .mockResolvedValueOnce(ok({ runId: 'r1', cursor: 0, total: 50, status: 'running', resumed: false }))
+      .mockImplementationOnce(() => new Promise((r) => { release = r }))
+    render(<ScannerButton resumable={false} />)
+    expect(screen.getByText(/dopo le 22:30/i)).toBeInTheDocument()
+    expect(screen.getByText(/una volta al giorno basta/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /avvia scansione/i }))
+    expect(await screen.findByText(/lascia aperta questa pagina/i)).toBeInTheDocument()
+    expect(screen.queryByText(/dopo le 22:30/i)).not.toBeInTheDocument()
+    release(ok({ cursor: 50, total: 50, status: 'done', advanced: true }))
+    await waitFor(() => expect(refresh).toHaveBeenCalled())
+  })
 })

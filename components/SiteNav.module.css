@@ -68,6 +68,17 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brass) 35%, transparent);
 }
 
+.badge {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  color: var(--brass);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .short {
   display: none;
 }
@@ -84,7 +95,7 @@
     left: 0;
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 2px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--surface) 92%, transparent);
@@ -105,6 +116,23 @@
 
   .ctaItem {
     margin-left: 0;
+  }
+
+  .link {
+    position: relative;
+  }
+
+  .badge {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 7px;
+    height: 7px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--brass);
+    font-size: 0;
   }
 
   .link.active {

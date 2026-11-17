@@ -1,4 +1,4 @@
-import { VCP_STATUS_LABEL, type Criterion, type Level, type TrendTemplate, type Vcp } from '@/lib/minervini'
+import { BREAKOUT_VOLUME, VCP_STATUS_LABEL, type Criterion, type Level, type TrendTemplate, type Vcp } from '@/lib/minervini'
 import type { MinerviniAnalysis } from '@/lib/minervini-data'
 import styles from './MinerviniPanel.module.css'
 
@@ -7,8 +7,6 @@ const price = (v: number) => v.toLocaleString('it-IT', { minimumFractionDigits: 
 
 // Within 1% of the threshold: still a miss, but worth watching.
 const NEAR_MISS = -0.01
-// Minervini wants breakout volume at least 40% above average.
-const BREAKOUT_VOLUME = 1.4
 const TIGHT_CONTRACTION = 0.1
 
 // The method asks three questions in order; a "no" stops the analysis there.

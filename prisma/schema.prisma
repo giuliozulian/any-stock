@@ -215,6 +215,7 @@ model ScanResult {
   pivotDistancePct Float?
   contractions     Json?
   volumeDryUp      Boolean?
+  volumeRatio      Float?
 
   @@unique([runId, symbol])
   @@index([runId, passedCount])

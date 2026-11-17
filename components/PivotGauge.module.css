@@ -1,0 +1,60 @@
+.gauge {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 7rem;
+  height: 20px;
+}
+
+.gauge::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--rule);
+}
+
+.zone {
+  position: absolute;
+  top: 50%;
+  height: 10px;
+  margin-top: -5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--gain-bright) 22%, transparent);
+}
+
+.tick {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: var(--muted);
+}
+
+.dot {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+  background: var(--bone);
+  box-sizing: content-box;
+}
+
+.dot[data-zone='buy'] {
+  background: var(--gain-bright);
+}
+
+.dot[data-zone='late'] {
+  background: var(--amber-bright);
+}
+
+.none {
+  color: var(--muted);
+}

@@ -9,7 +9,7 @@ interface Progress {
   total: number
 }
 
-export function ScannerButton({ resumable }: { resumable: boolean }) {
+export function ScannerButton({ resumable, lockedLabel = null }: { resumable: boolean; lockedLabel?: string | null }) {
   const router = useRouter()
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<Progress | null>(null)
@@ -54,19 +54,32 @@ export function ScannerButton({ resumable }: { resumable: boolean }) {
     }
   }
 
+  const locked = lockedLabel !== null && !canResume
+  const percent = progress && progress.total > 0 ? Math.round((progress.cursor / progress.total) * 100) : 0
+
   return (
     <div className={styles.wrap}>
-      <button type="button" onClick={run} disabled={running} className={styles.button}>
-        {running ? 'Scansione in corso…' : canResume ? 'Riprendi scansione' : 'Avvia scansione'}
-      </button>
-      {running && progress && (
-        <div className={styles.progress}>
-          <progress value={progress.cursor} max={progress.total} aria-label="Avanzamento scansione" />
-          <span>
-            {progress.cursor} di {progress.total}
-          </span>
-          <span className={styles.hint}>Lascia aperta questa pagina: servono 2–4 minuti.</span>
-        </div>
+      <div className={styles.row}>
+        <button type="button" onClick={run} disabled={running || locked} className={styles.button}>
+          {running ? 'Scansione in corso…' : canResume ? 'Riprendi scansione' : 'Avvia scansione'}
+        </button>
+        {locked && !running && <p className={styles.note}>{lockedLabel}</p>}
+        {running && progress && (
+          <div className={styles.progress}>
+            <progress value={progress.cursor} max={progress.total} aria-label="Avanzamento scansione" />
+            <span className={styles.percent}>{percent}%</span>
+            <span className={styles.note}>
+              {progress.cursor} di {progress.total} titoli
+            </span>
+          </div>
+        )}
+      </div>
+      {running ? (
+        <p className={styles.hint}>Lascia aperta questa pagina: servono 2–4 minuti.</p>
+      ) : (
+        <p className={styles.hint}>
+          Quando farla: a mercato USA chiuso, dopo le 22:30 ora italiana o la mattina dopo. A mercato aperto l’ultima barra è incompleta e il volume è parziale. I dati sono giornalieri: una volta al giorno basta.
+        </p>
       )}
       {error && (
         <p role="alert" className={styles.error}>

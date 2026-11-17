@@ -5,6 +5,8 @@ const SLOPE_BARS = 22
 const QUARTER = 63
 
 export const RS_MIN = 70
+// Minervini wants breakout volume at least 40% above average.
+export const BREAKOUT_VOLUME = 1.4
 // weightedReturn needs four full quarters plus the starting close.
 export const RS_MIN_BARS = QUARTER * 4 + 1
 
@@ -214,8 +216,8 @@ export interface Vcp {
 
 const VCP_WINDOW = 150
 const VCP_REVERSAL = 0.05
-const STOP_BELOW_PIVOT = 0.08
-const MAX_CHASE = 0.05
+export const STOP_BELOW_PIVOT = 0.08
+export const MAX_CHASE = 0.05
 
 const avg = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
 

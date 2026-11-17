@@ -1,41 +1,61 @@
 .wrap {
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 20px;
 }
 
 .button {
   font-family: var(--font-ui);
   font-size: 14px;
+  font-weight: 500;
   min-height: 44px;
-  padding: 0 20px;
+  padding: 0 22px;
   border-radius: 999px;
   border: 1px solid var(--brass);
-  background: transparent;
-  color: var(--brass);
+  background: var(--brass);
+  color: var(--ink);
   cursor: pointer;
 }
 
 .button:disabled {
-  opacity: 0.5;
-  cursor: wait;
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
 }
 
 .progress {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
-  margin-top: 12px;
-  font-size: 14px;
-  color: var(--muted);
+  gap: 12px;
+  min-width: 0;
 }
 
 .progress progress {
-  width: min(320px, 100%);
+  width: min(260px, 40vw);
   accent-color: var(--brass);
 }
 
+.percent {
+  font-family: var(--font-num);
+  font-size: 14px;
+}
+
+.note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .hint {
-  flex-basis: 100%;
+  max-width: 68ch;
+  margin: 8px 0 0;
+  color: var(--muted);
   font-size: 13px;
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
 import { RS_MIN_BARS, TREND_TEMPLATE_LABELS } from '@/lib/minervini'
-import { finalize, missingCriterion, scanSymbol, type FinalizeInput } from '@/lib/scanner'
+import { finalize, isEntrySetup, missingCriterion, scanSymbol, tradePlan, type FinalizeInput } from '@/lib/scanner'
 
 const DAY = 86_400_000
 const bar = (i: number, close: number): Bar => ({ t: i * DAY, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
@@ -27,6 +27,13 @@ describe('scanSymbol', () => {
     const r = scanSymbol(series(300, (i) => 300 - i * 0.5))!
     expect(r.criteria.some((c) => !c.ok)).toBe(true)
     expect(r.weightedReturn).toBeLessThan(0)
+  })
+
+  it('reports the volume of the last bar against its 50-bar average', () => {
+    const bars = series(300, (i) => 100 + i * 0.5)
+    expect(scanSymbol(bars)!.volumeRatio).toBeCloseTo(1, 6)
+    const loud = bars.map((b, i) => (i === 299 ? { ...b, volume: 2_000_000 } : b))
+    expect(scanSymbol(loud)!.volumeRatio).toBeGreaterThan(1.4)
   })
 
   it('reports the distance from the pivot when a base exists', () => {
@@ -84,5 +91,71 @@ describe('missingCriterion', () => {
 
   it('returns null when nothing is missing', () => {
     expect(missingCriterion(row('A', 0, 7).criteria, 90)).toBeNull()
+  })
+})
+
+describe('isEntrySetup', () => {
+  const ok = { passedCount: 8, vcpStatus: 'breakout' as const, volumeRatio: 1.6 }
+
+  it('is true for a stock passing all 8 criteria that is breaking out on strong volume', () => {
+    expect(isEntrySetup(ok)).toBe(true)
+    expect(isEntrySetup({ ...ok, volumeRatio: 1.4 })).toBe(true)
+  })
+
+  it('is false when any condition is missing', () => {
+    expect(isEntrySetup({ ...ok, passedCount: 7 })).toBe(false)
+    expect(isEntrySetup({ ...ok, vcpStatus: 'forming' })).toBe(false)
+    expect(isEntrySetup({ ...ok, vcpStatus: 'extended' })).toBe(false)
+    expect(isEntrySetup({ ...ok, vcpStatus: null })).toBe(false)
+    expect(isEntrySetup({ ...ok, volumeRatio: 1.39 })).toBe(false)
+    expect(isEntrySetup({ ...ok, volumeRatio: null })).toBe(false)
+  })
+})
+
+describe('tradePlan', () => {
+  const base = { passedCount: 8, vcpStatus: 'breakout' as const, volumeRatio: 1.8, price: 102, pivot: 100 }
+
+  it('says buy on a breakout with strong volume, with the buy range, the stop and the profit zone', () => {
+    const p = tradePlan(base)
+    expect(p.verdict).toBe('buy')
+    expect(p.buyFrom).toBeCloseTo(100, 6)
+    expect(p.buyTo).toBeCloseTo(105, 6)
+    expect(p.stop).toBeCloseTo(92, 6)
+    expect(p.riskPct).toBeCloseTo(((102 - 92) / 102) * 100, 6)
+    expect(p.profitFrom).toBeCloseTo(102 * 1.2, 6)
+    expect(p.profitTo).toBeCloseTo(102 * 1.25, 6)
+  })
+
+  it('asks for confirmation on a breakout with weak or unknown volume', () => {
+    expect(tradePlan({ ...base, volumeRatio: 1.1 }).verdict).toBe('confirm')
+    expect(tradePlan({ ...base, volumeRatio: null }).verdict).toBe('confirm')
+    expect(tradePlan({ ...base, volumeRatio: 1.1 }).stop).toBeCloseTo(92, 6)
+  })
+
+  it('says watch while the price is still below the pivot, measuring risk from the pivot', () => {
+    const p = tradePlan({ ...base, vcpStatus: 'forming', price: 96 })
+    expect(p.verdict).toBe('watch')
+    expect(p.buyFrom).toBeCloseTo(100, 6)
+    expect(p.stop).toBeCloseTo(92, 6)
+    expect(p.riskPct).toBeCloseTo(8, 6)
+    expect(p.profitFrom).toBeCloseTo(120, 6)
+  })
+
+  it('gives no prices when it is too late, the base is broken, or there is no base', () => {
+    for (const [vcpStatus, verdict] of [['extended', 'late'], ['failed', 'broken'], [null, 'no-base']] as const) {
+      const p = tradePlan({ ...base, vcpStatus, pivot: vcpStatus === null ? null : 100 })
+      expect(p.verdict).toBe(verdict)
+      expect([p.buyFrom, p.buyTo, p.stop, p.riskPct, p.profitFrom, p.profitTo]).toEqual([null, null, null, null, null, null])
+    }
+  })
+
+  it('says almost for a stock that misses a criterion, whatever its base looks like', () => {
+    const p = tradePlan({ ...base, passedCount: 7 })
+    expect(p.verdict).toBe('almost')
+    expect(p.buyFrom).toBeNull()
+  })
+
+  it('treats a base without a pivot as no base', () => {
+    expect(tradePlan({ ...base, vcpStatus: 'forming', pivot: null }).verdict).toBe('no-base')
   })
 })
