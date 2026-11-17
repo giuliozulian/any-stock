@@ -85,7 +85,7 @@ async function requestCrumb(): Promise<{ cookie: string; crumb: string }> {
 }
 
 // The custom screener requires a session cookie and a crumb. One pair is reused for an hour, and concurrent callers share the same request.
-function yahooCrumb(force = false): Promise<{ cookie: string; crumb: string }> {
+export function yahooCrumb(force = false): Promise<{ cookie: string; crumb: string }> {
   if (!force && crumbCache && Date.now() - crumbCache.at < CRUMB_TTL_MS) return crumbCache.auth
   const auth = requestCrumb()
   crumbCache = { at: Date.now(), auth }

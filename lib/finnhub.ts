@@ -215,11 +215,14 @@ export interface EarningsEvent {
   hour: string | null
   epsEstimate: number | null
   revenueEstimate: number | null
+  // Only filled once the company has reported.
+  epsActual: number | null
+  revenueActual: number | null
 }
 
 export async function getEarningsCalendar(from: string, to: string): Promise<EarningsEvent[]> {
   const data = await finnhubFetch<{
-    earningsCalendar?: Array<{ symbol: string; date: string; hour?: string; epsEstimate?: number | null; revenueEstimate?: number | null }>
+    earningsCalendar?: Array<{ symbol: string; date: string; hour?: string; epsEstimate?: number | null; revenueEstimate?: number | null; epsActual?: number | null; revenueActual?: number | null }>
   }>('/calendar/earnings', { from, to })
   return (data.earningsCalendar ?? []).map((e) => ({
     symbol: e.symbol,
@@ -227,6 +230,8 @@ export async function getEarningsCalendar(from: string, to: string): Promise<Ear
     hour: e.hour || null,
     epsEstimate: e.epsEstimate ?? null,
     revenueEstimate: e.revenueEstimate ?? null,
+    epsActual: e.epsActual ?? null,
+    revenueActual: e.revenueActual ?? null,
   }))
 }
 
