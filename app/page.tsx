@@ -4,27 +4,28 @@ import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
 import { currentUserId, flatten } from '@/lib/watchlist'
+import { QuickAdd } from '@/components/QuickAdd'
 import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
 import { AlertTargets } from '@/components/AlertTargets'
 import { CompareSelectionProvider, CompareCheckbox, CompareBar } from '@/components/CompareSelection'
-import { LiveChange, LiveCounts, LivePrice, LiveSince } from '@/components/live-quotes'
+import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
+import { WatchlistSummary } from '@/components/WatchlistSummary'
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
 import styles from './page.module.css'
 import { AuthGate } from '@/components/AuthGate'
 
-type SortKey = 'sym' | 'settore' | 'prezzo' | 'ext' | 'oggi' | 'da'
+type SortKey = 'sym' | 'settore' | 'prezzo' | 'oggi' | 'da'
 type Search = { ordina?: string; dir?: string }
 
-const COLUMNS: { key: SortKey; label: string; numeric: boolean }[] = [
-  { key: 'sym', label: 'Titolo', numeric: false },
-  { key: 'settore', label: 'Settore', numeric: false },
-  { key: 'prezzo', label: 'Prezzo', numeric: true },
-  { key: 'ext', label: 'Pre/Post-market', numeric: true },
-  { key: 'oggi', label: 'Ultima chiusura', numeric: true },
-  { key: 'da', label: 'Da quando lo segui', numeric: true },
+const COLUMNS: { key: SortKey; label: string }[] = [
+  { key: 'sym', label: 'Titolo' },
+  { key: 'settore', label: 'Settore' },
+  { key: 'prezzo', label: 'Prezzo' },
+  { key: 'oggi', label: 'Oggi' },
+  { key: 'da', label: 'Da quando lo segui' },
 ]
 
 async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> }) {
@@ -40,7 +41,13 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
   const stocks = entries.map(flatten)
 
   if (stocks.length === 0) {
-    return <p className={styles.empty}>Nessun titolo in watchlist. Scrivi un simbolo (per esempio AAPL) in alto a destra e premi Add.</p>
+    return (
+      <section className={styles.empty}>
+        <h2 className={styles.emptyTitle}>La watchlist è vuota</h2>
+        <p className={styles.emptyText}>Cerca un titolo qui sopra, oppure parti da uno di questi.</p>
+        <QuickAdd symbols={['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'AMZN', 'TSLA']} />
+      </section>
+    )
   }
 
   const firstRows = await prisma.priceSnapshot.findMany({
@@ -74,7 +81,6 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
       case 'sym': return r.stock.symbol
       case 'settore': return r.sector
       case 'prezzo': return r.latest?.price ?? null
-      case 'ext': return r.extPct
       case 'oggi': return r.latest?.changePct ?? null
       case 'da': return r.sincePct
       default: return null
@@ -97,46 +103,45 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
 
   return (
     <>
-      <div className={styles.kpis}>
-        <div className={styles.kpi}>
-          <span className={styles.kpiLabel}>{stocks.length === 1 ? 'Titolo' : 'Titoli'} seguiti</span>
-          <span className={styles.kpiValue}>{stocks.length}</span>
-        </div>
-        <LiveCounts
-          items={rows.map((r) => ({ symbol: r.stock.symbol, entryPrice: r.entryPrice, price: r.latest?.price ?? null }))}
-          labels={{ gainClass: styles.gain, lossClass: styles.loss, kpi: styles.kpi, kpiLabel: styles.kpiLabel, kpiValue: styles.kpiValue, kpiNote: styles.kpiNote }}
-        />
-      </div>
+      <WatchlistSummary
+        items={rows.map((r) => ({ symbol: r.stock.symbol, entryPrice: r.entryPrice, price: r.latest?.price ?? null }))}
+      />
       <section className={styles.board}>
-      <div className={styles.listHead}>
+      <nav className={styles.sortBar} aria-label="Ordina la watchlist">
+        <span className={styles.sortLabel}>Ordina per</span>
         {COLUMNS.map((c) => {
           const active = c.key === sortKey
           const nextDir = active && sortDir === 'desc' ? 'asc' : 'desc'
           const href = `/?${new URLSearchParams({ ordina: c.key, dir: c.key === 'sym' || c.key === 'settore' ? (active && sortDir === 'asc' ? 'desc' : 'asc') : nextDir })}`
           return (
-            <Link key={c.key} href={href} className={`${styles.sort} ${c.numeric ? styles.num : ''}`} data-active={active || undefined} aria-sort={active ? (sortDir === 'asc' ? 'ascending' : 'descending') : undefined}>
+            <Link key={c.key} href={href} className={styles.sort} data-active={active || undefined} aria-current={active ? 'true' : undefined}>
               {c.label}
-              <span className={styles.arrow} aria-hidden="true">{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+              {active && <span className={styles.arrow} aria-label={sortDir === 'asc' ? 'crescente' : 'decrescente'}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
             </Link>
           )
         })}
-        <span />
-        <span />
-      </div>
+      </nav>
       <CompareSelectionProvider>
       <ul className={styles.list}>
         {rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash
           return (
             <li key={stock.id} className={styles.row}>
-              <div className={styles.titleCell}>
-                <div className={styles.titleRow}>
-                  <CompareCheckbox symbol={stock.symbol} />
-                  <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
-                    {stock.symbol}
-                  </Link>
-                </div>
+              <div className={styles.id}>
+                <CompareCheckbox symbol={stock.symbol} />
+                <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
+                  {stock.symbol}
+                </Link>
                 <span className={styles.name}>{stock.name}</span>
+              </div>
+              <div className={styles.meta}>
+                {sector && <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span>}
+                {ext && extPct !== null && (
+                  <span className={styles.extCell}>
+                    {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)}{' '}
+                    <span className={tone(extPct)}>{signed(extPct)}</span>
+                  </span>
+                )}
                 <AlertTargets
                   symbol={stock.symbol}
                   entryPrice={stock.entryPrice}
@@ -145,34 +150,21 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
                   sellTriggered={stock.sellTriggeredAt !== null}
                 />
               </div>
-              <div className={styles.sectorCell}>{sector ? <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span> : <span className={styles.dash}>—</span>}</div>
-              <div className={`${styles.num} ${styles.priceCell}`} data-label="Prezzo">
-                <span className={styles.price}>{latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}</span>
+              <div className={styles.trend}>
+                <PriceChart snapshots={stock.snapshots} width={132} height={40} strokeWidth={1.5} compact />
               </div>
-              <div className={`${styles.num} ${styles.extCell} ${ext && extPct !== null ? '' : styles.extEmpty}`} data-label="Pre/Post-market">
-                {ext && extPct !== null ? (
-                  <>
-                    <span className={styles.extKind}>{ext.session === 'pre' ? 'Pre-market' : 'After-hours'}</span>
-                    <span className={styles.extPrice}>${ext.close.toFixed(2)}</span>
-                    <span className={`${styles.ext} ${tone(extPct)}`}>{signed(extPct)}</span>
-                  </>
-                ) : (
-                  <span className={styles.dash}>—</span>
-                )}
+              <div className={styles.priceCell}>
+                {latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}
               </div>
-              <div className={`${styles.num} ${styles.change} ${changeTone}`} data-label="Ultima chiusura">
-                {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : '—'}
-              </div>
-              <div className={`${styles.num} ${styles.sinceCell}`} data-label="Da quando lo segui">
-                <span className={styles.sincePct}>
+              <div className={styles.figures}>
+                <span className={styles.figure} title={`dal ${stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}`}>
+                  <span className={styles.figureLabel}>da quando lo segui</span>
                   <LiveSince symbol={stock.symbol} entryPrice={entryPrice} initialPrice={latest?.price ?? null} tones={tones} />
                 </span>
-                <time className={styles.sinceDate} dateTime={stock.addedAt.toISOString()}>
-                  dal {stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </time>
-              </div>
-              <div className={`${styles.num} ${styles.trend} ${changeTone}`}>
-                <PriceChart snapshots={stock.snapshots} width={88} height={22} strokeWidth={1.5} compact />
+                <span className={styles.figure}>
+                  {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : <span className={changeTone}>—</span>}
+                  <span className={styles.figureLabel}>oggi</span>
+                </span>
               </div>
               <div className={styles.actions}>
                 <RemoveStockButton symbol={stock.symbol} />
