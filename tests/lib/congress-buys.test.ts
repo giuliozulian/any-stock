@@ -29,3 +29,16 @@ describe('congress buys', () => {
     expect(clusters[0]).toMatchObject({ ticker: 'ACM', members: ['B', 'A'], totalHigh: 30000, avgPerfPct: 15, lastDisclosedAt: '2026-11-06' })
   })
 })
+
+describe('congress sellers and filing links', () => {
+  it('collects who sold each ticker, ignoring purchases', async () => {
+    const { parseCongressSellers } = await import('@/lib/congress')
+    const sellers = parseCongressSellers({ trades: [row('A', 'ACM', '2026-11-05', 'sale'), row('B', 'ACM', '2026-11-05', 'sale'), row('A', 'ACM', '2026-11-06', 'sale'), row('C', 'ACM', '2026-11-05')] })
+    expect([...(sellers.get('ACM') ?? [])]).toEqual(['A', 'B'])
+  })
+  it('keeps only https filing links', () => {
+    const buys = parseCongressBuys({ trades: [{ ...row('A', 'ACM', '2026-11-05'), filing_portal: 'https://disclosures-clerk.house.gov/x' }, { ...row('B', 'XYZ', '2026-11-05'), filing_portal: 'javascript:alert(1)' }] })
+    expect(buys.find((b) => b.member === 'A')?.portal).toBe('https://disclosures-clerk.house.gov/x')
+    expect(buys.find((b) => b.member === 'B')?.portal).toBeUndefined()
+  })
+})

@@ -119,12 +119,17 @@ export interface CongressBuy extends CongressTrade {
   ticker: string
   asset: string
   perfPct: number | null
+  // Official portal where the filing was published, so a trade can be checked at the source.
+  portal?: string
+  // Return of the S&P 500 since the purchase date; filled by withMarketReturn.
+  marketPct?: number | null
 }
 
 interface RawBuy extends RawTrade {
   ticker?: string
   asset?: string
   perf_pct?: number | null
+  filing_portal?: string
 }
 
 // Latest purchases across all tickers, newest disclosure first; only rows with a ticker (stocks/ETFs), identical rows counted once.
@@ -149,6 +154,7 @@ export function parseCongressBuys(json: unknown): CongressBuy[] {
       disclosedAt: t.disclosure_date ?? '',
       ticker: t.ticker,
       perfPct: typeof t.perf_pct === 'number' ? t.perf_pct : null,
+      portal: typeof t.filing_portal === 'string' && t.filing_portal.startsWith('https://') ? t.filing_portal : undefined,
       asset: (t.asset ?? t.ticker).replace(/\s*\([A-Z.\-]+\)\s*\[[A-Z]+\]\s*$/, ''),
     })
   }
@@ -172,6 +178,38 @@ export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
     return buys
   } catch {
     return recentBuys?.buys ?? null
+  }
+}
+
+// Who sold what: a purchase is a weaker signal when other members are selling the same stock.
+export function parseCongressSellers(json: unknown): Map<string, Set<string>> {
+  const raw = (json as { trades?: RawBuy[] } | null)?.trades
+  const out = new Map<string, Set<string>>()
+  if (!Array.isArray(raw)) return out
+  for (const t of raw) {
+    if (t.type !== 'sale' || !t.member || !t.ticker) continue
+    out.set(t.ticker, (out.get(t.ticker) ?? new Set<string>()).add(t.member))
+  }
+  return out
+}
+
+const sellersCache = sharedCache<{ at: number; sellers: Array<[string, string[]]> }>('congress-sellers')
+
+// Recent sales, cached like the purchases. Null when the source fails: the page then simply shows no sell information.
+export async function getRecentCongressSellers(): Promise<Map<string, Set<string>> | null> {
+  const toMap = (rows: Array<[string, string[]]>) => new Map(rows.map(([t, m]) => [t, new Set(m)]))
+  const hit = await sellersCache.get('all', RECENT_TTL_MS)
+  if (hit && Date.now() - hit.at < RECENT_TTL_MS) return toMap(hit.sellers)
+  try {
+    const headers: Record<string, string> = {}
+    if (process.env.BARGO_API_KEY) headers['X-Api-Key'] = process.env.BARGO_API_KEY
+    const res = await fetch('https://www.bargo.ai/free-apis/congress/v1/trades?type=sale&limit=300', { headers, signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return hit ? toMap(hit.sellers) : null
+    const sellers = parseCongressSellers(await res.json())
+    await sellersCache.set('all', { at: Date.now(), sellers: [...sellers].map(([t, m]) => [t, [...m]]) })
+    return sellers
+  } catch {
+    return hit ? toMap(hit.sellers) : null
   }
 }
 

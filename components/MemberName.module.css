@@ -74,3 +74,21 @@
   color: var(--muted);
   font-size: 11px;
 }
+
+.party {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  vertical-align: baseline;
+}
+
+.party[data-party='Democratico'] {
+  background: #5b9dff;
+}
+
+.party[data-party='Repubblicano'] {
+  background: #ff8a5b;
+}

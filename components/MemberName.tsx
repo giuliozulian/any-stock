@@ -14,6 +14,7 @@ export interface MemberCard {
   purchases: number
   tickers: number
   avgPerfPct: number | null
+  avgExcessPct?: number | null
 }
 
 const INFLUENCE_HELP: Record<string, string> = {
@@ -47,6 +48,7 @@ export function MemberName({ card }: { card: MemberCard }) {
   return (
     <span className={`${styles.wrap} ${open ? styles.open : ''}`} ref={ref}>
       <button type="button" className={styles.name} aria-describedby={id} aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        {card.party && <i className={styles.party} data-party={card.party} aria-hidden="true" />}
         {card.name}
       </button>
       <span role="tooltip" id={id} className={styles.bubble}>
@@ -68,11 +70,14 @@ export function MemberName({ card }: { card: MemberCard }) {
             <>
               ; rendimento medio {card.avgPerfPct >= 0 ? '+' : '−'}
               {Math.abs(card.avgPerfPct).toFixed(1)}% da quando ha comprato
+              {typeof card.avgExcessPct === 'number' && ` (${card.avgExcessPct >= 0 ? '+' : '−'}${Math.abs(card.avgExcessPct).toFixed(1)} punti rispetto all’S&P 500)`}
             </>
           )}
           .
         </span>
-        <span className={styles.disclaimer}>Profilo generato dall&apos;AI, verificalo. Per dare peso a un politico guarda il suo rendimento nel tempo, non il nome.</span>
+        <span className={styles.disclaimer}>
+          {card.party ? 'Partito, ruolo e commissioni vengono dall’elenco pubblico dei parlamentari in carica (congress-legislators).' : 'Non trovo questo politico nell’elenco dei parlamentari in carica: potrebbe aver lasciato il Congresso.'} Per dare peso a un politico guarda il suo rendimento nel tempo, non il nome.
+        </span>
       </span>
     </span>
   )

@@ -151,7 +151,7 @@ describe('sourceCandidates', () => {
     ])
     vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
     vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([
-      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', score: 8, reasons: [] },
+      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', avgExcessPct: null, sellers: 0, maxLagDays: 0, score: 8, reasons: [] },
     ])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
       m === 'us'
@@ -177,7 +177,7 @@ describe('sourceCandidates', () => {
     ])
     vi.spyOn(politicianProfiles, 'memberStats').mockReturnValue(new Map())
     vi.spyOn(congressSignals, 'rankSignals').mockReturnValue([
-      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', score: 8, reasons: [] },
+      { ticker: 'NVDA', asset: 'Nvidia Corp', members: ['Jane Doe'], trades: 1, totalLow: 50_000, totalHigh: 100_000, firstDate: '2026-11-01', lastDisclosedAt: '2026-11-05', avgPerfPct: null, timing: 'unknown', avgExcessPct: null, sellers: 0, maxLagDays: 0, score: 8, reasons: [] },
     ])
     vi.spyOn(market, 'getMarketBigMovers').mockImplementation(async (_t, m) =>
       m === 'us' ? [{ symbol: 'NVDA', name: 'Nvidia', changePct: 22, price: 500, marketCap: null, volume: null, relVolume: null, exchange: null }] : []
