@@ -102,33 +102,6 @@ export function LiveSince({ symbol, entryPrice, initialPrice, tones }: { symbol:
   return <span className={toneOf(pct, tones)}>{pct === null ? '—' : signedPct(pct)}</span>
 }
 
-export function LiveCounts({ items, labels }: { items: { symbol: string; entryPrice: number | null; price: number | null }[]; labels: { gainClass: string; lossClass: string; kpi: string; kpiLabel: string; kpiValue: string; kpiNote: string } }) {
-  const live = useLiveQuotes(items.map((i) => i.symbol))
-  let gaining = 0
-  let losing = 0
-  for (const i of items) {
-    const price = live[i.symbol]?.price ?? i.price
-    if (!i.entryPrice || i.entryPrice <= 0 || price === null) continue
-    const pct = ((price - i.entryPrice) / i.entryPrice) * 100
-    if (pct > 0) gaining++
-    else if (pct < 0) losing++
-  }
-  return (
-    <>
-      <div className={labels.kpi}>
-        <span className={labels.kpiLabel}>In guadagno</span>
-        <span className={`${labels.kpiValue} ${labels.gainClass}`}>{gaining}</span>
-        <span className={labels.kpiNote}>da quando li segui</span>
-      </div>
-      <div className={labels.kpi}>
-        <span className={labels.kpiLabel}>In perdita</span>
-        <span className={`${labels.kpiValue} ${labels.lossClass}`}>{losing}</span>
-        <span className={labels.kpiNote}>da quando li segui</span>
-      </div>
-    </>
-  )
-}
-
 export function LiveStamp({ symbol, fallback }: { symbol: string; fallback: string }) {
   const quote = useLiveQuote(symbol)
   if (!quote) return <>{fallback}</>

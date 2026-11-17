@@ -18,7 +18,7 @@ describe('AddStockForm', () => {
 
     render(<AddStockForm />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'aapl' } })
-    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi/i }))
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/stocks', expect.objectContaining({ method: 'POST' })))
   })
@@ -28,7 +28,7 @@ describe('AddStockForm', () => {
 
     render(<AddStockForm />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ZZZZZ' } })
-    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent('No symbol found for "ZZZZZ"')
   })
@@ -38,10 +38,10 @@ describe('AddStockForm', () => {
 
     render(<AddStockForm />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'AAPL' } })
-    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to add symbol/i)
-    expect(screen.getByRole('button', { name: /add/i })).not.toBeDisabled()
+    expect(await screen.findByRole('alert')).toHaveTextContent(/non riesco ad aggiungere/i)
+    expect(screen.getByRole('button', { name: /aggiungi/i })).not.toBeDisabled()
   })
 
   it('shows a generic error when the API returns a non-JSON error body', async () => {
@@ -49,9 +49,9 @@ describe('AddStockForm', () => {
 
     render(<AddStockForm />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'AAPL' } })
-    fireEvent.click(screen.getByRole('button', { name: /add/i }))
+    fireEvent.click(screen.getByRole('button', { name: /aggiungi/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to add symbol/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/non riesco ad aggiungere/i)
   })
 
   it('suggests matching symbols and opens the stock page when one is picked', async () => {

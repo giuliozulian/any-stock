@@ -77,7 +77,7 @@ export function AddStockForm() {
       })
 
       if (!res.ok) {
-        let message = 'Failed to add symbol'
+        let message = 'Non riesco ad aggiungere il titolo'
         try {
           const data = await res.json()
           message = data.error ?? message
@@ -91,7 +91,7 @@ export function AddStockForm() {
       setSymbol('')
       router.refresh()
     } catch {
-      setError('Failed to add symbol')
+      setError('Non riesco ad aggiungere il titolo')
     } finally {
       setSubmitting(false)
     }
@@ -120,7 +120,7 @@ export function AddStockForm() {
           className={styles.input}
         />
         <button type="submit" disabled={submitting || !symbol.trim()} className={styles.submit}>
-          {submitting ? 'Adding…' : 'Add'}
+          {submitting ? 'Aggiungo…' : 'Aggiungi'}
         </button>
       </form>
       {open && hasQuery && suggestions.length > 0 && (
