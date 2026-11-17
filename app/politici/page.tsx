@@ -10,6 +10,7 @@ import { prisma } from '@/lib/db'
 import { rankSignals, topMembers, type Timing } from '@/lib/congress-signals'
 import styles from '../section.module.css'
 import local from './politici.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 const short = (v: number) => (v >= 1_000_000 ? `${+(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${Math.round(v / 1_000)}k` : String(v))
 const day = (iso: string) => (iso ? new Date(`${iso}T00:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—')
@@ -238,7 +239,9 @@ export default function PoliticiPage() {
     <main className={styles.shell}>
       <h1 className={styles.title}>Cosa comprano i politici americani</h1>
       <Suspense fallback={<SectionSkeleton label="Carico le operazioni…" variant="list" />}>
-        <CongressBuys />
+        <AuthGate path="/politici">
+          <CongressBuys />
+        </AuthGate>
       </Suspense>
     </main>
   )

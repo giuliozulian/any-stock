@@ -1,3 +1,5 @@
+import type { FairValuePosition, FairValueResult } from '@/lib/fair-value'
+
 export interface SignalResult {
   label: string
   note: string
@@ -8,7 +10,14 @@ export interface Evaluation {
   shortTerm: SignalResult
   mediumTerm: SignalResult & { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number }
   longTerm: SignalResult
-  targetPrice: { value: number | null; upsidePct: number | null; note: string }
+  fairValue: {
+    position: FairValuePosition | null
+    reliable: boolean
+    low: number | null
+    high: number | null
+    median: number | null
+    note: string
+  }
   newsImpact: NewsImpactSummary
   details: {
     pegRatio: number | null
@@ -55,6 +64,8 @@ export interface EvaluateInput {
     epsGrowth5Y: number | null
   }
   earliestSnapshot: { price: number; timestamp: Date } | null
+  // Computed by the caller, so the page and the verdict show the same fair value.
+  fairValue: FairValueResult | null
   recentRecommendations: Array<{
     period: Date
     strongBuy: number
@@ -65,10 +76,6 @@ export interface EvaluateInput {
   }>
   newsAnalyses?: NewsAnalysisInput[]
   now?: Date
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value))
 }
 
 function evaluateSinceWatching(input: EvaluateInput): Evaluation['sinceWatching'] {
@@ -217,24 +224,22 @@ function evaluateLongTerm(input: EvaluateInput): SignalResult {
   return { label, note: `${pegNote}, ${roeNote}, ${debtNote}.` }
 }
 
-function evaluateTargetPrice(input: EvaluateInput): Evaluation['targetPrice'] {
-  const { epsGrowth5Y, epsTTM, price } = input.latestSnapshot
-  if (epsGrowth5Y === null || epsTTM === null || epsTTM <= 0 || epsGrowth5Y <= 0 || price <= 0) {
-    return {
-      value: null,
-      upsidePct: null,
-      note: 'Stima non disponibile: utili o crescita storica non adatti a questo calcolo.',
-    }
+const money = (v: number) => v.toFixed(2)
+
+function evaluateFairValue(input: EvaluateInput): Evaluation['fairValue'] {
+  const fv = input.fairValue
+  if (!fv) {
+    return { position: null, reliable: false, low: null, high: null, median: null, note: 'Valore equo non disponibile: servono almeno due modelli con dati adatti.' }
   }
-  const fairPE = clamp(epsGrowth5Y, 5, 40)
-  const value = fairPE * epsTTM
-  const upsidePct = ((value - price) / price) * 100
-  return {
-    value,
-    upsidePct,
-    note:
-      "Stima indicativa basata sulla crescita storica degli utili (formula P/E = crescita, stile 'Peter Lynch'). Non è una previsione di mercato né un consiglio di investimento.",
-  }
+  const range = `${money(fv.low)}–${money(fv.high)}`
+  const note = !fv.reliable
+    ? `I modelli discordano (da ${money(fv.low)} a ${money(fv.high)}): stima poco affidabile, non pesa nel giudizio.`
+    : fv.position === 'below'
+      ? `Il prezzo è sotto l'intervallo di valore equo (${range}).`
+      : fv.position === 'above'
+        ? `Il prezzo è sopra l'intervallo di valore equo (${range}).`
+        : `Il prezzo è dentro l'intervallo di valore equo (${range}).`
+  return { position: fv.position, reliable: fv.reliable, low: fv.low, high: fv.high, median: fv.median, note }
 }
 
 // Contano solo notizie recenti, rilevanti e con confidenza alta: un errore del modello non può ribaltare il giudizio.
@@ -262,7 +267,7 @@ export function evaluateStock(input: EvaluateInput): Evaluation {
     shortTerm: evaluateShortTerm(input),
     mediumTerm: evaluateMediumTerm(input),
     longTerm: evaluateLongTerm(input),
-    targetPrice: evaluateTargetPrice(input),
+    fairValue: evaluateFairValue(input),
     newsImpact: evaluateNewsImpact(input),
     details: {
       pegRatio: input.latestSnapshot.pegRatio,

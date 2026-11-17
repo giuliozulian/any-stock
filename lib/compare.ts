@@ -3,19 +3,13 @@ import { evaluateStock, type Evaluation } from './evaluate'
 import { altmanZ, type AltmanResult } from './solidity'
 import { getAnnualFinancials, type YearFinancials } from './fundamentals'
 import { getMetrics } from './finnhub'
+import { buildFairValueInput, fairValue, type FairValueInput } from './fair-value'
 
 export interface ComparisonStock {
   stock: { symbol: string; name: string }
   latest: { price: number; changePct: number; marketCap: number | null } | null
   evaluation: Evaluation | null
-  fairValueInput: {
-    price: number
-    epsTTM: number | null
-    bookValuePerShare: number | null
-    cashFlowPerShare: number | null
-    epsGrowth5Y: number | null
-    dividendYield: number | null
-  } | null
+  fairValueInput: FairValueInput | null
   altman: AltmanResult | null
   financials: YearFinancials[]
   insight: { summary: string; keyPoints: string[]; risks: string[]; verdict: string; generatedAt: Date } | null
@@ -48,8 +42,11 @@ export async function loadComparisonStock(symbol: string): Promise<ComparisonSto
     getMetrics(symbol).catch(() => null),
   ])
 
+  const fairValueInput = latest && metrics ? buildFairValueInput(latest.price, metrics) : null
+
   const evaluation = latest
     ? evaluateStock({
+        fairValue: fairValueInput ? fairValue(fairValueInput) : null,
         latestSnapshot: {
           price: latest.price,
           week52High: latest.week52High,
@@ -82,17 +79,6 @@ export async function loadComparisonStock(symbol: string): Promise<ComparisonSto
       ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6)
       : null
 
-  const fairValueInput =
-    latest && metrics
-      ? {
-          price: latest.price,
-          epsTTM: metrics.epsTTM,
-          bookValuePerShare: metrics.bookValuePerShare ?? null,
-          cashFlowPerShare: metrics.cashFlowPerShare ?? null,
-          epsGrowth5Y: metrics.epsGrowth5Y,
-          dividendYield: metrics.dividendYield,
-        }
-      : null
 
   return {
     stock: { symbol: stock.symbol, name: stock.name },

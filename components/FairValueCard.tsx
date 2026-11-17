@@ -1,4 +1,6 @@
 import { fairValue, type FairValueInput } from '@/lib/fair-value'
+import { AAA_YIELD, DISCOUNT_RATE, VALUATION_TUNED_ON } from '@/lib/valuation-config'
+import { FairValueScale } from './FairValueScale'
 import type { AltmanResult } from '@/lib/solidity'
 import { InfoTip } from './InfoTip'
 import styles from './FairValueCard.module.css'
@@ -43,10 +45,12 @@ function AltmanBlock({ altman }: { altman: AltmanResult }) {
   )
 }
 
+const money = (v: number) => v.toFixed(2)
+
 export function FairValueCard({ input, altman = null, embedded = false }: { input: FairValueInput; altman?: AltmanResult | null; embedded?: boolean }) {
   const result = fairValue(input)
   if (!result && !altman) return null
-  const tone: Tone | null = result ? (Math.abs(result.premiumPct) < 5 ? 'flat' : result.premiumPct >= 0 ? 'loss' : 'gain') : null
+  const tone: Tone | null = result ? (!result.reliable || result.premiumPct === null || Math.abs(result.premiumPct) < 5 ? 'flat' : result.premiumPct >= 0 ? 'loss' : 'gain') : null
 
   return (
     <section className={`${styles.card} ${embedded ? styles.embedded : ''}`} aria-label="Valore equo e solidità">
@@ -54,47 +58,67 @@ export function FairValueCard({ input, altman = null, embedded = false }: { inpu
         {result && tone && (
           <div className={styles.metric}>
             <Tile
-              label="Valore equo medio"
-              value={result.average.toFixed(2)}
+              label="Valore equo"
+              value={`${money(result.low)}–${money(result.high)}`}
               tone={tone}
               tip={
                 <InfoTip
                   label="Come è calcolato il valore equo"
-                  source="Finnhub (utile per azione, patrimonio per azione, flusso di cassa per azione, crescita degli utili a 5 anni)"
-                  formula="media di: √(22,5 × utile × patrimonio per azione) · utile × (8,5 + 2 × crescita) × 4,4 ÷ 4,5 · utile × (crescita + dividendo) · flussi di cassa scontati al 9% su 10 anni. La crescita è limitata a 15%; i modelli senza dati validi sono esclusi"
+                  source="Finnhub (utile per azione, patrimonio per azione, flusso di cassa libero, crescita degli utili a 5 anni)"
+                  formula="Graham: √(22,5 × utile × patrimonio) · utile × (8,5 + 2 × crescita) × 4,4 ÷ rendimento AAA · Lynch: utile × (crescita + dividendo) · flussi di cassa liberi scontati a 10 anni"
                 >
                   <strong>Valore equo</strong>
-                  <span>Il prezzo che, secondo alcuni metodi classici, l’azione dovrebbe avere in base a utili, patrimonio e cassa generata.</span>
-                  <span>È una stima, non una previsione: i metodi sono prudenti e penalizzano le aziende con poca crescita passata o molto capitale intangibile.</span>
+                  <span>È un intervallo: il valore più basso e quello più alto che danno i metodi classici, applicati solo quando i dati sono adatti.</span>
+                  <span>Se i metodi danno risultati molto diversi (il più alto è più del doppio del più basso) la stima è poco affidabile e l’app non dice se il prezzo è alto o basso.</span>
                 </InfoTip>
               }
             />
             <p className={styles.caption}>
-              {tone === 'flat' ? (
-                <>
-                  Il prezzo attuale {input.price.toFixed(2)} è <strong>vicino</strong> al valore equo.
-                </>
+              {result.reliable && result.premiumPct !== null ? (
+                tone === 'flat' ? (
+                  <>
+                    Il prezzo attuale {input.price.toFixed(2)} è <strong>vicino al centro</strong> ({money(result.median)}).
+                  </>
+                ) : (
+                  <>
+                    Il prezzo attuale {input.price.toFixed(2)} è <strong>{Math.abs(result.premiumPct).toFixed(2)}% {result.premiumPct >= 0 ? 'sopra' : 'sotto'}</strong> il centro ({money(result.median)}).
+                  </>
+                )
               ) : (
                 <>
-                  Il prezzo attuale {input.price.toFixed(2)} è <strong>{Math.abs(result.premiumPct).toFixed(2)}% {result.premiumPct >= 0 ? 'sopra' : 'sotto'}</strong> il valore equo.
+                  <strong>Stima poco affidabile:</strong> i modelli discordano. Centro {money(result.median)}, ma nessun giudizio sopra o sotto.
                 </>
               )}
             </p>
+            <FairValueScale models={result.models} low={result.low} high={result.high} price={input.price} reliable={result.reliable} />
           </div>
         )}
         {altman && <AltmanBlock altman={altman} />}
       </div>
       {result && (
         <details className={styles.details}>
-          <summary>Come si arriva a {result.average.toFixed(2)}</summary>
+          <summary>Come si arriva a questa stima</summary>
           <ul className={styles.models}>
             {result.models.map((m) => (
               <li key={m.key}>
                 <span>{m.label}</span>
-                <span>${m.value.toFixed(2)}</span>
+                <span>${money(m.value)}</span>
               </li>
             ))}
           </ul>
+          {result.excluded.length > 0 && (
+            <ul className={styles.excluded}>
+              {result.excluded.map((m) => (
+                <li key={m.key}>
+                  <span>{m.label}</span>
+                  <span>{m.reason}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className={styles.params}>
+            Parametri tarati il {VALUATION_TUNED_ON}: sconto {Math.round(DISCOUNT_RATE * 100)}%, rendimento AAA {AAA_YIELD}%.
+          </p>
         </details>
       )}
     </section>

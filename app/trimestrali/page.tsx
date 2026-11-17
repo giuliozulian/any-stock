@@ -7,6 +7,7 @@ import { getEarningsCalendar, type EarningsEvent } from '@/lib/finnhub'
 import table from '../movimenti/movimenti.module.css'
 import local from './trimestrali.module.css'
 import styles from '../section.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 type Search = { giorni?: string; vista?: string; ordina?: string; dir?: string }
 type SortKey = 'date' | 'sym' | 'eps' | 'rev'
@@ -182,7 +183,9 @@ export default function EarningsPage({ searchParams }: { searchParams: Promise<S
     <main className={styles.shell}>
       <h1 className={styles.title}>Calendario trimestrali</h1>
       <Suspense fallback={<SectionSkeleton label="Carico le trimestrali…" variant="list" />}>
-        <EarningsCalendar searchParams={searchParams} />
+        <AuthGate path="/trimestrali">
+          <EarningsCalendar searchParams={searchParams} />
+        </AuthGate>
       </Suspense>
     </main>
   )

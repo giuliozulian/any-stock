@@ -12,6 +12,7 @@ import { LiveChange, LiveCounts, LivePrice, LiveSince } from '@/components/live-
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
 import styles from './page.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 type SortKey = 'sym' | 'settore' | 'prezzo' | 'ext' | 'oggi' | 'da'
 type Search = { ordina?: string; dir?: string }
@@ -194,7 +195,9 @@ export default function WatchlistPage({ searchParams }: { searchParams: Promise<
         <AddStockForm />
       </header>
       <Suspense fallback={<WatchlistSkeleton />}>
-        <WatchlistTable searchParams={searchParams} />
+        <AuthGate path="/">
+          <WatchlistTable searchParams={searchParams} />
+        </AuthGate>
       </Suspense>
     </main>
   )

@@ -1,3 +1,5 @@
+import { sharedCache } from '@/lib/shared-cache'
+
 export interface CongressTrade {
   member: string
   chamber: string
@@ -58,7 +60,7 @@ async function getFmpTrades(symbol: string, apiKey: string): Promise<CongressTra
 }
 
 const TTL_MS = 6 * 60 * 60 * 1000
-const cache = new Map<string, { at: number; trades: CongressTrade[] }>()
+const cache = sharedCache<{ at: number; trades: CongressTrade[] }>('congress')
 
 // Buys and sells only (exchanges and other types are not a clear signal); the feed repeats identical rows, so they are deduplicated.
 export function parseCongressTrades(json: unknown): CongressTrade[] {
@@ -90,14 +92,14 @@ export function parseCongressTrades(json: unknown): CongressTrade[] {
 // Returns null when the source is unavailable, so the page can say so instead of showing "no trades".
 export async function getCongressTrades(symbol: string): Promise<CongressTrade[] | null> {
   const key = symbol.toUpperCase()
-  const hit = cache.get(key)
+  const hit = await cache.get(key, TTL_MS)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.trades
 
   try {
     if (process.env.FMP_API_KEY) {
       const full = await getFmpTrades(key, process.env.FMP_API_KEY)
       if (full) {
-        cache.set(key, { at: Date.now(), trades: full })
+        await cache.set(key, { at: Date.now(), trades: full })
         return full
       }
     }
@@ -106,7 +108,7 @@ export async function getCongressTrades(symbol: string): Promise<CongressTrade[]
     const res = await fetch(`https://www.bargo.ai/free-apis/congress/v1/trades?ticker=${encodeURIComponent(key)}&limit=100`, { headers, signal: AbortSignal.timeout(6000) })
     if (!res.ok) return hit?.trades ?? null
     const trades = parseCongressTrades(await res.json())
-    cache.set(key, { at: Date.now(), trades })
+    await cache.set(key, { at: Date.now(), trades })
     return trades
   } catch {
     return hit?.trades ?? null
@@ -153,11 +155,12 @@ export function parseCongressBuys(json: unknown): CongressBuy[] {
   return buys.sort((a, b) => b.disclosedAt.localeCompare(a.disclosedAt) || b.date.localeCompare(a.date))
 }
 
-let recentBuys: { at: number; buys: CongressBuy[] } | null = null
+const recentCache = sharedCache<{ at: number; buys: CongressBuy[] }>('congress-recent')
 const RECENT_TTL_MS = 30 * 60 * 1000
 
 // Cached: the free API has a daily row budget, and the last good result is served if it is exhausted.
 export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
+  const recentBuys = await recentCache.get('all', RECENT_TTL_MS)
   if (recentBuys && Date.now() - recentBuys.at < RECENT_TTL_MS) return recentBuys.buys
   try {
     const headers: Record<string, string> = {}
@@ -165,7 +168,7 @@ export async function getRecentCongressBuys(): Promise<CongressBuy[] | null> {
     const res = await fetch('https://www.bargo.ai/free-apis/congress/v1/trades?type=purchase&limit=500', { headers, signal: AbortSignal.timeout(8000) })
     if (!res.ok) return recentBuys?.buys ?? null
     const buys = parseCongressBuys(await res.json())
-    recentBuys = { at: Date.now(), buys }
+    await recentCache.set('all', { at: Date.now(), buys })
     return buys
   } catch {
     return recentBuys?.buys ?? null

@@ -8,6 +8,7 @@ import { FairValueCard } from '@/components/FairValueCard'
 import { FinancialAnalysis } from '@/components/FinancialAnalysis'
 import { InsightPanel } from '@/components/InsightPanel'
 import styles from './page.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 function EmptyState() {
   return <p className={styles.empty}>Seleziona almeno 2 titoli dalla watchlist.</p>
@@ -83,7 +84,9 @@ export default function ComparePage({ searchParams }: { searchParams: Promise<{ 
       </Link>
       <h1 className={styles.title}>Confronto titoli</h1>
       <Suspense fallback={<SectionSkeleton label="Carico il confronto…" variant="cards" />}>
-        <Comparison searchParams={searchParams} />
+        <AuthGate path="/confronta">
+          <Comparison searchParams={searchParams} />
+        </AuthGate>
       </Suspense>
     </main>
   )

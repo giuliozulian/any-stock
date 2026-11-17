@@ -1,3 +1,5 @@
+import { sharedCache } from '@/lib/shared-cache'
+
 export interface YearFinancials {
   year: number
   revenue: number | null
@@ -27,7 +29,7 @@ interface ReportedFiling {
 }
 
 const TTL_MS = 12 * 60 * 60 * 1000
-const cache = new Map<string, { at: number; years: YearFinancials[] }>()
+const cache = sharedCache<{ at: number; years: YearFinancials[] }>('financials')
 
 function pick(items: ReportItem[] | undefined, concepts: string[]): number | null {
   if (!items) return null
@@ -71,7 +73,7 @@ export function parseAnnualFilings(filings: ReportedFiling[]): YearFinancials[] 
 // Returns an empty list when Finnhub is unavailable, so the section can degrade.
 export async function getAnnualFinancials(symbol: string): Promise<YearFinancials[]> {
   const key = symbol.toUpperCase()
-  const hit = cache.get(key)
+  const hit = await cache.get(key, TTL_MS)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.years
 
   try {
@@ -81,7 +83,7 @@ export async function getAnnualFinancials(symbol: string): Promise<YearFinancial
     if (!res.ok) return hit?.years ?? []
     const json = (await res.json()) as { data?: ReportedFiling[] }
     const years = parseAnnualFilings(json.data ?? [])
-    if (years.length > 0) cache.set(key, { at: Date.now(), years })
+    if (years.length > 0) await cache.set(key, { at: Date.now(), years })
     return years
   } catch {
     return hit?.years ?? []

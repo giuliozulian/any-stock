@@ -1,6 +1,7 @@
 import { getInsiderSentiment, getInsiderTransactions, type InsiderSentimentMonth } from './finnhub'
 import { getInsiderRoles } from './edgar-roles'
 import { daysAgoISO, toTrades, type InsiderTrade } from './insiders'
+import { sharedCache } from '@/lib/shared-cache'
 
 export interface InsiderData {
   trades: InsiderTrade[]
@@ -9,11 +10,11 @@ export interface InsiderData {
 
 const TTL_MS = 6 * 60 * 60 * 1000
 const WINDOW_DAYS = 3650
-const cache = new Map<string, { at: number; data: InsiderData | null }>()
+const cache = sharedCache<{ at: number; data: InsiderData | null }>('insiders')
 
 // Returns null when Finnhub is unavailable, so the page can degrade without breaking.
 export async function getInsiderData(symbol: string): Promise<InsiderData | null> {
-  const hit = cache.get(symbol)
+  const hit = await cache.get(symbol, TTL_MS)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.data
 
   const since = daysAgoISO(WINDOW_DAYS)
@@ -28,6 +29,6 @@ export async function getInsiderData(symbol: string): Promise<InsiderData | null
   } catch (err) {
     console.error(`Insider data failed for ${symbol}:`, err instanceof Error ? err.message : String(err))
   }
-  if (data) cache.set(symbol, { at: Date.now(), data })
+  if (data) await cache.set(symbol, { at: Date.now(), data })
   return data
 }

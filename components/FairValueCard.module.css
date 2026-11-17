@@ -123,3 +123,24 @@
 .embedded .caption {
   font-size: 13px;
 }
+
+.excluded {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.excluded li {
+  display: grid;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.params {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}

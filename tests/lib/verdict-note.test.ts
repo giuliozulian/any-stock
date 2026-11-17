@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { computeVerdictNoteHash, parseVerdictNote, type VerdictNoteInput } from '@/lib/verdict-note'
 import { evaluateStock } from '@/lib/evaluate'
+import { fairValue } from '@/lib/fair-value'
 
 const valid = { headline: 'Momentum forte ma conti da verificare', body: 'Primo.\n\nSecondo.', watchFor: ['Trimestrale'] }
 
@@ -27,6 +28,7 @@ describe('computeVerdictNoteHash', () => {
       debtToEquity: 0.5, netMargin: 10, dividendYield: null, payoutRatio: null, epsTTM: 4, epsGrowth5Y: 10,
     },
     earliestSnapshot: null,
+    fairValue: null,
     recentRecommendations: [],
   })
   const base: VerdictNoteInput = {
@@ -39,5 +41,24 @@ describe('computeVerdictNoteHash', () => {
   })
   it('changes when the news tone changes', () => {
     expect(computeVerdictNoteHash({ ...base, newsTone: 'negative' })).not.toBe(computeVerdictNoteHash(base))
+  })
+  const snapshot = {
+    price: 100, week52High: 120, week52Low: 80, relativePerf13W: 5, pegRatio: 1, roe: 20,
+    debtToEquity: 0.5, netMargin: 10, dividendYield: null, payoutRatio: null, epsTTM: 4, epsGrowth5Y: 10,
+  }
+  const withFairValue = (price: number) =>
+    evaluateStock({
+      latestSnapshot: snapshot,
+      earliestSnapshot: null,
+      recentRecommendations: [],
+      fairValue: fairValue({ price, epsTTM: 5, bookValuePerShare: 40, epsGrowth5Y: 10, dividendYield: 1, priceToFcf: 100 / 6 }), // the ratio is Finnhub's, fixed for the day: a price tick moves the cash flow numbers
+    })
+
+  it('changes when the fair value verdict changes, so notes written with the old target price are regenerated', () => {
+    expect(computeVerdictNoteHash({ ...base, evaluation: withFairValue(100) })).not.toBe(computeVerdictNoteHash(base))
+  })
+
+  it('ignores price ticks that only move the numbers of the fair value, so the LLM is not called on every refresh', () => {
+    expect(computeVerdictNoteHash({ ...base, evaluation: withFairValue(100) })).toBe(computeVerdictNoteHash({ ...base, evaluation: withFairValue(101.5) }))
   })
 })

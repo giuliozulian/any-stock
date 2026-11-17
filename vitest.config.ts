@@ -20,6 +20,10 @@ export default defineConfig({
       DATABASE_URL: process.env.DATABASE_URL ?? '',
       FINNHUB_API_KEY: process.env.FINNHUB_API_KEY ?? '',
       CRON_SECRET: process.env.CRON_SECRET ?? '',
+      // Existing route tests run without a login; the auth tests turn this off with vi.stubEnv. Only honoured outside production.
+      AUTH_DISABLED: '1',
+      // Module caches stay in memory in unit tests; tests/lib/shared-cache.test.ts turns the database level on.
+      SHARED_CACHE_DB: '0',
     },
   },
   resolve: {

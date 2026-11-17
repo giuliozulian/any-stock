@@ -1,3 +1,4 @@
+import type { FairValueResult } from './fair-value'
 import { createHash } from 'node:crypto'
 import { prisma } from './db'
 import { isLlmConfigured, requestLlmJson } from './llm-news'
@@ -52,9 +53,9 @@ export async function generateBullBear(input: VerdictNoteInput): Promise<BullBea
   return parseBullBear(result.json, result.model)
 }
 
-export async function refreshBullBearNote(stockId: string): Promise<'skipped' | 'unchanged' | 'updated' | 'failed'> {
+export async function refreshBullBearNote(stockId: string, fairValue: FairValueResult | null = null): Promise<'skipped' | 'unchanged' | 'updated' | 'failed'> {
   if (!isLlmConfigured()) return 'skipped'
-  const input = await loadVerdictInput(stockId)
+  const input = await loadVerdictInput(stockId, fairValue)
   if (!input) return 'skipped'
 
   const existing = await prisma.stockBullBearNote.findUnique({ where: { stockId }, select: { inputHash: true } })

@@ -67,7 +67,7 @@ describe('analyzeNewsWithLlm', () => {
 
 describe('evaluateNewsImpact', () => {
   const now = new Date('2026-11-12T12:00:00Z')
-  const base = { latestSnapshot: {} as never, earliestSnapshot: null, recentRecommendations: [], now }
+  const base = { latestSnapshot: {} as never, earliestSnapshot: null, fairValue: null, recentRecommendations: [], now }
   const a = (direction: string, over = {}) => ({ direction, intensity: 4, confidence: 'high', publishedAt: new Date('2026-11-11T12:00:00Z'), ...over })
 
   it('adds +1 when the net of strong recent news is >= 2', () => {

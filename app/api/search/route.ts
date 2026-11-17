@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { searchSymbol } from '@/lib/finnhub'
+import { requireUser } from '@/lib/auth'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET(request: Request) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
+  const limited = await rateLimit('light')
+  if (limited) return limited
   const q = new URL(request.url).searchParams.get('q')?.trim() ?? ''
   if (q.length < 1) return NextResponse.json({ results: [] })
   try {

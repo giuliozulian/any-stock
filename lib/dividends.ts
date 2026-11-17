@@ -1,3 +1,5 @@
+import { sharedCache } from '@/lib/shared-cache'
+
 export interface DividendPayment {
   t: number
   amount: number
@@ -9,7 +11,7 @@ export interface DividendHistory {
 }
 
 const TTL_MS = 6 * 60 * 60 * 1000
-const cache = new Map<string, { at: number; data: DividendHistory }>()
+const cache = sharedCache<{ at: number; data: DividendHistory }>('dividends')
 
 // Dividend payments from a Yahoo chart payload, oldest first. Null when the payload is not a chart; a chart without `events.dividends` means the stock pays nothing.
 export function parseDividends(json: unknown): DividendHistory | null {
@@ -31,7 +33,7 @@ export function parseDividends(json: unknown): DividendHistory | null {
 // Whole dividend history of a listing. Returns the stale copy (or null) when Yahoo fails; never throws.
 export async function getDividendHistory(symbol: string): Promise<DividendHistory | null> {
   const key = symbol.toUpperCase()
-  const hit = cache.get(key)
+  const hit = await cache.get(key, TTL_MS)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.data
 
   try {
@@ -42,7 +44,7 @@ export async function getDividendHistory(symbol: string): Promise<DividendHistor
     if (!res.ok) return hit?.data ?? null
     const data = parseDividends(await res.json())
     if (!data) return hit?.data ?? null
-    cache.set(key, { at: Date.now(), data })
+    await cache.set(key, { at: Date.now(), data })
     return data
   } catch {
     return hit?.data ?? null

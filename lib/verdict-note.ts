@@ -1,3 +1,4 @@
+import type { FairValueResult } from './fair-value'
 import { createHash } from 'node:crypto'
 import { prisma } from './db'
 import { evaluateStock, type Evaluation } from './evaluate'
@@ -21,11 +22,11 @@ export interface VerdictNoteResult {
   model: string
 }
 
-const PROMPT_VERSION = 1
+const PROMPT_VERSION = 2
 const MAX_WATCH = 3
 
 const SYSTEM_PROMPT = `Sei un analista azionario prudente che spiega a un investitore non esperto perché un titolo ha ricevuto certi segnali.
-Ricevi i dati già calcolati dall'app (momentum, giudizio degli analisti, solidità dei conti, prezzo obiettivo, impatto delle notizie). Spiega in parole semplici perché i segnali sono questi e cosa pesa di più.
+Ricevi i dati già calcolati dall'app (momentum, giudizio degli analisti, solidità dei conti, valore equo, impatto delle notizie). Spiega in parole semplici perché i segnali sono questi e cosa pesa di più.
 Usa SOLO i dati forniti: non inventare numeri o fatti, non fare previsioni di prezzo, non dare consigli di acquisto o vendita. Se un dato manca, dillo senza supporlo.
 Rispondi SOLO con un oggetto JSON con questi campi:
 - headline: una frase in italiano che riassume il quadro, massimo 110 caratteri
@@ -43,7 +44,7 @@ function buildUserPrompt(i: VerdictNoteInput): string {
     `Medio termine (analisti): ${e.mediumTerm.label}. ${e.mediumTerm.note}`,
     `Lungo termine (solidità dei conti): ${e.longTerm.label}. ${e.longTerm.note}`,
     `Conti: PEG ${num(e.details.pegRatio)}, ROE ${num(e.details.roe, 1)}%, debito/capitale ${num(e.details.debtToEquity)}, margine netto ${num(e.details.netMargin, 1)}%`,
-    `Prezzo obiettivo: ${e.targetPrice.note}`,
+    `Valore equo: ${e.fairValue.note}`,
     `Notizie: ${e.newsImpact.note}`,
     i.newsTone ? `Tono delle notizie e dei video: ${i.newsTone}` : null,
   ]
@@ -57,7 +58,9 @@ export function computeVerdictNoteHash(input: VerdictNoteInput): string {
     v: PROMPT_VERSION,
     symbol: input.stock.symbol,
     labels: [e.shortTerm.label, e.mediumTerm.label, e.longTerm.label],
-    notes: [e.shortTerm.note, e.mediumTerm.note, e.longTerm.note, e.targetPrice.note, e.newsImpact.note],
+    notes: [e.shortTerm.note, e.mediumTerm.note, e.longTerm.note, e.newsImpact.note],
+    // Only the verdict of the fair value, not its numbers: they follow every price tick and would regenerate the note on each refresh.
+    fairValue: [e.fairValue.position, e.fairValue.reliable],
     details: e.details,
     newsTone: input.newsTone,
   }
@@ -90,7 +93,7 @@ export async function generateVerdictNote(input: VerdictNoteInput): Promise<Verd
 export type VerdictNoteStatus = 'skipped' | 'unchanged' | 'updated' | 'failed'
 
 // Raccoglie i dati già calcolati dall'app su cui l'IA può commentare; condiviso dalle note IA del titolo.
-export async function loadVerdictInput(stockId: string): Promise<VerdictNoteInput | null> {
+export async function loadVerdictInput(stockId: string, fairValue: FairValueResult | null = null): Promise<VerdictNoteInput | null> {
   const stock = await prisma.stock.findUnique({
     where: { id: stockId },
     include: {
@@ -111,6 +114,7 @@ export async function loadVerdictInput(stockId: string): Promise<VerdictNoteInpu
   const evaluation = evaluateStock({
     latestSnapshot: latest,
     earliestSnapshot: earliest ? { price: earliest.price, timestamp: earliest.timestamp } : null,
+    fairValue,
     newsAnalyses: stock.news.flatMap((n) => (n.analysis ? [{ ...n.analysis, publishedAt: n.publishedAt }] : [])),
     recentRecommendations: stock.recommendations,
   })
@@ -130,10 +134,10 @@ export async function loadVerdictInput(stockId: string): Promise<VerdictNoteInpu
 export { buildUserPrompt as buildVerdictContext }
 
 // Spiega a parole il verdetto calcolato dall'app: l'IA non produce numeri, commenta quelli già presenti.
-export async function refreshVerdictNote(stockId: string): Promise<VerdictNoteStatus> {
+export async function refreshVerdictNote(stockId: string, fairValue: FairValueResult | null = null): Promise<VerdictNoteStatus> {
   if (!isLlmConfigured()) return 'skipped'
 
-  const input = await loadVerdictInput(stockId)
+  const input = await loadVerdictInput(stockId, fairValue)
   if (!input) return 'skipped'
 
   const existing = await prisma.stockVerdictNote.findUnique({ where: { stockId }, select: { inputHash: true } })

@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { safeEqual } from '@/lib/safe-equal'
 
 function ymd(d: Date): string {
   return d.toISOString().slice(0, 10).replace(/-/g, '')
@@ -8,7 +9,10 @@ function ymd(d: Date): string {
 const HOURS: Record<string, string> = { bmo: 'prima dell’apertura', amc: 'dopo la chiusura', dmh: 'durante la seduta' }
 
 // Calendar feed (.ics) with the next earnings date of every watched stock; also subscribable from iPhone/Google Calendar.
-export async function GET() {
+// A calendar app cannot log in, so ?token= must match CALENDAR_TOKEN; without a token configured the feed answers 401.
+export async function GET(request: Request) {
+  const required = process.env.CALENDAR_TOKEN
+  if (!required || !safeEqual(new URL(request.url).searchParams.get('token') ?? '', required)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
   await connection()
   const start = new Date()
   start.setUTCHours(0, 0, 0, 0)

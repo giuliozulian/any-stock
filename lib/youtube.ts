@@ -1,3 +1,5 @@
+import { sharedCache } from '@/lib/shared-cache'
+
 export interface RecentVideo {
   id: string
   title: string
@@ -8,7 +10,7 @@ export interface RecentVideo {
 
 const TTL_MS = 60 * 60 * 1000
 const WINDOW_DAYS = 7
-const cache = new Map<string, { at: number; videos: RecentVideo[] }>()
+const cache = sharedCache<{ at: number; videos: RecentVideo[] }>('youtube')
 
 export function isYoutubeConfigured(): boolean {
   return Boolean(process.env.YOUTUBE_API_KEY)
@@ -64,7 +66,7 @@ export async function getRecentVideos(symbol: string, name: string): Promise<Rec
   const key = process.env.YOUTUBE_API_KEY
   if (!key) return []
   const cacheKey = symbol.toUpperCase()
-  const hit = cache.get(cacheKey)
+  const hit = await cache.get(cacheKey, TTL_MS)
   if (hit && Date.now() - hit.at < TTL_MS) return hit.videos
 
   try {
@@ -77,7 +79,7 @@ export async function getRecentVideos(symbol: string, name: string): Promise<Rec
     const videos = [...(italian ?? []), ...(general ?? [])]
       .filter((v) => !seen.has(v.id) && seen.add(v.id))
       .slice(0, MAX_VIDEOS)
-    cache.set(cacheKey, { at: Date.now(), videos })
+    await cache.set(cacheKey, { at: Date.now(), videos })
     return videos
   } catch {
     return hit?.videos ?? []

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { requireUser } from '@/lib/auth'
 
 export async function PATCH(_request: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.toUpperCase()
 

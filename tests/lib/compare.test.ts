@@ -69,7 +69,7 @@ describe('loadComparisonStock', () => {
     const result = await loadComparisonStock('AAPL')
 
     expect(result?.stock.symbol).toBe('AAPL')
-    expect(result?.evaluation?.targetPrice.value).not.toBeNull()
+    expect(result?.evaluation?.fairValue.low).not.toBeNull()
     expect(result?.insight?.summary).toBe('Riassunto.')
     expect(result?.altman).not.toBeNull()
   })

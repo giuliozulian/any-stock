@@ -13,6 +13,7 @@ import { PARTIAL_UNREAD_SHARE, latestCompleteRun, runTiming, runningRun } from '
 import styles from '../section.module.css'
 import local from './page.module.css'
 import { ScannerSkeleton } from './ScannerSkeleton'
+import { AuthGate } from '@/components/AuthGate'
 
 const ROME = 'Europe/Rome'
 const day = (d: Date) => d.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric', timeZone: ROME })
@@ -71,7 +72,9 @@ export default function ScannerPage() {
       <h1 className={local.heading}>Scanner Minervini</h1>
       <p className={local.lead}>Titoli dell’S&amp;P 500 che passano il Trend Template di Minervini, con lo stato della base e la distanza dal pivot.</p>
       <Suspense fallback={<ScannerSkeleton />}>
-        <ScannerContent />
+        <AuthGate path="/scanner">
+          <ScannerContent />
+        </AuthGate>
       </Suspense>
     </main>
   )

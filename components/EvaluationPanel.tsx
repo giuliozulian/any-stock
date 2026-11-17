@@ -1,6 +1,7 @@
 import styles from './EvaluationPanel.module.css'
 import { InfoTip } from './InfoTip'
 import type { Evaluation } from '@/lib/evaluate'
+import type { FairValuePosition } from '@/lib/fair-value'
 
 const SIGNAL_INFO: Record<string, { what: string; how: string; source: string; formula: string }> = {
   short: {
@@ -40,11 +41,13 @@ const VERDICTS: Record<Tone, { title: string; text: string }> = {
   unknown: { title: 'Dati insufficienti', text: 'Non ci sono abbastanza dati per un giudizio complessivo.' },
 }
 
-function overallTone(tones: Tone[], upsidePct: number | null, newsAdjustment = 0): Tone {
+export function overallTone(tones: Tone[], position: FairValuePosition | null, newsAdjustment = 0): Tone {
   const known = tones.filter((t) => t !== 'unknown')
   if (known.length === 0) return 'unknown'
   let score = known.reduce((acc, t) => acc + (t === 'positive' ? 1 : t === 'negative' ? -1 : 0), 0)
-  if (upsidePct !== null) score += upsidePct >= 15 ? 1 : upsidePct <= -15 ? -1 : 0
+  // Only a reliable range moves the verdict: "unclear" and a missing fair value count for nothing.
+  if (position === 'below') score += 1
+  else if (position === 'above') score -= 1
   score += newsAdjustment
   return score >= 2 ? 'positive' : score <= -2 ? 'negative' : 'neutral'
 }
@@ -67,14 +70,14 @@ function AnalystBar({ m }: { m: { strongBuy: number; buy: number; hold: number; 
 }
 
 function buildView(evaluation: Evaluation) {
-  const { shortTerm, mediumTerm, longTerm, targetPrice } = evaluation
+  const { shortTerm, mediumTerm, longTerm, fairValue } = evaluation
   const signals = [
     { key: 'short', title: 'Breve termine', horizon: 'settimane', result: shortTerm },
     { key: 'medium', title: 'Medio termine', horizon: 'alcuni mesi', result: mediumTerm },
     { key: 'long', title: 'Lungo termine', horizon: 'anni', result: longTerm },
   ]
   const tones = signals.map((x) => toneOf(x.result.label))
-  const overall = overallTone(tones, targetPrice.upsidePct, evaluation.newsImpact.adjustment)
+  const overall = overallTone(tones, fairValue.position, evaluation.newsImpact.adjustment)
   return { signals, tones, overall, verdict: VERDICTS[overall] }
 }
 

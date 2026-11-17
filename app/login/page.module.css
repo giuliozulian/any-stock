@@ -1,0 +1,55 @@
+.shell {
+  position: relative;
+  min-height: calc(100dvh - 61px);
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: clamp(40px, 11vh, 112px) 32px 96px;
+  overflow: hidden;
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  width: min(380px, 100%);
+}
+
+.title {
+  margin: 0 0 12px;
+  font-size: 40px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+.lead {
+  max-width: 36ch;
+  margin: 0 0 32px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.config {
+  margin: 0 0 24px;
+  padding-left: 12px;
+  border-left: 2px solid var(--amber-bright);
+  color: var(--bone);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.config code {
+  font-family: var(--font-num);
+  font-size: 13px;
+  color: var(--amber-bright);
+}
+
+@media (max-width: 820px) {
+  .shell {
+    padding: 32px 14px 96px;
+  }
+
+  .title {
+    font-size: 32px;
+  }
+}

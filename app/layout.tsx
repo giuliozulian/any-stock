@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Suspense } from "react";
 import "./globals.css";
-import { SiteNav } from "@/components/SiteNav";
+import { SiteNavGate } from "@/components/SiteNavGate";
 
 const plex = Geist({
   variable: "--font-ui",
@@ -32,7 +32,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${plex.variable} ${mono.variable}`}>
       <body>
         <Suspense fallback={null}>
-          <SiteNav />
+          <SiteNavGate />
         </Suspense>
         {children}
       </body>

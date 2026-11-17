@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as notify from '@/lib/notify'
+import * as verdictNote from '@/lib/verdict-note'
+import * as bullBear from '@/lib/bull-bear-note'
 import { resetDb } from '../helpers/db'
 import { refreshStock, refreshAllStocks } from '@/lib/refresh'
 
@@ -45,6 +47,25 @@ describe('refreshStock', () => {
     expect(await prisma.newsItem.count({ where: { stockId: apple.id } })).toBe(1)
     expect(await prisma.newsItem.count({ where: { stockId: msft.id } })).toBe(1)
     expect(await prisma.newsItem.count({ where: { url: 'https://example.com/shared' } })).toBe(2)
+  })
+
+  it('hands the fair value computed from the live metrics to the notes that explain the verdict', async () => {
+    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149.5, previousClose: 148.9 })
+    vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'X', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 3000000 })
+    vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS, epsTTM: 5, epsGrowth5Y: 10, dividendYield: 1, bookValuePerShare: 40, priceToFcf: 150 / 6 })
+    vi.spyOn(finnhub, 'getCompanyNews').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getRecommendationTrend').mockResolvedValue([])
+    vi.spyOn(finnhub, 'getNextEarnings').mockResolvedValue(null)
+    const verdict = vi.spyOn(verdictNote, 'refreshVerdictNote').mockResolvedValue('skipped')
+    const bull = vi.spyOn(bullBear, 'refreshBullBearNote').mockResolvedValue('skipped')
+
+    await refreshStock('AAPL')
+
+    for (const spy of [verdict, bull]) {
+      expect(spy).toHaveBeenCalledTimes(1)
+      expect(spy.mock.calls[0][1]).toMatchObject({ models: expect.any(Array), reliable: expect.any(Boolean) })
+    }
   })
 
   it('fails without writing a snapshot when Finnhub has no price (0) for the symbol', async () => {

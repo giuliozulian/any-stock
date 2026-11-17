@@ -1,0 +1,64 @@
+.chart {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  width: min(64%, 820px);
+  height: auto;
+  pointer-events: none;
+}
+
+.reference {
+  stroke: var(--rule);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 7;
+}
+
+.price {
+  stroke: var(--brass);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw 1.8s cubic-bezier(0.22, 0.61, 0.36, 1) 0.2s forwards;
+}
+
+.end {
+  fill: var(--brass);
+  opacity: 0;
+  animation: arrive 0.4s ease-out 1.8s forwards;
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes arrive {
+  to {
+    opacity: 1;
+  }
+}
+
+/* The line and its end point are already in place for people who asked for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .price {
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+
+  .end {
+    opacity: 1;
+    animation: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .chart {
+    width: 118%;
+    right: -9%;
+    opacity: 0.55;
+  }
+}

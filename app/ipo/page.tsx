@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { connection } from 'next/server'
 import { getIpoCalendar, type IpoEvent } from '@/lib/finnhub'
 import styles from '../section.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 const dayFormat: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'long', timeZone: 'UTC' }
 
@@ -65,7 +66,9 @@ export default function IpoPage() {
     <main className={styles.shell}>
       <h1 className={styles.title}>Nuove quotazioni (IPO)</h1>
       <Suspense fallback={<SectionSkeleton label="Carico le IPO…" variant="list" />}>
-        <IpoList />
+        <AuthGate path="/ipo">
+          <IpoList />
+        </AuthGate>
       </Suspense>
     </main>
   )

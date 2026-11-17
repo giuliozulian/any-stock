@@ -23,7 +23,7 @@ describe('scanner API', () => {
   })
 
   it('POST /api/scanner starts a run sized on the universe', async () => {
-    const res = await start()
+    const res = await start(new Request('http://localhost/api/scanner', { method: 'POST' }))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body).toMatchObject({ cursor: 0, status: 'running', resumed: false })
@@ -32,8 +32,8 @@ describe('scanner API', () => {
   })
 
   it('POST /api/scanner resumes a running scan', async () => {
-    const first = await (await start()).json()
-    const again = await (await start()).json()
+    const first = await (await start(new Request('http://localhost/api/scanner', { method: 'POST' }))).json()
+    const again = await (await start(new Request('http://localhost/api/scanner', { method: 'POST' }))).json()
     expect(again.runId).toBe(first.runId)
     expect(again.resumed).toBe(true)
   })
@@ -41,7 +41,7 @@ describe('scanner API', () => {
   it('POST /api/scanner answers 429 with the retry time within an hour of a complete scan', async () => {
     const finishedAt = new Date()
     await prisma.scanRun.create({ data: { status: 'done', total: 5, cursor: 5, finishedAt } })
-    const res = await start()
+    const res = await start(new Request('http://localhost/api/scanner', { method: 'POST' }))
     expect(res.status).toBe(429)
     const body = await res.json()
     expect(new Date(body.retryAt).getTime()).toBe(finishedAt.getTime() + 60 * 60 * 1000)
@@ -49,7 +49,7 @@ describe('scanner API', () => {
   })
 
   it('POST /api/scanner/step processes the next block and reports the cursor', async () => {
-    const { runId } = await (await start()).json()
+    const { runId } = await (await start(new Request('http://localhost/api/scanner', { method: 'POST' }))).json()
     const res = await step(post('/api/scanner/step', { runId }))
     expect(res.status).toBe(200)
     expect(await res.json()).toMatchObject({ cursor: 25, status: 'running', advanced: true })

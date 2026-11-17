@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server'
 import { stepRun } from '@/lib/scanner-run'
+import { requireUser } from '@/lib/auth'
 
 export const maxDuration = 60
 
 export async function POST(request: Request) {
+  const auth = await requireUser(request, { allowCron: true })
+  if (!auth.ok) return auth.response
   let runId: unknown
   try {
     runId = ((await request.json()) as { runId?: unknown }).runId

@@ -82,21 +82,23 @@ export function missingCriterion(criteria: Criterion[], rs: number | null): stri
   return rs === null || rs < RS_MIN ? TREND_TEMPLATE_LABELS[7] : null
 }
 
-// Minervini's entry: all eight criteria, price breaking out of the base (up to 5% above the pivot) on strong volume.
-export function isEntrySetup(r: { passedCount: number; vcpStatus: VcpStatus | null; volumeRatio: number | null }): boolean {
-  return r.passedCount >= 8 && r.vcpStatus === 'breakout' && r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME
+// Minervini's entry: all eight criteria, price breaking out of a tight base (up to 5% above the pivot) on strong volume, after quiet trading in the base.
+export function isEntrySetup(r: { passedCount: number; vcpStatus: VcpStatus | null; volumeRatio: number | null; volumeDryUp?: boolean | null }): boolean {
+  return r.passedCount >= 8 && r.vcpStatus === 'breakout' && r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME && r.volumeDryUp !== false
 }
 
 // Minervini aims to bank gains around 20-25% and to cut losses at 7-8%.
 export const PROFIT_TARGET_MIN = 0.2
 export const PROFIT_TARGET_MAX = 0.25
 
-export type Verdict = 'buy' | 'confirm' | 'watch' | 'late' | 'broken' | 'no-base' | 'almost'
+export type Verdict = 'buy' | 'noisy' | 'confirm' | 'watch' | 'late' | 'broken' | 'no-base' | 'almost'
 
 export interface PlanInput {
   passedCount: number
   vcpStatus: VcpStatus | null
   volumeRatio: number | null
+  // False when the base had no volume dry-up or many heavy selling days. Unknown (undefined/null) is not held against the stock.
+  volumeDryUp?: boolean | null
   price: number
   pivot: number | null
 }
@@ -120,7 +122,8 @@ export function tradePlan(r: PlanInput): TradePlan {
   if (r.vcpStatus === 'failed') return { verdict: 'broken', ...NO_PRICES }
   if (r.vcpStatus === 'extended') return { verdict: 'late', ...NO_PRICES }
 
-  const verdict: Verdict = r.vcpStatus === 'forming' ? 'watch' : r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME ? 'buy' : 'confirm'
+  const strongVolume = r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME
+  const verdict: Verdict = r.vcpStatus === 'forming' ? 'watch' : !strongVolume ? 'confirm' : r.volumeDryUp === false ? 'noisy' : 'buy'
   // Already breaking out: measure from what it costs now. Still below the pivot: from the pivot, the price it would be bought at.
   const reference = verdict === 'watch' ? r.pivot : r.price
   // The stop follows the price paid (8% below it), so the loss is capped at 8% wherever in the buy range the order fills.
@@ -174,7 +177,7 @@ export interface PlanContext {
 export function withContext(plan: TradePlan, ctx: PlanContext): { plan: TradePlan; note: PlanNote } {
   if (plan.verdict === 'buy' && ctx.caution === 'session') return { plan: { ...plan, verdict: 'confirm' }, note: 'session' }
   if (plan.verdict === 'buy' && ctx.market === 'weak') return { plan: { ...plan, verdict: 'confirm' }, note: 'weak-market' }
-  const hasPrices = plan.verdict === 'buy' || plan.verdict === 'confirm' || plan.verdict === 'watch'
+  const hasPrices = plan.verdict === 'buy' || plan.verdict === 'noisy' || plan.verdict === 'confirm' || plan.verdict === 'watch'
   if (hasPrices && ctx.caution === 'stale') return { plan, note: 'stale' }
   return { plan, note: null }
 }

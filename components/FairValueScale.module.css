@@ -1,0 +1,49 @@
+.scale {
+  position: relative;
+  height: 28px;
+  margin: 14px 0 6px;
+}
+
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--rule);
+}
+
+.band {
+  position: absolute;
+  top: 50%;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 3px;
+  background: var(--rule);
+}
+
+.band[data-reliable='true'] {
+  background: color-mix(in srgb, var(--gain-bright) 24%, transparent);
+}
+
+.model {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.price {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--bone);
+}

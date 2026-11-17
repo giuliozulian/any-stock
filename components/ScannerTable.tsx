@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { Fragment, useState } from 'react'
 import { AlertBell } from '@/components/AlertBell'
 import { AlertSwitch } from '@/components/AlertSwitch'
+import { ChartChecklist } from '@/components/ChartChecklist'
+import { ScanChart } from '@/components/ScanChart'
 import { InfoTip } from '@/components/InfoTip'
 import { PivotGauge } from '@/components/PivotGauge'
 import { MARKET_TEXT, VERDICT, fmtNum as num, fmtPrice as price, sentence, type ScanRow } from '@/lib/scan-verdict'
@@ -169,6 +171,7 @@ function Plan({ plan }: { plan: TradePlan }) {
 
 function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactNode }) {
   const verdict = VERDICT[plan.verdict]
+  const [chartOpen, setChartOpen] = useState(false)
   return (
     <li className={styles.item} data-bell={bell ? '' : undefined}>
       <Link href={`/stock/${r.symbol}`} className={styles.row} data-verdict={plan.verdict}>
@@ -207,6 +210,10 @@ function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactN
         </span>
       </Link>
       {bell && <span className={styles.bell}>{bell}</span>}
+      <button type="button" className={styles.chartToggle} aria-expanded={chartOpen} onClick={() => setChartOpen((o) => !o)}>
+        {chartOpen ? 'Nascondi grafico' : 'Mostra grafico'}
+      </button>
+      {chartOpen && <ScanChart symbol={r.symbol} />}
     </li>
   )
 }
@@ -240,7 +247,7 @@ export function ScannerTable({
 
   const matchesAction = ({ plan }: Item) => {
     if (action === 'all') return true
-    return action === 'buy' ? plan.verdict === 'buy' : plan.verdict === 'watch' || plan.verdict === 'confirm'
+    return action === 'buy' ? plan.verdict === 'buy' : plan.verdict === 'watch' || plan.verdict === 'confirm' || plan.verdict === 'noisy'
   }
 
   const shown = inGroup
@@ -402,6 +409,7 @@ export function ScannerTable({
               />
             ))}
           </ul>
+          <ChartChecklist />
           <p className={styles.footnote}>
             Vendi se il prezzo chiude sotto lo stop: è ciò che limita la perdita. Se il titolo sale, alza lo stop e incassa un po’ alla volta. Indicazioni calcolate con le regole del metodo: non è consulenza finanziaria.
           </p>

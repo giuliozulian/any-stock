@@ -38,6 +38,7 @@ export interface FinnhubMetrics {
   epsGrowth5Y: number | null
   bookValuePerShare?: number | null
   cashFlowPerShare?: number | null
+  priceToFcf?: number | null
 }
 
 export interface FinnhubRecommendation {
@@ -129,6 +130,7 @@ export async function getMetrics(symbol: string): Promise<FinnhubMetrics> {
     epsGrowth5Y: data.metric.epsGrowth5Y ?? null,
     bookValuePerShare: data.metric.bookValuePerShareAnnual ?? null,
     cashFlowPerShare: data.metric.cashFlowPerShareTTM ?? null,
+    priceToFcf: data.metric.pfcfShareTTM ?? null,
   }
 }
 

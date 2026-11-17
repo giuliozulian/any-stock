@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { validateTargets } from '@/lib/alerts'
+import { requireUser } from '@/lib/auth'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.toUpperCase()
   const stock = await prisma.stock.findUnique({
@@ -21,6 +24,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ sym
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.toUpperCase()
 
@@ -62,6 +67,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ sy
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.toUpperCase()
   const stock = await prisma.stock.findUnique({ where: { symbol } })

@@ -236,3 +236,22 @@ model ScannerAlertSettings {
   knownFull   String[]
   updatedAt   DateTime @updatedAt
 }
+
+// Responses from external services (prices, filings, videos, LLM text), shared by every server instance and every user.
+model CacheEntry {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@index([updatedAt])
+}
+
+// Fixed-window request counters per user and bucket.
+model RateLimit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}

@@ -69,7 +69,18 @@ describe('finnhub client', () => {
       epsGrowth5Y: null,
       bookValuePerShare: null,
       cashFlowPerShare: null,
+      priceToFcf: null,
     })
+  })
+
+  it('getMetrics reads the price to free cash flow ratio from pfcfShareTTM', async () => {
+    mockFetchOnce({ metric: { pfcfShareTTM: 38.0533 } })
+    expect((await getMetrics('AAPL')).priceToFcf).toBeCloseTo(38.0533, 4)
+  })
+
+  it('getMetrics leaves priceToFcf null when Finnhub does not send it', async () => {
+    mockFetchOnce({ metric: { epsTTM: 5 } })
+    expect((await getMetrics('AAPL')).priceToFcf).toBeNull()
   })
 
   it('getMetrics maps fundamental and momentum fields when present', async () => {

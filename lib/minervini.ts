@@ -151,6 +151,7 @@ export function evaluateTrendTemplate(bars: Bar[], rsPercentile: number | null):
 interface Swing {
   value: number
   type: 'high' | 'low'
+  index: number
 }
 
 // Zigzag on closes: a swing is confirmed once price reverses by `reversal` from its extreme.
@@ -163,11 +164,11 @@ function swings(closes: number[], reversal: number): Swing[] {
     const c = closes[i]
     if (dir === null) {
       if (c >= closes[lo] * (1 + reversal)) {
-        out.push({ value: closes[lo], type: 'low' })
+        out.push({ value: closes[lo], type: 'low', index: lo })
         dir = 'up'
         hi = i
       } else if (c <= closes[hi] * (1 - reversal)) {
-        out.push({ value: closes[hi], type: 'high' })
+        out.push({ value: closes[hi], type: 'high', index: hi })
         dir = 'down'
         lo = i
       } else {
@@ -177,19 +178,19 @@ function swings(closes: number[], reversal: number): Swing[] {
     } else if (dir === 'up') {
       if (c > closes[hi]) hi = i
       else if (c <= closes[hi] * (1 - reversal)) {
-        out.push({ value: closes[hi], type: 'high' })
+        out.push({ value: closes[hi], type: 'high', index: hi })
         dir = 'down'
         lo = i
       }
     } else if (c < closes[lo]) lo = i
     else if (c >= closes[lo] * (1 + reversal)) {
-      out.push({ value: closes[lo], type: 'low' })
+      out.push({ value: closes[lo], type: 'low', index: lo })
       dir = 'up'
       hi = i
     }
   }
-  if (dir === 'up') out.push({ value: closes[hi], type: 'high' })
-  else if (dir === 'down') out.push({ value: closes[lo], type: 'low' })
+  if (dir === 'up') out.push({ value: closes[hi], type: 'high', index: hi })
+  else if (dir === 'down') out.push({ value: closes[lo], type: 'low', index: lo })
   return out
 }
 
@@ -214,6 +215,14 @@ export interface Vcp {
   volumeRatio: number | null
 }
 
+// A base is only a VCP if its last pullback is tight.
+export const MAX_LAST_CONTRACTION = 0.1
+// Heavy-volume down days in the last 20 sessions that make a base "distributed" rather than quiet.
+export const MAX_DISTRIBUTION_DAYS = 2
+const DISTRIBUTION_WINDOW = 20
+// A down day counts as heavy selling when its volume is 25% above the 50-day average.
+const DISTRIBUTION_VOLUME = 1.25
+
 const VCP_WINDOW = 150
 const VCP_REVERSAL = 0.05
 export const STOP_BELOW_PIVOT = 0.08
@@ -225,21 +234,29 @@ export function detectVcp(bars: Bar[]): Vcp {
   const recent = bars.slice(-VCP_WINDOW)
   const volumes = recent.map((b) => b.volume)
   const enoughVolume = volumes.length >= 50
-  const volumeDryUp = enoughVolume && avg(volumes.slice(-10)) < avg(volumes.slice(-50))
   const avg50 = enoughVolume ? avg(volumes.slice(-50)) : 0
+  // The last bar is left out of the base volume: a breakout day is loud by definition and must not hide a noisy base.
+  const priorVolumes = volumes.slice(0, -1)
+  const quiet = enoughVolume && avg(priorVolumes.slice(-10)) < avg50
+  let distribution = 0
+  for (let i = Math.max(1, recent.length - 1 - DISTRIBUTION_WINDOW); i < recent.length - 1; i++) {
+    if (recent[i].close < recent[i - 1].close && recent[i].volume > avg50 * DISTRIBUTION_VOLUME) distribution++
+  }
+  // Clean base volume: recent sessions quieter than the 50-day average and few heavy selling days.
+  const volumeDryUp = quiet && distribution <= MAX_DISTRIBUTION_DAYS
   const volumeRatio = avg50 > 0 ? volumes[volumes.length - 1] / avg50 : null
   const none: Vcp = { contractions: [], pivot: null, volumeDryUp, suggestedStop: null, lastLow: null, status: null, volumeRatio }
 
   const points = swings(recent.map((b) => b.close), VCP_REVERSAL)
   const depths: number[] = []
-  const highs: number[] = []
-  const lows: number[] = []
+  const highs: Swing[] = []
+  const lows: Swing[] = []
   points.forEach((p, k) => {
     const next = points[k + 1]
     if (p.type === 'high' && next?.type === 'low') {
       depths.push((p.value - next.value) / p.value)
-      highs.push(p.value)
-      lows.push(next.value)
+      highs.push(p)
+      lows.push(next)
     }
   })
 
@@ -248,9 +265,16 @@ export function detectVcp(bars: Bar[]): Vcp {
   while (start > 0 && depths[start] < depths[start - 1]) start--
   const contractions = start >= 0 ? depths.slice(start) : []
   if (contractions.length < 2) return none
+  // The last pullback must be tight: a wide, loose base is not a VCP.
+  if (contractions[contractions.length - 1] > MAX_LAST_CONTRACTION) return none
   // The pivot is the peak just before the last pullback, not a rally still in progress.
-  const pivot = highs[highs.length - 1]
-  const lastLow = lows[lows.length - 1]
+  const lastLow = lows[lows.length - 1].value
+  const lowIndex = lows[lows.length - 1].index
+  let pivot = highs[highs.length - 1].value
+  // Wicks above the pivot that closed back under it are failed tests: the real line to beat is their high.
+  for (let i = lowIndex + 1; i < recent.length - 1 && recent[i].close <= pivot; i++) {
+    if (recent[i].high > pivot) pivot = recent[i].high
+  }
   const price = recent[recent.length - 1].close
   const status: VcpStatus = price < lastLow ? 'failed' : price <= pivot ? 'forming' : price <= pivot * (1 + MAX_CHASE) ? 'breakout' : 'extended'
   // The stop is 8% below the price actually paid: the pivot while the price is still below it, the current price once it breaks out.

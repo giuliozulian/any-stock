@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { startRun } from '@/lib/scanner-run'
+import { requireUser } from '@/lib/auth'
 
-export async function POST() {
+export async function POST(request: Request) {
+  const auth = await requireUser(request, { allowCron: true })
+  if (!auth.ok) return auth.response
   try {
     const result = await startRun()
     if (result.kind === 'too-soon') {

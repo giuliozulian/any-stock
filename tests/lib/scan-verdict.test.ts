@@ -20,7 +20,7 @@ describe('formatting', () => {
 describe('VERDICT', () => {
   it('has a label and a unique rank for every verdict', () => {
     const ranks = Object.values(VERDICT).map((v) => v.rank)
-    expect(new Set(ranks).size).toBe(7)
+    expect(new Set(ranks).size).toBe(8)
     expect(VERDICT.buy.label).toBe('Si può comprare')
     expect(VERDICT.confirm.label).toBe('Aspetta conferma')
   })

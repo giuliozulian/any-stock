@@ -1,0 +1,98 @@
+.form {
+  display: grid;
+  gap: 18px;
+  width: min(380px, 100%);
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 6px;
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--bone);
+  font-family: var(--font-ui);
+  font-size: 16px;
+  transition: border-color 0.15s ease;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+  border-color: var(--brass);
+}
+
+.input[aria-invalid='true'] {
+  border-color: var(--loss-bright);
+}
+
+.passwordWrap {
+  position: relative;
+  display: block;
+}
+
+.passwordInput {
+  padding-right: 128px;
+}
+
+.toggle {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.toggle:hover {
+  color: var(--bone);
+}
+
+.error {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--loss-bright);
+  color: var(--bone);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.button {
+  min-height: 48px;
+  margin-top: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  background: var(--brass);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brass) 88%, white);
+}
+
+.button:disabled {
+  border-color: var(--rule);
+  background: transparent;
+  color: var(--muted);
+  cursor: default;
+}

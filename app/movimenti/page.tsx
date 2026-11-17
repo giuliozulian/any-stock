@@ -8,6 +8,7 @@ import { ensureMoveExplanations, getMoveExplanations } from '@/lib/move-explanat
 import { InfoTip } from '@/components/InfoTip'
 import styles from '../section.module.css'
 import table from './movimenti.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 function formatMoney(n: number, currency: string): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(1)} mld ${currency}`
@@ -193,7 +194,9 @@ export default function MoversPage({ searchParams }: { searchParams: Promise<Sea
     <main className={styles.shell}>
       <h1 className={styles.title}>Movimenti forti</h1>
       <Suspense fallback={<SectionSkeleton label="Carico i movimenti…" variant="list" />}>
-        <BigMovers searchParams={searchParams} />
+        <AuthGate path="/movimenti">
+          <BigMovers searchParams={searchParams} />
+        </AuthGate>
       </Suspense>
     </main>
   )

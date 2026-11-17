@@ -1,3 +1,5 @@
+import { sharedCache } from '@/lib/shared-cache'
+
 export interface PricePoint {
   t: number
   close: number
@@ -42,7 +44,7 @@ export interface FullHistory {
 
 const FULL_TTL_MS = 6 * 60 * 60 * 1000
 const DAY_MS = 86_400_000
-const fullCache = new Map<string, { at: number; data: FullHistory }>()
+const fullCache = sharedCache<{ at: number; data: FullHistory }>('history-full')
 const EMPTY_FULL: FullHistory = { points: [], sparseBefore: null }
 
 // Split-adjusted closes from a Yahoo chart payload, oldest first. Rows without a positive close are dropped.
@@ -83,7 +85,7 @@ async function fetchChart(key: string, query: string): Promise<PricePoint[] | nu
 // Whole listing history, for long-range performance. Returns the stale series (or an empty one) when Yahoo fails.
 export async function getFullPriceHistory(symbol: string): Promise<FullHistory> {
   const key = symbol.toUpperCase()
-  const hit = fullCache.get(key)
+  const hit = await fullCache.get(key, FULL_TTL_MS)
   if (hit && Date.now() - hit.at < FULL_TTL_MS) return hit.data
 
   try {
@@ -91,13 +93,13 @@ export async function getFullPriceHistory(symbol: string): Promise<FullHistory> 
     if (!all || all.length === 0) return hit?.data ?? EMPTY_FULL
     if (!isSparse(all)) {
       const data: FullHistory = { points: all, sparseBefore: null }
-      fullCache.set(key, { at: Date.now(), data })
+      await fullCache.set(key, { at: Date.now(), data })
       return data
     }
     const recent = await fetchChart(key, 'range=10y&interval=1d').catch(() => null)
     if (!recent || recent.length === 0 || isSparse(recent)) return hit?.data ?? mergeHistories(all, [])
     const data = mergeHistories(all, recent)
-    fullCache.set(key, { at: Date.now(), data })
+    await fullCache.set(key, { at: Date.now(), data })
     return data
   } catch {
     return hit?.data ?? EMPTY_FULL
@@ -158,6 +160,8 @@ export async function getIntradayHistory(symbol: string): Promise<Intraday> {
 
 export interface Bar {
   t: number
+  // Not every source has it; charts fall back to the close.
+  open?: number
   high: number
   low: number
   close: number
@@ -172,7 +176,7 @@ export function parseChartBars(json: unknown): Bar[] {
   const stamps = result?.timestamp
   const q = result?.indicators?.quote?.[0]
   if (!Array.isArray(stamps) || !q) return []
-  const { high, low, close, volume } = q as Record<string, unknown[] | undefined>
+  const { open, high, low, close, volume } = q as Record<string, unknown[] | undefined>
   const bars: Bar[] = []
   stamps.forEach((t, i) => {
     const h = high?.[i]
@@ -180,18 +184,21 @@ export function parseChartBars(json: unknown): Bar[] {
     const c = close?.[i]
     if (typeof t !== 'number' || !isPositive(h) || !isPositive(l) || !isPositive(c)) return
     const v = volume?.[i]
-    bars.push({ t: t * 1000, high: h, low: l, close: c, volume: typeof v === 'number' && Number.isFinite(v) ? v : 0 })
+    const o = open?.[i]
+    bars.push({ t: t * 1000, ...(isPositive(o) ? { open: o } : {}), high: h, low: l, close: c, volume: typeof v === 'number' && Number.isFinite(v) ? v : 0 })
   })
   return bars.sort((a, b) => a.t - b.t)
 }
 
 const BARS_TTL_MS = 6 * 60 * 60 * 1000
-const barsCache = new Map<string, { at: number; bars: Bar[] }>()
+const barsCache = sharedCache<{ at: number; bars: Bar[] }>('bars')
+// The scanner reads 500 symbols in one go and already stores its results: it keeps its bars in this instance only.
+const scanBarsCache = new Map<string, { at: number; bars: Bar[] }>()
 
 // Two years of daily bars (a 200-day average plus its one-month slope needs about 14 months). Falls back to the stale series on failure.
-export async function getDailyBars(symbol: string): Promise<Bar[]> {
+export async function getDailyBars(symbol: string, { shared = true }: { shared?: boolean } = {}): Promise<Bar[]> {
   const key = symbol.toUpperCase()
-  const hit = barsCache.get(key)
+  const hit = shared ? await barsCache.get(key, BARS_TTL_MS) : scanBarsCache.get(key)
   if (hit && Date.now() - hit.at < BARS_TTL_MS) return hit.bars
 
   try {
@@ -201,7 +208,10 @@ export async function getDailyBars(symbol: string): Promise<Bar[]> {
     })
     if (!res.ok) return hit?.bars ?? []
     const bars = parseChartBars(await res.json())
-    if (bars.length > 0) barsCache.set(key, { at: Date.now(), bars })
+    if (bars.length > 0) {
+      if (shared) await barsCache.set(key, { at: Date.now(), bars })
+      else scanBarsCache.set(key, { at: Date.now(), bars })
+    }
     return bars.length > 0 ? bars : (hit?.bars ?? [])
   } catch {
     return hit?.bars ?? []

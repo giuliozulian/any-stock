@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { logout } from '@/app/login/actions'
 import { Logo } from './Logo'
 import styles from './SiteNav.module.css'
 
@@ -15,7 +16,7 @@ const ITEMS = [
   { href: '/scopri', label: 'Scopri', short: 'Scopri', cta: true },
 ]
 
-export function SiteNav() {
+export function SiteNav({ signedIn }: { signedIn: boolean }) {
   const pathname = usePathname()
   return (
     <nav className={styles.bar} aria-label="Principale">
@@ -24,20 +25,29 @@ export function SiteNav() {
           <Logo />
           Any Stock
         </Link>
-        <ul className={styles.items}>
-          {ITEMS.map((item) => {
-            const active = item.href === '/' ? pathname === '/' || pathname.startsWith('/stock') : pathname.startsWith(item.href)
-            return (
-              <li key={item.href} className={item.cta ? styles.ctaItem : undefined}>
-                <Link href={item.href} className={`${styles.link} ${item.cta ? styles.cta : ''} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
-                  <span className={styles.full}>{item.label}</span>
-                  <span className={styles.short}>{item.short}</span>
-                  {'badge' in item && <span className={styles.badge}>{item.badge}</span>}
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
+        {signedIn && (
+          <>
+            <ul className={styles.items}>
+              {ITEMS.map((item) => {
+                const active = item.href === '/' ? pathname === '/' || pathname.startsWith('/stock') : pathname.startsWith(item.href)
+                return (
+                  <li key={item.href} className={'cta' in item && item.cta ? styles.ctaItem : undefined}>
+                    <Link href={item.href} className={`${styles.link} ${'cta' in item && item.cta ? styles.cta : ''} ${active ? styles.active : ''}`} aria-current={active ? 'page' : undefined}>
+                      <span className={styles.full}>{item.label}</span>
+                      <span className={styles.short}>{item.short}</span>
+                      {'badge' in item && <span className={styles.badge}>{item.badge}</span>}
+                    </Link>
+                  </li>
+                )
+              })}
+            </ul>
+            <form action={logout} className={styles.logoutForm}>
+              <button type="submit" className={styles.logout}>
+                Esci
+              </button>
+            </form>
+          </>
+        )}
       </div>
     </nav>
   )

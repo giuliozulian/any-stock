@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { evaluateStock, type EvaluateInput } from '@/lib/evaluate'
+import { fairValue } from '@/lib/fair-value'
 
 function baseInput(overrides: Partial<EvaluateInput['latestSnapshot']> = {}): EvaluateInput {
   return {
@@ -19,6 +20,7 @@ function baseInput(overrides: Partial<EvaluateInput['latestSnapshot']> = {}): Ev
       ...overrides,
     },
     earliestSnapshot: null,
+    fairValue: null,
     recentRecommendations: [],
   }
 }
@@ -215,51 +217,50 @@ describe('evaluateStock — longTerm', () => {
   })
 })
 
-describe('evaluateStock — targetPrice', () => {
-  it('is not available when epsGrowth5Y is null', () => {
-    const input = baseInput({ epsTTM: 6, epsGrowth5Y: null })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeNull()
-    expect(result.targetPrice.note).toMatch(/non disponibile/i)
+describe('evaluateStock — fairValue', () => {
+  const agreeing = (price: number) => fairValue({ price, epsTTM: 5, bookValuePerShare: 100, epsGrowth5Y: 25, dividendYield: 0, priceToFcf: price / 4.5 })
+
+  it('is not available when the fair value could not be computed, and says so', () => {
+    const result = evaluateStock(baseInput())
+    expect(result.fairValue).toEqual({ position: null, reliable: false, low: null, high: null, median: null, note: expect.stringMatching(/non disponibile/i) })
   })
 
-  it('is not available when trailing EPS is zero or negative', () => {
-    const input = baseInput({ epsTTM: -1, epsGrowth5Y: 15 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeNull()
+  it('reports a price inside a reliable range', () => {
+    const input = baseInput({ price: 150 })
+    input.fairValue = agreeing(150)
+    const { fairValue: fv } = evaluateStock(input)
+    expect(fv.position).toBe('inside')
+    expect(fv.reliable).toBe(true)
+    expect(fv.low).toBeCloseTo(106.066, 2)
+    expect(fv.high).toBeCloseTo(188.222, 2)
+    expect(fv.median).toBeCloseTo(135.252, 2)
+    expect(fv.note).toMatch(/dentro l.intervallo/)
+    expect(fv.note).toContain('106.07')
+    expect(fv.note).toContain('188.22')
   })
 
-  it('computes a value using the clamped growth rate as the fair P/E', () => {
-    const input = baseInput({ price: 100, epsTTM: 5, epsGrowth5Y: 12 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeCloseTo(60) // fairPE 12 * eps 5
-    expect(result.targetPrice.upsidePct).toBeCloseTo(-40)
-    expect(result.targetPrice.note).toMatch(/stima indicativa/i)
+  it('reports a price below or above a reliable range', () => {
+    const below = baseInput({ price: 90 })
+    below.fairValue = agreeing(90)
+    expect(evaluateStock(below).fairValue).toMatchObject({ position: 'below', note: expect.stringMatching(/sotto l.intervallo/) })
+    const above = baseInput({ price: 250 })
+    above.fairValue = agreeing(250)
+    expect(evaluateStock(above).fairValue).toMatchObject({ position: 'above', note: expect.stringMatching(/sopra l.intervallo/) })
   })
 
-  it('clamps an extreme growth rate to the formula\'s upper bound', () => {
-    const input = baseInput({ price: 100, epsTTM: 5, epsGrowth5Y: 500 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeCloseTo(200) // fairPE clamped to 40 * eps 5
+  it('does not give a position, and says it does not weigh in, when the models disagree', () => {
+    const input = baseInput()
+    input.fairValue = fairValue({ price: 100, epsTTM: 5, bookValuePerShare: 40, epsGrowth5Y: 10, dividendYield: 1, priceToFcf: 100 / 6 })
+    const { fairValue: fv } = evaluateStock(input)
+    expect(fv.position).toBe('unclear')
+    expect(fv.reliable).toBe(false)
+    expect(fv.note).toMatch(/modelli discordano/)
+    expect(fv.note).toContain('55.00')
+    expect(fv.note).toMatch(/non pesa nel giudizio/)
   })
 
-  it('is not available when EPS growth is negative, rather than clamping it to a fake floor', () => {
-    const input = baseInput({ price: 100, epsTTM: 5, epsGrowth5Y: -10 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeNull()
-    expect(result.targetPrice.note).toMatch(/non disponibile/i)
-  })
-
-  it('is not available when EPS growth is exactly zero', () => {
-    const input = baseInput({ price: 100, epsTTM: 5, epsGrowth5Y: 0 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeNull()
-  })
-
-  it('is not available when the current price is zero or negative', () => {
-    const input = baseInput({ price: 0, epsTTM: 5, epsGrowth5Y: 12 })
-    const result = evaluateStock(input)
-    expect(result.targetPrice.value).toBeNull()
+  it('no longer produces a Lynch target price', () => {
+    expect(evaluateStock(baseInput({ epsTTM: 5, epsGrowth5Y: 12 }))).not.toHaveProperty('targetPrice')
   })
 })
 

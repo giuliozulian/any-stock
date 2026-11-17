@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { setNewEntrants } from '@/lib/scan-alerts-db'
+import { requireUser } from '@/lib/auth'
 
 export async function PUT(request: Request) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   let newEntrants: unknown
   try {
     newEntrants = ((await request.json()) as { newEntrants?: unknown }).newEntrants

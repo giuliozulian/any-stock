@@ -77,7 +77,7 @@ export interface StepDeps {
 
 export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepResult> {
   const universe = deps.universe ?? loadUniverse()
-  const fetchBars = deps.fetchBars ?? getDailyBars
+  const fetchBars = deps.fetchBars ?? ((symbol: string) => getDailyBars(symbol, { shared: false }))
   const now = deps.now ?? Date.now
 
   const run = await prisma.scanRun.findUnique({ where: { id: runId } })

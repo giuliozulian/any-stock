@@ -6,6 +6,7 @@ import { refreshEarningsNote } from './earnings-note'
 import { refreshBullBearNote } from './bull-bear-note'
 import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from './finnhub'
 import { notifyTargets } from './alert-runner'
+import { buildFairValueInput, fairValue } from './fair-value'
 
 export interface RefreshResult {
   symbol: string
@@ -34,6 +35,9 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
 
     // Finnhub answers 0 for unknown or delisted symbols: do not store it as a price.
     if (!(quote.currentPrice > 0)) throw new Error(`Nessun prezzo disponibile per ${symbol}`)
+
+    // The notes explain the verdict, so they need the same fair value the page shows: the snapshot does not hold book value or price-to-FCF.
+    const fairValueResult = fairValue(buildFairValueInput(quote.currentPrice, metrics))
 
     await prisma.priceSnapshot.create({
       data: {
@@ -141,7 +145,7 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
     }
 
     try {
-      await refreshVerdictNote(stock.id)
+      await refreshVerdictNote(stock.id, fairValueResult)
     } catch (err) {
       logFailure('Verdict note', symbol, err)
     }
@@ -153,7 +157,7 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
     }
 
     try {
-      await refreshBullBearNote(stock.id)
+      await refreshBullBearNote(stock.id, fairValueResult)
     } catch (err) {
       logFailure('Bull/bear note', symbol, err)
     }

@@ -62,6 +62,43 @@ describe('detectVcp', () => {
   })
 })
 
+describe('detectVcp strictness', () => {
+  const base = path([80, 100, 75, 95, 83.6, 94, 88.36, 93])
+
+  it('rejects a base whose last pullback is wider than 10%', () => {
+    const loose = detectVcp(path([80, 100, 70, 95, 80, 98, 85, 90]))
+    expect(loose.contractions).toEqual([])
+    expect(loose.status).toBeNull()
+  })
+
+  it('moves the pivot up to a wick that was rejected, so a close just above the old peak is not a breakout', () => {
+    const bars = path([80, 100, 75, 95, 83.6, 94, 88.36, 96])
+    bars[bars.length - 5] = { ...bars[bars.length - 5], high: 97 }
+    const v = detectVcp(bars)
+    expect(v.pivot).toBeCloseTo(97, 4)
+    expect(v.status).toBe('forming')
+  })
+
+  it('keeps the close-based pivot when the rally already closed above it', () => {
+    const v = detectVcp(path([80, 100, 75, 95, 83.6, 94, 88.36, 96]))
+    expect(v.pivot).toBeCloseTo(94, 1)
+    expect(v.status).toBe('breakout')
+  })
+
+  it('ignores the breakout day when judging base volume', () => {
+    const quietBase = path([80, 100, 75, 95, 83.6, 94, 88.36, 96]).map((b, i, a) => ({ ...b, volume: i === a.length - 1 ? 3_000_000 : i >= a.length - 11 ? 300_000 : 1_000_000 }))
+    expect(detectVcp(quietBase).volumeDryUp).toBe(true)
+  })
+
+  it('denies a clean base when three or more heavy down days sit in the last 20 sessions', () => {
+    const n = base.length
+    const noisy = base.map((b, i) => ({ ...b, volume: i >= n - 10 ? 300_000 : i >= n - 20 && i < n - 17 ? 3_000_000 : 1_000_000 }))
+    expect(detectVcp(noisy).volumeDryUp).toBe(false)
+    const twoOnly = base.map((b, i) => ({ ...b, volume: i >= n - 10 ? 300_000 : i >= n - 20 && i < n - 18 ? 3_000_000 : 1_000_000 }))
+    expect(detectVcp(twoOnly).volumeDryUp).toBe(true)
+  })
+})
+
 describe('sma', () => {
   it('averages the last n values, optionally ending before an index', () => {
     expect(sma([1, 2, 3, 4, 5], 3)).toBe(4)

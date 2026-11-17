@@ -23,6 +23,7 @@ export interface ScanRow {
   pivot: number | null
   pivotDistancePct: number | null
   volumeRatio: number | null
+  volumeDryUp?: boolean | null
   missing: string | null
 }
 
@@ -31,12 +32,13 @@ export const fmtPrice = (v: number) => fmtNum(v, 2)
 
 export const VERDICT: Record<Verdict, { label: string; tone: 'buy' | 'gain' | 'warn' | 'loss' | 'muted'; rank: number }> = {
   buy: { label: 'Si può comprare', tone: 'buy', rank: 0 },
-  confirm: { label: 'Aspetta conferma', tone: 'warn', rank: 1 },
-  watch: { label: 'Da tenere d’occhio', tone: 'gain', rank: 2 },
-  'no-base': { label: 'Nessun punto d’ingresso', tone: 'muted', rank: 3 },
-  late: { label: 'Troppo tardi', tone: 'warn', rank: 4 },
-  almost: { label: 'Non ancora pronto', tone: 'muted', rank: 5 },
-  broken: { label: 'Da evitare', tone: 'loss', rank: 6 },
+  noisy: { label: 'Base poco pulita', tone: 'warn', rank: 1 },
+  confirm: { label: 'Aspetta conferma', tone: 'warn', rank: 2 },
+  watch: { label: 'Da tenere d’occhio', tone: 'gain', rank: 3 },
+  'no-base': { label: 'Nessun punto d’ingresso', tone: 'muted', rank: 4 },
+  late: { label: 'Troppo tardi', tone: 'warn', rank: 5 },
+  almost: { label: 'Non ancora pronto', tone: 'muted', rank: 6 },
+  broken: { label: 'Da evitare', tone: 'loss', rank: 7 },
 }
 
 export const MARKET_TEXT: Record<MarketLevel, (pct: number) => string> = {
@@ -52,6 +54,8 @@ export function sentence(r: ScanRow, plan: TradePlan, note: PlanNote): string {
   switch (plan.verdict) {
     case 'buy':
       return `Il prezzo ha superato il livello chiave (${pivot}) con scambi forti${r.volumeRatio !== null ? ` (+${Math.round((r.volumeRatio - 1) * 100)}% sulla media)` : ''}. Per il metodo è il momento d’ingresso.`
+    case 'noisy':
+      return `Ha superato il livello chiave (${pivot}) con scambi forti, ma la base era rumorosa: volumi alti nelle discese e nessun calo degli scambi. Per il metodo non è un ingresso pulito.`
     case 'confirm':
       return `Ha superato il livello chiave (${pivot}) ma con pochi scambi: queste rotture spesso falliscono. Meglio aspettare una conferma.`
     case 'watch':
@@ -84,6 +88,7 @@ export interface ResultLike {
   pivot: number | null
   pivotDistancePct: number | null
   volumeRatio: number | null
+  volumeDryUp?: boolean | null
   criteria: unknown
 }
 
@@ -99,6 +104,7 @@ export function toScanRow(r: ResultLike): ScanRow {
     pivot: r.pivot,
     pivotDistancePct: r.pivotDistancePct,
     volumeRatio: r.volumeRatio,
+    volumeDryUp: r.volumeDryUp,
     missing: r.passedCount === 7 ? missingCriterion((Array.isArray(r.criteria) ? r.criteria : []) as Criterion[], r.rs) : null,
   }
 }

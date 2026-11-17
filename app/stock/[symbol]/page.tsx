@@ -34,6 +34,7 @@ import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
 import { StockTabs } from '@/components/StockTabs'
 import { FairValueCard } from '@/components/FairValueCard'
+import { buildFairValueInput, fairValue } from '@/lib/fair-value'
 import { altmanZ } from '@/lib/solidity'
 import { FinancialAnalysis } from '@/components/FinancialAnalysis'
 import { getAnnualFinancials } from '@/lib/fundamentals'
@@ -46,6 +47,7 @@ import { refreshStockIfStale } from '@/lib/refresh'
 import { marketCapStatus, peStatus, rangeStatus } from '@/lib/figure-status'
 import { StockSkeleton } from './StockSkeleton'
 import styles from './page.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 function formatMarketCap(millions: number | null): string {
   if (millions === null) return '—'
@@ -207,7 +209,7 @@ async function StockPreview({ symbol }: { symbol: string }) {
       )}
       {covered && price > 0 && metrics && (
         <FairValueCard
-          input={{ price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+          input={buildFairValueInput(price, metrics)}
           altman={years.length > 0 ? altmanZ(years[years.length - 1], profile?.marketCapitalization ? profile.marketCapitalization * 1e6 : null) : null}
         />
       )}
@@ -295,6 +297,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
   const evaluation = latest
     ? evaluateStock({
+        fairValue: metrics ? fairValue(buildFairValueInput(latest.price, metrics)) : null,
         latestSnapshot: {
           price: latest.price,
           week52High: latest.week52High,
@@ -337,7 +340,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     latest && metrics ? (
       <FairValueCard
         embedded={embedded}
-        input={{ price: latest.price, epsTTM: metrics.epsTTM, bookValuePerShare: metrics.bookValuePerShare ?? null, cashFlowPerShare: metrics.cashFlowPerShare ?? null, epsGrowth5Y: metrics.epsGrowth5Y, dividendYield: metrics.dividendYield }}
+        input={buildFairValueInput(latest.price, metrics)}
         altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
       />
     ) : null
@@ -615,7 +618,9 @@ export default function StockDetailPage({ params }: { params: Promise<{ symbol: 
   return (
     <main className={styles.shell}>
       <Suspense fallback={<StockSkeleton />}>
-        <StockDetail paramsPromise={params} />
+        <AuthGate path="/">
+          <StockDetail paramsPromise={params} />
+        </AuthGate>
       </Suspense>
     </main>
   )

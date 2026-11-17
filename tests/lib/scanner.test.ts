@@ -100,6 +100,7 @@ describe('isEntrySetup', () => {
   it('is true for a stock passing all 8 criteria that is breaking out on strong volume', () => {
     expect(isEntrySetup(ok)).toBe(true)
     expect(isEntrySetup({ ...ok, volumeRatio: 1.4 })).toBe(true)
+    expect(isEntrySetup({ ...ok, volumeDryUp: false })).toBe(false)
   })
 
   it('is false when any condition is missing', () => {
@@ -128,6 +129,8 @@ describe('tradePlan', () => {
   })
 
   it('asks for confirmation on a breakout with weak or unknown volume', () => {
+    expect(tradePlan({ ...base, volumeDryUp: false }).verdict).toBe('noisy')
+    expect(tradePlan({ ...base, volumeDryUp: true }).verdict).toBe('buy')
     expect(tradePlan({ ...base, volumeRatio: 1.1 }).verdict).toBe('confirm')
     expect(tradePlan({ ...base, volumeRatio: null }).verdict).toBe('confirm')
     expect(tradePlan({ ...base, volumeRatio: 1.1 }).stop).toBeCloseTo(102 * 0.92, 6)

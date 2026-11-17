@@ -2,8 +2,12 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { searchSymbol, getProfile } from '@/lib/finnhub'
 import { refreshStock } from '@/lib/refresh'
+import { requireUser } from '@/lib/auth'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET() {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const stocks = await prisma.stock.findMany({
     orderBy: { addedAt: 'asc' },
     include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 1 } },
@@ -12,6 +16,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
+  const limited = await rateLimit('heavy')
+  if (limited) return limited
   let body: { symbol?: unknown }
   try {
     body = await request.json()

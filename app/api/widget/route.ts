@@ -1,12 +1,14 @@
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { safeEqual } from '@/lib/safe-equal'
 
-// Compact watchlist feed for iPhone widgets (Shortcuts / Scriptable). If WIDGET_TOKEN is set, ?token= must match.
+// Compact watchlist feed for iPhone widgets (Shortcuts / Scriptable). It cannot log in, so ?token= must match WIDGET_TOKEN;
+// without a token configured the feed answers 401 instead of being open.
 export async function GET(req: Request) {
   await connection()
   const url = new URL(req.url)
   const required = process.env.WIDGET_TOKEN
-  if (required && url.searchParams.get('token') !== required) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!required || !safeEqual(url.searchParams.get('token') ?? '', required)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const stocks = await prisma.stock.findMany({
     orderBy: { symbol: 'asc' },

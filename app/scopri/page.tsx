@@ -6,6 +6,7 @@ import { ScanButton } from '@/components/ScanButton'
 import { CandidateCard } from '@/components/CandidateCard'
 import styles from '../section.module.css'
 import local from './page.module.css'
+import { AuthGate } from '@/components/AuthGate'
 
 async function Candidates() {
   await connection()
@@ -54,7 +55,9 @@ export default function DiscoverPage() {
         </p>
         <ScanButton />
         <Suspense fallback={<SectionSkeleton label="Carico i candidati…" variant="cards" />}>
-          <Candidates />
+          <AuthGate path="/scopri">
+            <Candidates />
+          </AuthGate>
         </Suspense>
       </section>
     </main>

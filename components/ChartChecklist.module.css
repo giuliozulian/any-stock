@@ -1,0 +1,36 @@
+.box {
+  max-width: 78ch;
+  margin: 20px 0 0;
+  padding: 16px 18px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+}
+
+.title {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.lead,
+.rule {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.list {
+  margin: 0 0 10px;
+}
+
+.item {
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.rule {
+  margin: 0;
+  font-weight: 600;
+}

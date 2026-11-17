@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { armAlert, disarmAlert } from '@/lib/scan-alerts-db'
+import { requireUser } from '@/lib/auth'
 
 type Context = { params: Promise<{ symbol: string }> }
 
@@ -11,6 +12,8 @@ async function symbolOf({ params }: Context): Promise<string | null> {
 }
 
 export async function POST(_request: Request, context: Context) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const symbol = await symbolOf(context)
   if (!symbol) return NextResponse.json({ error: 'Invalid symbol' }, { status: 400 })
   try {
@@ -23,6 +26,8 @@ export async function POST(_request: Request, context: Context) {
 }
 
 export async function DELETE(_request: Request, context: Context) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
   const symbol = await symbolOf(context)
   if (!symbol) return NextResponse.json({ error: 'Invalid symbol' }, { status: 400 })
   try {

@@ -1,9 +1,15 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getQuote } from '@/lib/finnhub'
+import { requireUser } from '@/lib/auth'
+import { rateLimit } from '@/lib/rate-limit'
 
 // Live quotes straight from Finnhub (no DB write), only for symbols in the watchlist.
 export async function GET(request: Request) {
+  const auth = await requireUser()
+  if (!auth.ok) return auth.response
+  const limited = await rateLimit('light')
+  if (limited) return limited
   const raw = new URL(request.url).searchParams.get('symbols') ?? ''
   const requested = [...new Set(raw.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 50)
   if (requested.length === 0) return NextResponse.json({ quotes: {} })
