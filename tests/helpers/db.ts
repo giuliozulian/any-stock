@@ -8,6 +8,8 @@ export async function resetDb(): Promise<void> {
     )
   }
 
+  await prisma.scanAlert.deleteMany()
+  await prisma.scannerAlertSettings.deleteMany()
   await prisma.scanResult.deleteMany()
   await prisma.scanRun.deleteMany()
   await prisma.discoveredCandidate.deleteMany()

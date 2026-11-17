@@ -220,3 +220,17 @@ model ScanResult {
   @@unique([runId, symbol])
   @@index([runId, passedCount])
 }
+
+model ScanAlert {
+  id         String    @id @default(cuid())
+  symbol     String    @unique
+  armedAt    DateTime  @default(now())
+  notifiedAt DateTime?
+}
+
+model ScannerAlertSettings {
+  id          String   @id @default("default")
+  newEntrants Boolean  @default(false)
+  knownFull   String[]
+  updatedAt   DateTime @updatedAt
+}

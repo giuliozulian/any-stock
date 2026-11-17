@@ -19,7 +19,7 @@ function buildMessage({ symbol, name, kind, price, target }: AlertEmail): { subj
   }
 }
 
-async function sendViaSmtp(to: string, subject: string, text: string): Promise<void> {
+async function sendViaSmtp(to: string, subject: string, text: string, html?: string): Promise<void> {
   const port = Number(process.env.SMTP_PORT ?? 587)
   const transport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -27,20 +27,20 @@ async function sendViaSmtp(to: string, subject: string, text: string): Promise<v
     secure: port === 465,
     auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
   })
-  await transport.sendMail({ from: process.env.ALERT_EMAIL_FROM ?? process.env.SMTP_USER, to, subject, text })
+  await transport.sendMail({ from: process.env.ALERT_EMAIL_FROM ?? process.env.SMTP_USER, to, subject, text, ...(html ? { html } : {}) })
 }
 
-async function sendViaResend(apiKey: string, to: string, subject: string, text: string): Promise<void> {
+async function sendViaResend(apiKey: string, to: string, subject: string, text: string, html?: string): Promise<void> {
   const res = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: process.env.ALERT_EMAIL_FROM ?? 'Any Stock <onboarding@resend.dev>', to: [to], subject, text }),
+    body: JSON.stringify({ from: process.env.ALERT_EMAIL_FROM ?? 'Any Stock <onboarding@resend.dev>', to: [to], subject, text, ...(html ? { html } : {}) }),
   })
   if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`)
 }
 
 // Uses SMTP when SMTP_HOST is set, otherwise Resend. Returns false (never throws) when not configured or on failure.
-export async function sendEmail(subject: string, text: string): Promise<boolean> {
+export async function sendEmail(subject: string, text: string, html?: string): Promise<boolean> {
   const to = process.env.ALERT_EMAIL_TO
   const resendKey = process.env.RESEND_API_KEY
   if (!to || (!process.env.SMTP_HOST && !resendKey)) {
@@ -48,8 +48,8 @@ export async function sendEmail(subject: string, text: string): Promise<boolean>
     return false
   }
   try {
-    if (process.env.SMTP_HOST) await sendViaSmtp(to, subject, text)
-    else await sendViaResend(resendKey!, to, subject, text)
+    if (process.env.SMTP_HOST) await sendViaSmtp(to, subject, text, html)
+    else await sendViaResend(resendKey!, to, subject, text, html)
     return true
   } catch (err) {
     console.error(`Email "${subject}" failed:`, err instanceof Error ? err.message : String(err))
@@ -60,4 +60,9 @@ export async function sendEmail(subject: string, text: string): Promise<boolean>
 export async function sendAlertEmail(alert: AlertEmail): Promise<boolean> {
   const { subject, text } = buildMessage(alert)
   return sendEmail(subject, text)
+}
+
+// True when sendEmail can actually deliver: a recipient and either SMTP or Resend.
+export function emailConfigured(): boolean {
+  return Boolean(process.env.ALERT_EMAIL_TO) && Boolean(process.env.SMTP_HOST || process.env.RESEND_API_KEY)
 }

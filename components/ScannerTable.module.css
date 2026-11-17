@@ -422,3 +422,36 @@
     grid-column: 1 / -1;
   }
 }
+
+.stale {
+  color: var(--amber-bright);
+  font-size: 12.5px;
+}
+
+.market {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.market[data-level='healthy'] {
+  color: var(--gain-bright);
+}
+
+.market[data-level='weak'] {
+  color: var(--loss-bright);
+}
+
+.item {
+  position: relative;
+}
+
+.bell {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+
+.item[data-bell] .row {
+  padding-right: 64px;
+}

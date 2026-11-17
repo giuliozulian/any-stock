@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { getDailyBars, type Bar } from '@/lib/history'
 import type { Criterion } from '@/lib/minervini'
+import { notifyScanAlerts } from '@/lib/scan-alerts-db'
 import { finalize, scanSymbol, type FinalizeInput, type ScanSymbolResult } from '@/lib/scanner'
 import { loadUniverse, toYahooSymbol, type UniverseEntry } from '@/lib/universe'
 
@@ -151,4 +152,6 @@ async function closeRun(runId: string): Promise<void> {
   const done = await prisma.scanRun.findMany({ where: { status: 'done' }, orderBy: { finishedAt: 'desc' }, select: { id: true } })
   const old = done.slice(KEEP_RUNS).map((r) => r.id)
   if (old.length > 0) await prisma.scanRun.deleteMany({ where: { id: { in: old } } })
+  // Only the caller that won the close sends the alerts, so two racing steps never send two emails.
+  await notifyScanAlerts(runId)
 }

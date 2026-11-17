@@ -1,0 +1,147 @@
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.bar {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface) 0%, color-mix(in srgb, var(--surface) 55%, var(--rule)) 50%, var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+  }
+}
+
+.button {
+  width: 170px;
+  height: 44px;
+  margin-bottom: 28px;
+  border-radius: 999px;
+}
+
+.meta {
+  width: min(420px, 80%);
+  height: 14px;
+  margin-bottom: 20px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.seg {
+  width: 120px;
+  height: 40px;
+  border-radius: 999px;
+}
+
+.field {
+  width: 130px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.pill {
+  width: 96px;
+  height: 34px;
+  border-radius: 999px;
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.7fr) minmax(0, 1.25fr) 6rem minmax(9.5rem, 1fr);
+  align-items: start;
+  gap: 8px 20px;
+  padding: 16px 20px;
+}
+
+.row + .row {
+  border-top: 1px solid var(--rule);
+}
+
+.who,
+.action,
+.plan {
+  display: grid;
+  gap: 8px;
+}
+
+.symbol {
+  width: 70px;
+  height: 18px;
+}
+
+.sub {
+  width: 110px;
+  height: 12px;
+}
+
+.chip {
+  width: 130px;
+  height: 22px;
+  border-radius: 999px;
+}
+
+.line {
+  width: 100%;
+  height: 12px;
+}
+
+.lineShort {
+  width: 60%;
+  height: 12px;
+}
+
+.rs {
+  width: 60px;
+  height: 22px;
+}
+
+.gauge {
+  width: 100%;
+  height: 20px;
+}
+
+@media (max-width: 820px) {
+  .row {
+    grid-template-columns: 6rem minmax(0, 1fr);
+    padding: 16px;
+  }
+
+  .who,
+  .action,
+  .plan {
+    grid-column: 1 / -1;
+  }
+}

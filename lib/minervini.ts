@@ -253,5 +253,7 @@ export function detectVcp(bars: Bar[]): Vcp {
   const lastLow = lows[lows.length - 1]
   const price = recent[recent.length - 1].close
   const status: VcpStatus = price < lastLow ? 'failed' : price <= pivot ? 'forming' : price <= pivot * (1 + MAX_CHASE) ? 'breakout' : 'extended'
-  return { contractions, pivot, volumeDryUp, suggestedStop: pivot * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio }
+  // The stop is 8% below the price actually paid: the pivot while the price is still below it, the current price once it breaks out.
+  const entry = status === 'breakout' ? price : pivot
+  return { contractions, pivot, volumeDryUp, suggestedStop: entry * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio }
 }

@@ -49,8 +49,8 @@ describe('what to do, at what price, until when', () => {
     const r = within(rowOf('BRK'))
     expect(r.getByText('Si può comprare')).toBeInTheDocument()
     expect(r.getByText('tra 50,00 e 52,50')).toBeInTheDocument()
-    expect(r.getByText('46,00')).toBeInTheDocument()
-    expect(r.getByText(/perdita massima circa 9,1%/i)).toBeInTheDocument()
+    expect(r.getByText('46,55')).toBeInTheDocument()
+    expect(r.getByText(/perdita massima circa 8,0%/i)).toBeInTheDocument()
     expect(r.getByText('verso 60,72–63,25')).toBeInTheDocument()
     expect(r.getByText(/\+80%/)).toBeInTheDocument()
   })
@@ -99,7 +99,7 @@ describe('what to do, at what price, until when', () => {
     const note = screen.getByText(/si può comprare ora secondo il metodo/i).closest('p')!
     expect(within(note).getByRole('link', { name: 'BRK' })).toHaveAttribute('href', '/stock/BRK')
     expect(note).toHaveTextContent('tra 50,00 e 52,50')
-    expect(note).toHaveTextContent('stop 46,00')
+    expect(note).toHaveTextContent('stop 46,55')
     expect(within(note).queryByRole('link', { name: 'TOP' })).not.toBeInTheDocument()
   })
 
@@ -227,5 +227,91 @@ describe('explanations', () => {
   it('writes a dash for a missing RS', () => {
     render(<ScannerTable rows={[row({ symbol: 'NORS', rs: null })]} />)
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
+  })
+})
+
+describe('context of the scan', () => {
+  it('turns a buy into "wait for confirmation" when the scan ran with the US market open', () => {
+    render(<ScannerTable rows={rows} caution="session" />)
+    const r = within(rowOf('BRK'))
+    expect(r.getByText('Aspetta conferma')).toBeInTheDocument()
+    expect(r.getByText(/volume di oggi è parziale/i)).toBeInTheDocument()
+    expect(screen.getByText(/nessun titolo da comprare adesso/i)).toBeInTheDocument()
+  })
+
+  it('turns a buy into "wait for confirmation" in a weak market and says why', () => {
+    render(<ScannerTable rows={rows} market={{ abovePct: 35, level: 'weak' }} />)
+    const r = within(rowOf('BRK'))
+    expect(r.getByText('Aspetta conferma')).toBeInTheDocument()
+    expect(r.getByText(/il mercato è debole/i)).toBeInTheDocument()
+  })
+
+  it('keeps the buy on old results but warns to check today’s price', () => {
+    render(<ScannerTable rows={rows} caution="stale" />)
+    const r = within(rowOf('BRK'))
+    expect(r.getByText('Si può comprare')).toBeInTheDocument()
+    expect(r.getByText(/dati vecchi: controlla il prezzo di oggi/i)).toBeInTheDocument()
+    expect(within(rowOf('TOP')).getByText(/dati vecchi/i)).toBeInTheDocument()
+    expect(within(rowOf('LOW')).queryByText(/dati vecchi/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/alla scansione, da riverificare/i)).toBeInTheDocument()
+  })
+
+  it('shows the health of the market with its numbers', () => {
+    const { rerender } = render(<ScannerTable rows={rows} market={{ abovePct: 68.4, level: 'healthy' }} />)
+    expect(screen.getByText(/mercato in salute: 68% dei titoli/i)).toBeInTheDocument()
+    rerender(<ScannerTable rows={rows} market={{ abovePct: 52, level: 'neutral' }} />)
+    expect(screen.getByText(/mercato neutro: 52% dei titoli/i)).toBeInTheDocument()
+    rerender(<ScannerTable rows={rows} market={{ abovePct: 35, level: 'weak' }} />)
+    expect(screen.getByText(/mercato debole: solo 35% dei titoli/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cos’è la salute del mercato' })).toBeInTheDocument()
+  })
+
+  it('shows no market line without data', () => {
+    render(<ScannerTable rows={rows} />)
+    expect(screen.queryByText(/mercato (in salute|neutro|debole)/i)).not.toBeInTheDocument()
+  })
+
+  it('sorts by what to do using the adjusted verdict', () => {
+    render(<ScannerTable rows={rows} market={{ abovePct: 35, level: 'weak' }} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cosa fare' }))
+    // BRK is now "confirm" (rank 1) and still ahead of TOP "watch" (rank 2).
+    expect(hrefs()).toEqual(['/stock/BRK', '/stock/TOP', '/stock/LOW'])
+  })
+})
+
+describe('email alerts', () => {
+  const alerts = { emailReady: true, armed: ['NEAR'], newEntrants: false }
+
+  it('shows no bell and no switch without the alerts prop', () => {
+    render(<ScannerTable rows={rows} />)
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /avvisami|avviso attivo/i })).not.toBeInTheDocument()
+  })
+
+  it('puts a bell only on the 7-of-8 stocks, not on the ones that already made it', () => {
+    render(<ScannerTable rows={rows} alerts={alerts} />)
+    expect(screen.queryByRole('button', { name: /avvisami|avviso attivo/i })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
+    expect(screen.getByRole('button', { name: 'Avviso attivo per NEAR, clicca per disattivarlo' })).toBeInTheDocument()
+  })
+
+  it('keeps the bell outside the link of the row', () => {
+    render(<ScannerTable rows={rows} alerts={{ ...alerts, armed: [] }} />)
+    fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
+    const bell = screen.getByRole('button', { name: 'Avvisami per email quando NEAR arriva a 8 su 8' })
+    expect(bell.closest('a')).toBeNull()
+    expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(1)
+  })
+
+  it('shows the switch with the saved state', () => {
+    render(<ScannerTable rows={rows} alerts={{ ...alerts, newEntrants: true }} />)
+    expect(screen.getByRole('switch', { name: /nuovi 8 su 8/i })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('disables bells and switch when email is not configured', () => {
+    render(<ScannerTable rows={rows} alerts={{ emailReady: false, armed: [], newEntrants: false }} />)
+    expect(screen.getByRole('switch')).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
+    expect(screen.getByRole('button', { name: /avvisami per email quando NEAR/i })).toBeDisabled()
   })
 })

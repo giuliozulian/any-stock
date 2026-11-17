@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
 import { RS_MIN_BARS, TREND_TEMPLATE_LABELS } from '@/lib/minervini'
-import { finalize, isEntrySetup, missingCriterion, scanSymbol, tradePlan, type FinalizeInput } from '@/lib/scanner'
+import { finalize, isEntrySetup, isUsSession, marketHealth, missingCriterion, scanSymbol, tradePlan, withContext, type FinalizeInput } from '@/lib/scanner'
 
 const DAY = 86_400_000
 const bar = (i: number, close: number): Bar => ({ t: i * DAY, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
@@ -120,8 +120,9 @@ describe('tradePlan', () => {
     expect(p.verdict).toBe('buy')
     expect(p.buyFrom).toBeCloseTo(100, 6)
     expect(p.buyTo).toBeCloseTo(105, 6)
-    expect(p.stop).toBeCloseTo(92, 6)
-    expect(p.riskPct).toBeCloseTo(((102 - 92) / 102) * 100, 6)
+    // The stop follows the price paid, not the pivot: 8% below 102, so the loss is capped at 8%.
+    expect(p.stop).toBeCloseTo(102 * 0.92, 6)
+    expect(p.riskPct).toBeCloseTo(8, 6)
     expect(p.profitFrom).toBeCloseTo(102 * 1.2, 6)
     expect(p.profitTo).toBeCloseTo(102 * 1.25, 6)
   })
@@ -129,7 +130,7 @@ describe('tradePlan', () => {
   it('asks for confirmation on a breakout with weak or unknown volume', () => {
     expect(tradePlan({ ...base, volumeRatio: 1.1 }).verdict).toBe('confirm')
     expect(tradePlan({ ...base, volumeRatio: null }).verdict).toBe('confirm')
-    expect(tradePlan({ ...base, volumeRatio: 1.1 }).stop).toBeCloseTo(92, 6)
+    expect(tradePlan({ ...base, volumeRatio: 1.1 }).stop).toBeCloseTo(102 * 0.92, 6)
   })
 
   it('says watch while the price is still below the pivot, measuring risk from the pivot', () => {
@@ -139,6 +140,13 @@ describe('tradePlan', () => {
     expect(p.stop).toBeCloseTo(92, 6)
     expect(p.riskPct).toBeCloseTo(8, 6)
     expect(p.profitFrom).toBeCloseTo(120, 6)
+  })
+
+  it('never risks more than 8% of the price paid, wherever in the 5% buy range it is', () => {
+    for (const price of [100.5, 102, 104.9]) {
+      const p = tradePlan({ ...base, price })
+      expect(((price - p.stop!) / price) * 100).toBeCloseTo(8, 6)
+    }
   })
 
   it('gives no prices when it is too late, the base is broken, or there is no base', () => {
@@ -157,5 +165,83 @@ describe('tradePlan', () => {
 
   it('treats a base without a pivot as no base', () => {
     expect(tradePlan({ ...base, vcpStatus: 'forming', pivot: null }).verdict).toBe('no-base')
+  })
+})
+
+describe('isUsSession', () => {
+  it('is true on a weekday while the US market can be open, false outside', () => {
+    expect(isUsSession(new Date('2026-11-16T15:00:00Z'))).toBe(true) // Monday
+    expect(isUsSession(new Date('2026-11-16T13:30:00Z'))).toBe(true)
+    expect(isUsSession(new Date('2026-11-16T13:29:00Z'))).toBe(false)
+    expect(isUsSession(new Date('2026-11-16T21:00:00Z'))).toBe(false)
+    expect(isUsSession(new Date('2026-11-16T22:40:00Z'))).toBe(false)
+  })
+
+  it('is false on weekends', () => {
+    expect(isUsSession(new Date('2026-11-14T15:00:00Z'))).toBe(false) // Saturday
+    expect(isUsSession(new Date('2026-11-15T15:00:00Z'))).toBe(false) // Sunday
+  })
+})
+
+describe('marketHealth', () => {
+  const crit = (ok: boolean) => [{ id: 1, label: 'x', ok, value: '', margin: null }]
+  const sample = (above: number, total: number) => Array.from({ length: total }, (_, i) => crit(i < above))
+
+  it('is healthy at 60% or more of stocks above their 150 and 200-day averages', () => {
+    expect(marketHealth(sample(60, 100))).toEqual({ abovePct: 60, level: 'healthy' })
+  })
+
+  it('is neutral between 40% and 60%, weak below 40%', () => {
+    expect(marketHealth(sample(59, 100))!.level).toBe('neutral')
+    expect(marketHealth(sample(40, 100))!.level).toBe('neutral')
+    expect(marketHealth(sample(39, 100))!.level).toBe('weak')
+  })
+
+  it('says nothing on a sample too small to mean anything', () => {
+    expect(marketHealth(sample(10, 49))).toBeNull()
+    expect(marketHealth([])).toBeNull()
+  })
+})
+
+describe('withContext', () => {
+  const buy = tradePlan({ passedCount: 8, vcpStatus: 'breakout', volumeRatio: 1.8, price: 102, pivot: 100 })
+  const watch = tradePlan({ passedCount: 8, vcpStatus: 'forming', volumeRatio: 1, price: 96, pivot: 100 })
+  const late = tradePlan({ passedCount: 8, vcpStatus: 'extended', volumeRatio: 1, price: 120, pivot: 100 })
+  const none = { caution: null, market: null }
+
+  it('leaves the plan alone in normal conditions', () => {
+    expect(withContext(buy, none)).toEqual({ plan: buy, note: null })
+    expect(withContext(buy, { caution: null, market: 'healthy' })).toEqual({ plan: buy, note: null })
+    expect(withContext(buy, { caution: null, market: 'neutral' })).toEqual({ plan: buy, note: null })
+  })
+
+  it('turns buy into "wait for confirmation" when the scan ran with the US market open', () => {
+    const r = withContext(buy, { caution: 'session', market: 'healthy' })
+    expect(r.plan.verdict).toBe('confirm')
+    expect(r.plan.stop).toBe(buy.stop)
+    expect(r.note).toBe('session')
+  })
+
+  it('turns buy into "wait for confirmation" in a weak market', () => {
+    const r = withContext(buy, { caution: null, market: 'weak' })
+    expect(r.plan.verdict).toBe('confirm')
+    expect(r.note).toBe('weak-market')
+  })
+
+  it('names the open-market reason first when both apply', () => {
+    expect(withContext(buy, { caution: 'session', market: 'weak' }).note).toBe('session')
+  })
+
+  it('flags old results without changing the verdict', () => {
+    expect(withContext(buy, { caution: 'stale', market: null })).toEqual({ plan: buy, note: 'stale' })
+    expect(withContext(watch, { caution: 'stale', market: null }).note).toBe('stale')
+  })
+
+  it('does not bother stocks that have no prices anyway', () => {
+    expect(withContext(late, { caution: 'stale', market: 'weak' })).toEqual({ plan: late, note: null })
+  })
+
+  it('does not change what was already a wait or watch verdict in a weak market', () => {
+    expect(withContext(watch, { caution: null, market: 'weak' })).toEqual({ plan: watch, note: null })
   })
 })

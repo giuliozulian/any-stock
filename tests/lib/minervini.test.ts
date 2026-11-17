@@ -35,6 +35,14 @@ describe('detectVcp', () => {
     expect(detectVcp(path([80, 100, 75, 95, 83.6, 94, 88.36, 104])).status).toBe('extended')
   })
 
+  it('anchors the stop 8% below the price actually paid: the pivot while below it, the current price once it breaks out', () => {
+    expect(detectVcp(base).suggestedStop).toBeCloseTo(94 * 0.92, 4)
+    const broke = detectVcp(path([80, 100, 75, 95, 83.6, 94, 88.36, 98]))
+    expect(broke.status).toBe('breakout')
+    // 98 is 4.3% above the 94 pivot: a stop at 86.48 would risk 11.8%, not 8%.
+    expect(broke.suggestedStop).toBeCloseTo(98 * 0.92, 4)
+  })
+
   it('compares the last volume with its 50-bar average', () => {
     const loud = base.map((b, i) => ({ ...b, volume: i === base.length - 1 ? 2_000_000 : 1_000_000 }))
     expect(detectVcp(loud).volumeRatio).toBeGreaterThan(1.4)

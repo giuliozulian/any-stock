@@ -15,7 +15,7 @@ export function ScannerInfo({ defaultOpen = false }: { defaultOpen?: boolean }) 
         <ol className={styles.steps}>
           <li>Cerca i titoli “Si può comprare”: hanno superato il pivot con molti scambi.</li>
           <li>Compra solo nell’intervallo indicato, dal pivot fino al 5% sopra. Più in alto vuol dire inseguire il prezzo.</li>
-          <li>Imposta subito lo stop, circa l’8% sotto il pivot: se il prezzo chiude sotto, vendi senza aspettare. È ciò che limita la perdita.</li>
+          <li>Imposta subito lo stop, 8% sotto il prezzo a cui hai comprato: se il prezzo chiude sotto, vendi senza aspettare. È ciò che limita la perdita.</li>
           <li>Se il titolo sale, alza lo stop e incassa un po’ alla volta, di solito tra +20% e +25% dal prezzo d’acquisto.</li>
         </ol>
         <p>“Da tenere d’occhio” significa che il titolo è pronto ma non ha ancora superato il pivot: non si compra finché non lo supera. “Aspetta conferma”, “Troppo tardi” e “Da evitare” sono motivi per non comprare adesso.</p>

@@ -123,7 +123,8 @@ export function tradePlan(r: PlanInput): TradePlan {
   const verdict: Verdict = r.vcpStatus === 'forming' ? 'watch' : r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME ? 'buy' : 'confirm'
   // Already breaking out: measure from what it costs now. Still below the pivot: from the pivot, the price it would be bought at.
   const reference = verdict === 'watch' ? r.pivot : r.price
-  const stop = r.pivot * (1 - STOP_BELOW_PIVOT)
+  // The stop follows the price paid (8% below it), so the loss is capped at 8% wherever in the buy range the order fills.
+  const stop = reference * (1 - STOP_BELOW_PIVOT)
   return {
     verdict,
     buyFrom: r.pivot,
@@ -133,4 +134,47 @@ export function tradePlan(r: PlanInput): TradePlan {
     profitFrom: reference * (1 + PROFIT_TARGET_MIN),
     profitTo: reference * (1 + PROFIT_TARGET_MAX),
   }
+}
+
+// Daily prices are only final once the US market has closed. 13:30-21:00 UTC covers the session in both summer and winter time.
+const SESSION_START = 13 * 60 + 30
+const SESSION_END = 21 * 60
+
+export function isUsSession(date: Date): boolean {
+  const day = date.getUTCDay()
+  if (day === 0 || day === 6) return false
+  const minutes = date.getUTCHours() * 60 + date.getUTCMinutes()
+  return minutes >= SESSION_START && minutes < SESSION_END
+}
+
+export type MarketLevel = 'healthy' | 'neutral' | 'weak'
+
+const MARKET_MIN_SAMPLE = 50
+const MARKET_HEALTHY = 60
+const MARKET_WEAK = 40
+
+// Breadth of the scanned universe: the share of stocks trading above both their 150 and 200-day averages (criterion 1).
+// Breakouts fail far more often when most stocks are in a downtrend.
+export function marketHealth(criteriaSets: Criterion[][]): { abovePct: number; level: MarketLevel } | null {
+  if (criteriaSets.length < MARKET_MIN_SAMPLE) return null
+  const above = criteriaSets.filter((c) => c.find((x) => x.id === 1)?.ok).length
+  const abovePct = (above / criteriaSets.length) * 100
+  return { abovePct, level: abovePct >= MARKET_HEALTHY ? 'healthy' : abovePct >= MARKET_WEAK ? 'neutral' : 'weak' }
+}
+
+export type Caution = 'stale' | 'session'
+export type PlanNote = 'session' | 'weak-market' | 'stale' | null
+
+export interface PlanContext {
+  caution: Caution | null
+  market: MarketLevel | null
+}
+
+// The same stock needs a different answer when the data is old, the volume is partial or the market is weak.
+export function withContext(plan: TradePlan, ctx: PlanContext): { plan: TradePlan; note: PlanNote } {
+  if (plan.verdict === 'buy' && ctx.caution === 'session') return { plan: { ...plan, verdict: 'confirm' }, note: 'session' }
+  if (plan.verdict === 'buy' && ctx.market === 'weak') return { plan: { ...plan, verdict: 'confirm' }, note: 'weak-market' }
+  const hasPrices = plan.verdict === 'buy' || plan.verdict === 'confirm' || plan.verdict === 'watch'
+  if (hasPrices && ctx.caution === 'stale') return { plan, note: 'stale' }
+  return { plan, note: null }
 }

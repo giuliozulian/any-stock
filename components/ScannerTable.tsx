@@ -2,25 +2,15 @@
 
 import Link from 'next/link'
 import { Fragment, useState } from 'react'
+import { AlertBell } from '@/components/AlertBell'
+import { AlertSwitch } from '@/components/AlertSwitch'
 import { InfoTip } from '@/components/InfoTip'
 import { PivotGauge } from '@/components/PivotGauge'
-import type { VcpStatus } from '@/lib/minervini'
-import { tradePlan, type TradePlan, type Verdict } from '@/lib/scanner'
+import { MARKET_TEXT, VERDICT, fmtNum as num, fmtPrice as price, sentence, type ScanRow } from '@/lib/scan-verdict'
+import { tradePlan, withContext, type Caution, type MarketLevel, type PlanNote, type TradePlan } from '@/lib/scanner'
 import styles from './ScannerTable.module.css'
 
-export interface ScannerRow {
-  symbol: string
-  name: string
-  sector: string | null
-  price: number
-  rs: number | null
-  passedCount: number
-  vcpStatus: VcpStatus | null
-  pivot: number | null
-  pivotDistancePct: number | null
-  volumeRatio: number | null
-  missing: string | null
-}
+export type ScannerRow = ScanRow
 
 type Group = 'full' | 'near'
 type ActionFilter = 'all' | 'buy' | 'watch'
@@ -30,56 +20,30 @@ type SortDir = 'asc' | 'desc'
 const dash = '—'
 const RS_MIN = 70
 const RS_FLOORS = [70, 80, 90]
-const num = (v: number, digits = 1) => v.toLocaleString('it-IT', { minimumFractionDigits: digits, maximumFractionDigits: digits })
-const price = (v: number) => num(v, 2)
-
-const VERDICT: Record<Verdict, { label: string; tone: 'buy' | 'gain' | 'warn' | 'loss' | 'muted'; rank: number }> = {
-  buy: { label: 'Si può comprare', tone: 'buy', rank: 0 },
-  confirm: { label: 'Aspetta conferma', tone: 'warn', rank: 1 },
-  watch: { label: 'Da tenere d’occhio', tone: 'gain', rank: 2 },
-  'no-base': { label: 'Nessun punto d’ingresso', tone: 'muted', rank: 3 },
-  late: { label: 'Troppo tardi', tone: 'warn', rank: 4 },
-  almost: { label: 'Non ancora pronto', tone: 'muted', rank: 5 },
-  broken: { label: 'Da evitare', tone: 'loss', rank: 6 },
-}
-
-function sentence(r: ScannerRow, plan: TradePlan): string {
-  const pivot = r.pivot === null ? '' : price(r.pivot)
-  switch (plan.verdict) {
-    case 'buy':
-      return `Il prezzo ha superato il livello chiave (${pivot}) con scambi forti${r.volumeRatio !== null ? ` (+${Math.round((r.volumeRatio - 1) * 100)}% sulla media)` : ''}. Per il metodo è il momento d’ingresso.`
-    case 'confirm':
-      return `Ha superato il livello chiave (${pivot}) ma con pochi scambi: queste rotture spesso falliscono. Meglio aspettare una conferma.`
-    case 'watch':
-      return `È in forma ma non ha ancora superato il livello chiave (${pivot}). Si compra solo se lo supera con scambi forti.`
-    case 'late':
-      return 'È già oltre il 5% sopra il livello chiave: comprare ora vuol dire inseguire il prezzo. Aspetta una nuova base.'
-    case 'broken':
-      return 'È sceso sotto l’ultimo minimo della base: il setup è saltato.'
-    case 'no-base':
-      return 'Trend forte ma nessuna base da cui entrare. Aspetta che il prezzo si fermi e ne formi una.'
-    case 'almost':
-      return `Manca un criterio: ${r.missing ?? 'uno dei controlli'}. Non è ancora in una tendenza solida.`
-  }
+// A row together with what to do about it, after the context of the scan (old data, partial volume, weak market).
+interface Item {
+  r: ScannerRow
+  plan: TradePlan
+  note: PlanNote
 }
 
 // Null means "no value": those stocks stay last whichever way the column is sorted.
-function sortValue(key: SortKey, r: ScannerRow): string | number | null {
+function sortValue(key: SortKey, { r, plan }: Item): string | number | null {
   switch (key) {
     case 'symbol':
       return r.symbol
     case 'rs':
       return r.rs
     case 'action':
-      return VERDICT[tradePlan(r).verdict].rank
+      return VERDICT[plan.verdict].rank
     case 'pivot':
       return r.pivotDistancePct === null ? null : Math.abs(r.pivotDistancePct)
   }
 }
 
 function comparator(key: SortKey, dir: SortDir) {
-  const tie = (a: ScannerRow, b: ScannerRow) => (b.rs ?? -1) - (a.rs ?? -1) || a.symbol.localeCompare(b.symbol)
-  return (a: ScannerRow, b: ScannerRow) => {
+  const tie = (a: Item, b: Item) => (b.r.rs ?? -1) - (a.r.rs ?? -1) || a.r.symbol.localeCompare(b.r.symbol)
+  return (a: Item, b: Item) => {
     const va = sortValue(key, a)
     const vb = sortValue(key, b)
     if (va === null && vb === null) return tie(a, b)
@@ -130,7 +94,7 @@ const COLUMNS: Array<{ key: SortKey | null; label: string; first?: SortDir; tip?
             <strong>Compra</strong>: l’intervallo in cui entrare, dal livello chiave fino al 5% sopra. Oltre è troppo tardi.
           </span>
           <span>
-            <strong>Vendi sotto</strong>: lo stop, circa 8% sotto il livello chiave. Se il prezzo chiude sotto, si esce senza aspettare: limita la perdita.
+            <strong>Vendi sotto</strong>: lo stop, 8% sotto il prezzo a cui compri. Se il prezzo chiude sotto, si esce senza aspettare: limita la perdita a circa l’8%.
           </span>
           <span>
             <strong>Profitto</strong>: dove il metodo di solito incassa, tra +20% e +25% dall’acquisto. Se sale, alza lo stop.
@@ -203,11 +167,10 @@ function Plan({ plan }: { plan: TradePlan }) {
   )
 }
 
-function Row({ r }: { r: ScannerRow }) {
-  const plan = tradePlan(r)
+function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactNode }) {
   const verdict = VERDICT[plan.verdict]
   return (
-    <li>
+    <li className={styles.item} data-bell={bell ? '' : undefined}>
       <Link href={`/stock/${r.symbol}`} className={styles.row} data-verdict={plan.verdict}>
         <span className={styles.who}>
           <span className={styles.symbol}>{r.symbol}</span>
@@ -221,7 +184,8 @@ function Row({ r }: { r: ScannerRow }) {
           <span className={styles.chip} data-tone={verdict.tone}>
             {verdict.label}
           </span>
-          <span className={styles.sentence}>{sentence(r, plan)}</span>
+          <span className={styles.sentence}>{sentence(r, plan, note)}</span>
+          {note === 'stale' && <span className={styles.stale}>Dati vecchi: controlla il prezzo di oggi prima di comprare.</span>}
         </span>
         <span className={styles.cellPlan}>
           <Plan plan={plan} />
@@ -242,11 +206,22 @@ function Row({ r }: { r: ScannerRow }) {
           </span>
         </span>
       </Link>
+      {bell && <span className={styles.bell}>{bell}</span>}
     </li>
   )
 }
 
-export function ScannerTable({ rows }: { rows: ScannerRow[] }) {
+export function ScannerTable({
+  rows,
+  caution = null,
+  market = null,
+  alerts,
+}: {
+  rows: ScannerRow[]
+  caution?: Caution | null
+  market?: { abovePct: number; level: MarketLevel } | null
+  alerts?: { emailReady: boolean; armed: string[]; newEntrants: boolean }
+}) {
   const [group, setGroup] = useState<Group>('full')
   const [action, setAction] = useState<ActionFilter>('all')
   const [query, setQuery] = useState('')
@@ -254,25 +229,25 @@ export function ScannerTable({ rows }: { rows: ScannerRow[] }) {
   const [minRs, setMinRs] = useState(0)
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'rs', dir: 'desc' })
 
-  const full = rows.filter((r) => r.passedCount >= 8)
-  const near = rows.filter((r) => r.passedCount === 7)
+  const items: Item[] = rows.map((r) => ({ r, ...withContext(tradePlan(r), { caution, market: market?.level ?? null }) }))
+  const full = items.filter((i) => i.r.passedCount >= 8)
+  const near = items.filter((i) => i.r.passedCount === 7)
   const inGroup = group === 'full' ? full : near
-  const buys = full.filter((r) => tradePlan(r).verdict === 'buy').sort((a, b) => (b.rs ?? -1) - (a.rs ?? -1))
+  const buys = full.filter((i) => i.plan.verdict === 'buy').sort((a, b) => (b.r.rs ?? -1) - (a.r.rs ?? -1))
   const sectors = [...new Set(rows.map((r) => r.sector).filter((s): s is string => s !== null))].sort((a, b) => a.localeCompare(b))
   const needle = query.trim().toLowerCase()
   const filtersActive = action !== 'all' || needle !== '' || sector !== '' || minRs > 0
 
-  const matchesAction = (r: ScannerRow) => {
+  const matchesAction = ({ plan }: Item) => {
     if (action === 'all') return true
-    const verdict = tradePlan(r).verdict
-    return action === 'buy' ? verdict === 'buy' : verdict === 'watch' || verdict === 'confirm'
+    return action === 'buy' ? plan.verdict === 'buy' : plan.verdict === 'watch' || plan.verdict === 'confirm'
   }
 
   const shown = inGroup
     .filter(matchesAction)
-    .filter((r) => needle === '' || r.symbol.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle))
-    .filter((r) => sector === '' || r.sector === sector)
-    .filter((r) => minRs === 0 || (r.rs !== null && r.rs >= minRs))
+    .filter(({ r }) => needle === '' || r.symbol.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle))
+    .filter(({ r }) => sector === '' || r.sector === sector)
+    .filter(({ r }) => minRs === 0 || (r.rs !== null && r.rs >= minRs))
     .sort(comparator(sort.key, sort.dir))
 
   function sortBy(key: SortKey) {
@@ -297,12 +272,19 @@ export function ScannerTable({ rows }: { rows: ScannerRow[] }) {
 
   return (
     <div>
+      {market && (
+        <p className={styles.market} data-level={market.level}>
+          {MARKET_TEXT[market.level](market.abovePct)}
+          <InfoTip label="Cos’è la salute del mercato" source="Calcolo dello scanner">
+            Quota dei titoli scansionati che stanno sopra le medie a 150 e 200 giorni. Sopra il 60% il mercato è in salute; sotto il 40% è debole e la maggior parte delle rotture fallisce: in quel caso lo scanner non segnala acquisti.
+          </InfoTip>
+        </p>
+      )}
       {full.length > 0 &&
         (buys.length > 0 ? (
           <p className={styles.signal}>
-            <span>Si può comprare ora secondo il metodo:</span>{' '}
-            {buys.map((r, i) => {
-              const plan = tradePlan(r)
+            <span>{caution === 'stale' ? 'Alla scansione, da riverificare con il prezzo di oggi:' : 'Si può comprare ora secondo il metodo:'}</span>{' '}
+            {buys.map(({ r, plan }, i) => {
               return (
                 <Fragment key={r.symbol}>
                   {i > 0 && '; '}
@@ -380,6 +362,7 @@ export function ScannerTable({ rows }: { rows: ScannerRow[] }) {
             </option>
           ))}
         </select>
+        {alerts && <AlertSwitch enabled={alerts.newEntrants} emailReady={alerts.emailReady} />}
         {filtersActive && (
           <button type="button" onClick={reset} className={styles.reset}>
             Azzera filtri
@@ -411,8 +394,12 @@ export function ScannerTable({ rows }: { rows: ScannerRow[] }) {
             ))}
           </div>
           <ul className={styles.list}>
-            {shown.map((r) => (
-              <Row key={r.symbol} r={r} />
+            {shown.map((item) => (
+              <Row
+                key={item.r.symbol}
+                item={item}
+                bell={alerts && item.r.passedCount === 7 ? <AlertBell symbol={item.r.symbol} armed={alerts.armed.includes(item.r.symbol)} emailReady={alerts.emailReady} /> : null}
+              />
             ))}
           </ul>
           <p className={styles.footnote}>
