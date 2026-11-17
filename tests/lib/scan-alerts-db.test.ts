@@ -34,7 +34,7 @@ describe('notifyScanAlerts', () => {
   })
 
   it('sends one email for an armed stock that reached 8 of 8, then marks it as notified', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }, { symbol: 'BBB', passedCount: 7 }])
 
     expect(await notifyScanAlerts(run.id)).toBe('sent')
@@ -45,20 +45,20 @@ describe('notifyScanAlerts', () => {
     expect(subject).not.toContain('BBB')
     expect(text).toContain('Lo seguivi')
     expect(html).toContain('<html')
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).not.toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).not.toBeNull()
   })
 
   it('stays silent for an armed stock that is still at 7 of 8', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'BBB' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'BBB' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }, { symbol: 'BBB', passedCount: 7 }])
 
     expect(await notifyScanAlerts(run.id)).toBe('nothing')
     expect(send).not.toHaveBeenCalled()
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'BBB' } })).notifiedAt).toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'BBB' } } })).notifiedAt).toBeNull()
   })
 
   it('does not notify a stock twice', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA', notifiedAt: new Date() } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA', notifiedAt: new Date() } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
 
     expect(await notifyScanAlerts(run.id)).toBe('nothing')
@@ -66,26 +66,26 @@ describe('notifyScanAlerts', () => {
   })
 
   it('marks nothing and retries on the next scan when the email fails', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
-    await prisma.scannerAlertSettings.create({ data: { id: 'default', newEntrants: true, knownFull: [] } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: true, knownFull: [] } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
     send.mockResolvedValueOnce(false)
 
     expect(await notifyScanAlerts(run.id)).toBe('failed')
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).toBeNull()
-    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { id: 'default' } })).knownFull).toEqual([])
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).toBeNull()
+    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })).knownFull).toEqual([])
 
     expect(await notifyScanAlerts(run.id)).toBe('sent')
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).not.toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).not.toBeNull()
   })
 
   it('never throws, even when sending throws', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
     send.mockRejectedValueOnce(new Error('boom'))
 
     expect(await notifyScanAlerts(run.id)).toBe('failed')
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).toBeNull()
   })
 
   it('does nothing for an unknown run or one still running', async () => {
@@ -96,7 +96,7 @@ describe('notifyScanAlerts', () => {
   })
 
   it('with the switch on, lists only the 8-of-8 stocks it had not seen and remembers all of them', async () => {
-    await prisma.scannerAlertSettings.create({ data: { id: 'default', newEntrants: true, knownFull: ['OLD'] } })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: true, knownFull: ['OLD'] } })
     const run = await makeRun([{ symbol: 'OLD', passedCount: 8 }, { symbol: 'NEW', passedCount: 8 }])
 
     expect(await notifyScanAlerts(run.id)).toBe('sent')
@@ -105,21 +105,21 @@ describe('notifyScanAlerts', () => {
     expect(subject).toContain('NEW')
     expect(subject).not.toContain('OLD')
     expect(text).toContain('Nuovo negli 8 su 8')
-    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { id: 'default' } })).knownFull.sort()).toEqual(['NEW', 'OLD'])
+    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })).knownFull.sort()).toEqual(['NEW', 'OLD'])
   })
 
   it('with the switch off, new 8-of-8 stocks do not trigger anything and knownFull is left alone', async () => {
-    await prisma.scannerAlertSettings.create({ data: { id: 'default', newEntrants: false, knownFull: [] } })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: false, knownFull: [] } })
     const run = await makeRun([{ symbol: 'NEW', passedCount: 8 }])
 
     expect(await notifyScanAlerts(run.id)).toBe('nothing')
     expect(send).not.toHaveBeenCalled()
-    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { id: 'default' } })).knownFull).toEqual([])
+    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })).knownFull).toEqual([])
   })
 
   it('puts watched and new stocks in one single email', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
-    await prisma.scannerAlertSettings.create({ data: { id: 'default', newEntrants: true, knownFull: [] } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: true, knownFull: [] } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8, rs: 99 }, { symbol: 'BBB', passedCount: 8, rs: 80 }])
 
     await notifyScanAlerts(run.id)
@@ -131,7 +131,7 @@ describe('notifyScanAlerts', () => {
   })
 
   it('downgrades a buy to "wait for confirmation" when the scan ran with the US market open', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }], new Date('2026-11-16T15:00:00Z'))
 
     await notifyScanAlerts(run.id)
@@ -143,13 +143,62 @@ describe('notifyScanAlerts', () => {
 
   it('links to the stock page when APP_URL is set', async () => {
     vi.stubEnv('APP_URL', 'https://app.example.com')
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
 
     await notifyScanAlerts(run.id)
 
     expect(send.mock.calls[0][1]).toContain('https://app.example.com/stock/AAA')
     vi.unstubAllEnvs()
+  })
+})
+
+describe('alerts are per user', () => {
+  beforeEach(async () => {
+    await resetDb()
+    send.mockReset()
+    send.mockResolvedValue(true)
+  })
+
+  it('emails each user only about their own armed stocks, at their own address', async () => {
+    await prisma.scanAlert.createMany({
+      data: [
+        { userId: 'u1', userEmail: 'one@example.com', symbol: 'AAA' },
+        { userId: 'u2', userEmail: 'two@example.com', symbol: 'BBB' },
+      ],
+    })
+    const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }, { symbol: 'BBB', passedCount: 8 }])
+
+    expect(await notifyScanAlerts(run.id)).toBe('sent')
+
+    expect(send).toHaveBeenCalledTimes(2)
+    const byRecipient = new Map(send.mock.calls.map((c) => [c[3], c[0]]))
+    expect(byRecipient.get('one@example.com')).toContain('AAA')
+    expect(byRecipient.get('one@example.com')).not.toContain('BBB')
+    expect(byRecipient.get('two@example.com')).toContain('BBB')
+    expect(byRecipient.get('two@example.com')).not.toContain('AAA')
+  })
+
+  it('keeps one user\'s switch and armed stocks out of another user\'s state', async () => {
+    await prisma.scanAlert.create({ data: { userId: 'u1', symbol: 'AAA' } })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'u1', newEntrants: true, knownFull: [] } })
+    expect(await getAlertState('u1')).toEqual({ armed: ['AAA'], newEntrants: true })
+    expect(await getAlertState('u2')).toEqual({ armed: [], newEntrants: false })
+  })
+
+  it('marks as sent only the user whose email went out, and retries the other', async () => {
+    await prisma.scanAlert.createMany({
+      data: [
+        { userId: 'u1', userEmail: 'one@example.com', symbol: 'AAA' },
+        { userId: 'u2', userEmail: 'two@example.com', symbol: 'AAA' },
+      ],
+    })
+    const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
+    send.mockImplementation(async (_s, _t, _h, to) => to === 'one@example.com')
+
+    expect(await notifyScanAlerts(run.id)).toBe('failed')
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'u1', symbol: 'AAA' } } })).notifiedAt).not.toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'u2', symbol: 'AAA' } } })).notifiedAt).toBeNull()
   })
 })
 
@@ -169,7 +218,7 @@ describe('closing a scan sends the alerts', () => {
   const fetchBars = async (symbol: string) => uptrend(0.1 + Number(symbol.slice(1)) * 0.1)
 
   it('sends one email when a real scan closes with an armed stock at 8 of 8', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'S7' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'S7' } })
     const started = await startRun(universe)
     if (started.kind === 'too-soon') throw new Error('unexpected')
 
@@ -180,7 +229,7 @@ describe('closing a scan sends the alerts', () => {
   })
 
   it('sends one email, not two, when two steps race on the last block', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'S7' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'S7' } })
     const started = await startRun(universe)
     if (started.kind === 'too-soon') throw new Error('unexpected')
 
@@ -190,7 +239,7 @@ describe('closing a scan sends the alerts', () => {
   })
 
   it('still closes the scan when the email cannot be sent', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'S7' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'S7' } })
     send.mockRejectedValue(new Error('smtp down'))
     const started = await startRun(universe)
     if (started.kind === 'too-soon') throw new Error('unexpected')
@@ -207,9 +256,9 @@ describe('getAlertState', () => {
   })
 
   it('lists only the armed stocks that have not notified yet, and the switch', async () => {
-    await prisma.scanAlert.createMany({ data: [{ symbol: 'AAA' }, { symbol: 'BBB', notifiedAt: new Date() }] })
-    expect(await getAlertState()).toEqual({ armed: ['AAA'], newEntrants: false })
-    await prisma.scannerAlertSettings.create({ data: { id: 'default', newEntrants: true, knownFull: [] } })
-    expect(await getAlertState()).toEqual({ armed: ['AAA'], newEntrants: true })
+    await prisma.scanAlert.createMany({ data: [{ userId: 'dev', symbol: 'AAA' }, { userId: 'dev', symbol: 'BBB', notifiedAt: new Date() }] })
+    expect(await getAlertState('dev')).toEqual({ armed: ['AAA'], newEntrants: false })
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: true, knownFull: [] } })
+    expect(await getAlertState('dev')).toEqual({ armed: ['AAA'], newEntrants: true })
   })
 })

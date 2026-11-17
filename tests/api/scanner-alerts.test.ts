@@ -25,7 +25,7 @@ describe('scanner alerts API: arm and disarm', () => {
     const res = await POST(req('POST'), ctx('AAA'))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ symbol: 'AAA', armed: true })
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).toBeNull()
   })
 
   it('POST normalises the symbol to upper case', async () => {
@@ -58,13 +58,13 @@ describe('scanner alerts API: arm and disarm', () => {
 
   it('POST arms again a stock that already sent its email', async () => {
     await makeRun([{ symbol: 'AAA', passedCount: 7 }])
-    await prisma.scanAlert.create({ data: { symbol: 'AAA', notifiedAt: new Date() } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA', notifiedAt: new Date() } })
     await POST(req('POST'), ctx('AAA'))
-    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { symbol: 'AAA' } })).notifiedAt).toBeNull()
+    expect((await prisma.scanAlert.findUniqueOrThrow({ where: { userId_symbol: { userId: 'dev', symbol: 'AAA' } } })).notifiedAt).toBeNull()
   })
 
   it('DELETE disarms, and is fine when nothing was armed', async () => {
-    await prisma.scanAlert.create({ data: { symbol: 'AAA' } })
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const res = await DELETE(req('DELETE'), ctx('AAA'))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ symbol: 'AAA', armed: false })
@@ -83,7 +83,7 @@ describe('scanner alerts API: settings', () => {
   })
 
   const put = (body: string) => PUT(new Request('http://localhost/api/scanner/alerts/settings', { method: 'PUT', body }))
-  const settings = () => prisma.scannerAlertSettings.findUniqueOrThrow({ where: { id: 'default' } })
+  const settings = () => prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })
 
   it('turning the switch on remembers the stocks that are already 8 of 8', async () => {
     await makeRun([{ symbol: 'AAA', passedCount: 8 }, { symbol: 'BBB', passedCount: 7 }, { symbol: 'CCC', passedCount: 8 }])
@@ -103,7 +103,7 @@ describe('scanner alerts API: settings', () => {
   it('turning it on twice does not forget the pending new entrants', async () => {
     await makeRun([{ symbol: 'AAA', passedCount: 8 }])
     await put('{"newEntrants":true}')
-    await prisma.scannerAlertSettings.update({ where: { id: 'default' }, data: { knownFull: ['X'] } })
+    await prisma.scannerAlertSettings.update({ where: { userId: 'dev' }, data: { knownFull: ['X'] } })
     await put('{"newEntrants":true}')
     expect((await settings()).knownFull).toEqual(['X'])
   })

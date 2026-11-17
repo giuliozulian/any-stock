@@ -7,6 +7,7 @@ import { ScannerTable } from '@/components/ScannerTable'
 import type { Criterion } from '@/lib/minervini'
 import { emailConfigured } from '@/lib/notify'
 import { getAlertState } from '@/lib/scan-alerts-db'
+import { currentUserId } from '@/lib/watchlist'
 import { duringSession, toScanRow } from '@/lib/scan-verdict'
 import { marketHealth } from '@/lib/scanner'
 import { PARTIAL_UNREAD_SHARE, latestCompleteRun, runTiming, runningRun } from '@/lib/scanner-run'
@@ -23,7 +24,7 @@ const ageText = (days: number) => (days === 1 ? 'di ieri' : `di ${days} giorni f
 
 async function ScannerContent() {
   await connection()
-  const [run, running, alertState] = await Promise.all([latestCompleteRun(), runningRun(), getAlertState()])
+  const [run, running, alertState] = await Promise.all([latestCompleteRun(), runningRun(), currentUserId().then(getAlertState)])
   const { lockedUntil, ageDays } = runTiming(run?.finishedAt ?? null, new Date())
   const lockedLabel = lockedUntil && !running ? `Disponibile dalle ${time(lockedUntil)}` : null
 

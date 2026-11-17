@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { setNewEntrants } from '@/lib/scan-alerts-db'
 import { requireUser } from '@/lib/auth'
+import { currentUser } from '@/lib/watchlist'
 
 export async function PUT(request: Request) {
   const auth = await requireUser()
@@ -13,7 +14,7 @@ export async function PUT(request: Request) {
   }
   if (typeof newEntrants !== 'boolean') return NextResponse.json({ error: 'newEntrants must be true or false' }, { status: 400 })
   try {
-    await setNewEntrants(newEntrants)
+    await setNewEntrants(await currentUser(), newEntrants)
     return NextResponse.json({ newEntrants })
   } catch (err) {
     console.error('Saving scan alert settings failed:', err instanceof Error ? err.message : String(err))

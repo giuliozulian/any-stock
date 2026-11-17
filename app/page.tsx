@@ -50,8 +50,9 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
     )
   }
 
+  // Snapshots are shared by everyone who watches a stock: each baseline is the first one taken since this user added it.
   const firstRows = await prisma.priceSnapshot.findMany({
-    where: { stockId: { in: stocks.map((s) => s.id) } },
+    where: { OR: stocks.map((s) => ({ stockId: s.id, timestamp: { gte: s.addedAt } })) },
     orderBy: { timestamp: 'asc' },
     distinct: ['stockId'],
     select: { stockId: true, price: true },

@@ -260,13 +260,19 @@ model ScanResult {
 
 model ScanAlert {
   id         String    @id @default(cuid())
-  symbol     String    @unique
+  userId     String
+  userEmail  String?
+  symbol     String
   armedAt    DateTime  @default(now())
   notifiedAt DateTime?
+
+  @@unique([userId, symbol])
 }
 
+// One row per user: each person chooses for themselves whether to hear about new 8-of-8 stocks.
 model ScannerAlertSettings {
-  id          String   @id @default("default")
+  userId      String   @id
+  userEmail   String?
   newEntrants Boolean  @default(false)
   knownFull   String[]
   updatedAt   DateTime @updatedAt
