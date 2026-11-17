@@ -4,7 +4,7 @@ import * as finnhub from '@/lib/finnhub'
 import * as notify from '@/lib/notify'
 import * as verdictNote from '@/lib/verdict-note'
 import * as bullBear from '@/lib/bull-bear-note'
-import { resetDb } from '../helpers/db'
+import { resetDb, watch } from '../helpers/db'
 import { refreshStock, refreshAllStocks } from '@/lib/refresh'
 
 const BASE_METRICS = {
@@ -29,8 +29,8 @@ describe('refreshStock', () => {
   })
 
   it('keeps an article that mentions two watched stocks for both of them, and refreshing again adds nothing', async () => {
-    const apple = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
-    const msft = await prisma.stock.create({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const msft = await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149.5, previousClose: 148.9 })
     vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'X', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 3000000 })
     vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS })
@@ -50,7 +50,7 @@ describe('refreshStock', () => {
   })
 
   it('hands the fair value computed from the live metrics to the notes that explain the verdict', async () => {
-    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149.5, previousClose: 148.9 })
     vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'X', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 3000000 })
     vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS, epsTTM: 5, epsGrowth5Y: 10, dividendYield: 1, bookValuePerShare: 40, priceToFcf: 150 / 6 })
@@ -69,7 +69,7 @@ describe('refreshStock', () => {
   })
 
   it('fails without writing a snapshot when Finnhub has no price (0) for the symbol', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'ZZZZ', name: 'Unknown', exchange: 'NASDAQ', entryPrice: 10 } })
+    const stock = await watch({ data: { symbol: 'ZZZZ', name: 'Unknown', exchange: 'NASDAQ', entryPrice: 10 } })
     const send = vi.spyOn(notify, 'sendAlertEmail').mockResolvedValue(true)
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 0, changePercent: 0, high: 0, low: 0, open: 0, previousClose: 0 })
     vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: '', exchange: '', currency: '', marketCapitalization: 0 })
@@ -83,7 +83,7 @@ describe('refreshStock', () => {
   })
 
   it('writes a price snapshot, news items, and recommendation rows for a known stock', async () => {
-    const stock = await prisma.stock.create({
+    const stock = await watch({
       data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
     })
 
@@ -136,7 +136,7 @@ describe('refreshStock', () => {
   })
 
   it('emails once when the sell target is reached and marks it triggered only after a successful send', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', sellPrice: 140 } })
+    const stock = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', sellPrice: 140 } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({ currentPrice: 150, changePercent: 1, high: 151, low: 149, open: 149, previousClose: 148 })
     vi.spyOn(finnhub, 'getProfile').mockResolvedValue({ name: 'Apple Inc.', exchange: 'NASDAQ', currency: 'USD', marketCapitalization: 1 })
     vi.spyOn(finnhub, 'getMetrics').mockResolvedValue({ ...BASE_METRICS })
@@ -145,17 +145,17 @@ describe('refreshStock', () => {
     const send = vi.spyOn(notify, 'sendAlertEmail').mockResolvedValueOnce(false).mockResolvedValue(true)
 
     await refreshStock('AAPL')
-    expect((await prisma.stock.findUniqueOrThrow({ where: { id: stock.id } })).sellTriggeredAt).toBeNull()
+    expect((await prisma.watchlistEntry.findUniqueOrThrow({ where: { id: stock.entry.id } })).sellTriggeredAt).toBeNull()
 
     await refreshStock('AAPL')
-    expect((await prisma.stock.findUniqueOrThrow({ where: { id: stock.id } })).sellTriggeredAt).not.toBeNull()
+    expect((await prisma.watchlistEntry.findUniqueOrThrow({ where: { id: stock.entry.id } })).sellTriggeredAt).not.toBeNull()
 
     await refreshStock('AAPL')
     expect(send).toHaveBeenCalledTimes(2)
   })
 
   it('returns ok:false and does not throw when Finnhub fails', async () => {
-    await prisma.stock.create({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('Finnhub request failed: 429 /quote'))
 
     const result = await refreshStock('MSFT')
@@ -163,7 +163,7 @@ describe('refreshStock', () => {
   })
 
   it('logs the failure so it is visible in server logs, per the spec', async () => {
-    await prisma.stock.create({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('Finnhub request failed: 429 /quote'))
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
@@ -173,7 +173,7 @@ describe('refreshStock', () => {
   })
 
   it('does not duplicate news items with the same url on repeated refresh', async () => {
-    await prisma.stock.create({ data: { symbol: 'TSLA', name: 'Tesla', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'TSLA', name: 'Tesla', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({
       currentPrice: 200, changePercent: 0.5, high: 201, low: 199, open: 199, previousClose: 199,
     })
@@ -194,7 +194,7 @@ describe('refreshStock', () => {
   })
 
   it('updates rather than duplicates a recommendation row for the same period on repeated refresh', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'TSLA', name: 'Tesla', exchange: 'NASDAQ' } })
+    const stock = await watch({ data: { symbol: 'TSLA', name: 'Tesla', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({
       currentPrice: 200, changePercent: 0.5, high: 201, low: 199, open: 199, previousClose: 199,
     })
@@ -216,7 +216,7 @@ describe('refreshStock', () => {
   })
 
   it('still writes the price snapshot when the recommendation-trend fetch fails', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const stock = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockResolvedValue({
       currentPrice: 150, changePercent: 1.1, high: 151, low: 149, open: 149.5, previousClose: 148.9,
     })
@@ -244,8 +244,8 @@ describe('refreshAllStocks', () => {
   })
 
   it('isolates one failing symbol from the rest', async () => {
-    await prisma.stock.create({ data: { symbol: 'GOOD', name: 'Good Co', exchange: 'NASDAQ' } })
-    await prisma.stock.create({ data: { symbol: 'BAD', name: 'Bad Co', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'GOOD', name: 'Good Co', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'BAD', name: 'Bad Co', exchange: 'NASDAQ' } })
 
     vi.spyOn(finnhub, 'getQuote').mockImplementation(async (symbol: string) => {
       if (symbol === 'BAD') throw new Error('Finnhub request failed: 429 /quote')

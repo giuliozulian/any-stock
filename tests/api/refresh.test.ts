@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as refreshLib from '@/lib/refresh'
-import { resetDb } from '../helpers/db'
+import { resetDb, watch } from '../helpers/db'
 import { POST as manualRefresh } from '@/app/api/stocks/[symbol]/refresh/route'
 import { GET as cronRefresh } from '@/app/api/cron/refresh/route'
 
@@ -18,7 +18,7 @@ describe('manual refresh route', () => {
   })
 
   it('returns 502 when refresh fails', async () => {
-    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     vi.spyOn(refreshLib, 'refreshStock').mockResolvedValue({ symbol: 'AAPL', ok: false, error: 'Finnhub request failed: 429 /quote' })
 
     const res = await manualRefresh(new Request('http://localhost') as any, { params: Promise.resolve({ symbol: 'AAPL' }) })
@@ -26,7 +26,7 @@ describe('manual refresh route', () => {
   })
 
   it('returns 200 when refresh succeeds', async () => {
-    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     vi.spyOn(refreshLib, 'refreshStock').mockResolvedValue({ symbol: 'AAPL', ok: true })
 
     const res = await manualRefresh(new Request('http://localhost') as any, { params: Promise.resolve({ symbol: 'AAPL' }) })

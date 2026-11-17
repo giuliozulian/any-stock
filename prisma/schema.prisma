@@ -11,15 +11,12 @@ model Stock {
   symbol          String                  @unique
   name            String
   exchange        String
-  addedAt         DateTime                @default(now())
-  entryPrice       Float?
-  sellPrice        Float?
-  entryTriggeredAt DateTime?
-  sellTriggeredAt  DateTime?
+  createdAt       DateTime                @default(now())
   nextEarningsDate        DateTime?
   nextEarningsHour        String?
   nextEarningsEpsEstimate Float?
   earningsCheckedAt       DateTime?
+  watchers        WatchlistEntry[]
   snapshots       PriceSnapshot[]
   news            NewsItem[]
   recommendations AnalystRecommendation[]
@@ -254,4 +251,21 @@ model RateLimit {
 
   @@id([key, windowStart])
   @@index([windowStart])
+}
+
+// One user's view of a stock: when they started watching it and the price targets they set. Prices, news and analyses live on Stock and are shared.
+model WatchlistEntry {
+  id               String    @id @default(cuid())
+  userId           String
+  userEmail        String?
+  stockId          String
+  stock            Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  addedAt          DateTime  @default(now())
+  entryPrice       Float?
+  sellPrice        Float?
+  entryTriggeredAt DateTime?
+  sellTriggeredAt  DateTime?
+
+  @@unique([userId, stockId])
+  @@index([stockId])
 }

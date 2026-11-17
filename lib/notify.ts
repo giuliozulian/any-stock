@@ -40,8 +40,8 @@ async function sendViaResend(apiKey: string, to: string, subject: string, text: 
 }
 
 // Uses SMTP when SMTP_HOST is set, otherwise Resend. Returns false (never throws) when not configured or on failure.
-export async function sendEmail(subject: string, text: string, html?: string): Promise<boolean> {
-  const to = process.env.ALERT_EMAIL_TO
+export async function sendEmail(subject: string, text: string, html?: string, recipient?: string | null): Promise<boolean> {
+  const to = recipient || process.env.ALERT_EMAIL_TO
   const resendKey = process.env.RESEND_API_KEY
   if (!to || (!process.env.SMTP_HOST && !resendKey)) {
     console.error('Email skipped: set ALERT_EMAIL_TO and either SMTP_HOST or RESEND_API_KEY')
@@ -57,9 +57,10 @@ export async function sendEmail(subject: string, text: string, html?: string): P
   }
 }
 
-export async function sendAlertEmail(alert: AlertEmail): Promise<boolean> {
+// `to` is the watcher's own address; without one the alert goes to ALERT_EMAIL_TO.
+export async function sendAlertEmail(alert: AlertEmail, to?: string | null): Promise<boolean> {
   const { subject, text } = buildMessage(alert)
-  return sendEmail(subject, text)
+  return sendEmail(subject, text, undefined, to)
 }
 
 // True when sendEmail can actually deliver: a recipient and either SMTP or Resend.

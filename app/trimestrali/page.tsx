@@ -3,6 +3,7 @@ import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import { currentUserId } from '@/lib/watchlist'
 import { getEarningsCalendar, type EarningsEvent } from '@/lib/finnhub'
 import table from '../movimenti/movimenti.module.css'
 import local from './trimestrali.module.css'
@@ -66,7 +67,7 @@ async function EarningsCalendar({ searchParams }: { searchParams: Promise<Search
   const to = new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 
   const [watched, calendar] = await Promise.all([
-    prisma.stock.findMany({ select: { symbol: true, name: true } }),
+    currentUserId().then((userId) => prisma.stock.findMany({ where: { watchers: { some: { userId } } }, select: { symbol: true, name: true } })),
     getEarningsCalendar(from, to).then(
       (events) => ({ events, failed: false }),
       (err) => {

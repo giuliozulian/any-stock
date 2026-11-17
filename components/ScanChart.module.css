@@ -1,16 +1,239 @@
 .wrap {
-  margin: 4px 0 0;
+  margin: 10px 0 0;
+  padding: 14px 16px 12px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-inner);
+  animation: open 0.18s ease-out;
+}
+
+@keyframes open {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  min-height: 34px;
+}
+
+.readout > div {
+  display: grid;
+  gap: 1px;
+}
+
+.readout dt {
+  color: var(--muted);
+}
+
+.readout dd {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout dd[data-tone='up'] {
+  color: var(--gain-bright);
+}
+
+.readout dd[data-tone='down'] {
+  color: var(--loss-bright);
+}
+
+.day {
+  align-self: end;
+}
+
+.day dd {
+  color: var(--muted);
+}
+
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.change {
+  font-size: 12px;
 }
 
 .chart {
-  height: 320px;
+  height: 360px;
   width: 100%;
+  color: var(--muted);
+  font-family: var(--font-num);
 }
 
-.legend,
-.note {
-  margin: 6px 0 0;
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 8px;
+}
+
+.avg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bone);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.avg[aria-pressed='false'] {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.avg[aria-pressed='false'] .swatch {
+  opacity: 0.3;
+}
+
+.avg:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.hint {
+  flex: 1 1 220px;
+  margin-left: 6px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.note {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stage {
+  position: relative;
+}
+
+.sk {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(100deg, var(--surface-raised) 30%, color-mix(in srgb, var(--surface-raised) 60%, var(--rule)) 50%, var(--surface-raised) 70%) 0 0 / 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+.skReadout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  align-items: flex-end;
+  min-height: 34px;
+  margin: 0 0 8px;
+}
+
+.skReadout .sk {
+  height: 28px;
+}
+
+.skChart,
+.skOverlay {
+  height: 360px;
+  width: 100%;
+}
+
+.skOverlay {
+  position: absolute;
+  inset: 0;
+}
+
+.skLegend {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.skPill {
+  width: 96px;
+  height: 32px;
+  border-radius: 999px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .wrap {
+    padding: 12px 10px;
+  }
+
+  .chart,
+  .skChart,
+  .skOverlay {
+    height: 300px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wrap,
+  .sk {
+    animation: none;
+  }
+}
+
+.checks {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.checksTitle {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.checkList {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  max-width: 70ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.checkList strong {
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.checksRule {
+  margin: 8px 0 0;
+  max-width: 70ch;
+  font-size: 13px;
+  color: var(--amber-bright);
 }

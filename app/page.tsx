@@ -3,6 +3,7 @@ import { WatchlistSkeleton } from './WatchlistSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import { currentUserId, flatten } from '@/lib/watchlist'
 import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
 import { PriceChart } from '@/components/PriceChart'
@@ -31,10 +32,12 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
   const { ordina, dir } = await searchParams
   const sortKey = COLUMNS.find((c) => c.key === ordina)?.key ?? null
   const sortDir: 'asc' | 'desc' = dir === 'asc' ? 'asc' : 'desc'
-  const stocks = await prisma.stock.findMany({
+  const entries = await prisma.watchlistEntry.findMany({
+    where: { userId: await currentUserId() },
     orderBy: { addedAt: 'asc' },
-    include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } },
+    include: { stock: { include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } } } },
   })
+  const stocks = entries.map(flatten)
 
   if (stocks.length === 0) {
     return <p className={styles.empty}>Nessun titolo in watchlist. Scrivi un simbolo (per esempio AAPL) in alto a destra e premi Add.</p>

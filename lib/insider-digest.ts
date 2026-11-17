@@ -1,4 +1,5 @@
 import { prisma } from './db'
+import { feedOwner, watchedBy } from './watchlist'
 import { getInsiderTransactions } from './finnhub'
 import { daysAgoISO, summarizeTrades, toTrades, topByActivity, type DigestEntry } from './insiders'
 import { sendEmail } from './notify'
@@ -21,7 +22,8 @@ export function buildDigest(entries: DigestEntry[]): { subject: string; text: st
 
 // End-of-day digest: top 3 watchlist stocks by insider P/S trades filed today. Stateless, sends nothing when there are none.
 export async function sendInsiderDigest(now = new Date()): Promise<{ checked: number; reported: number; sent: boolean }> {
-  const stocks = await prisma.stock.findMany()
+  // The digest goes to ALERT_EMAIL_TO: it covers the owner's list, not other users' stocks.
+  const stocks = await prisma.stock.findMany({ where: watchedBy(feedOwner()) })
   const today = daysAgoISO(0, now)
   const sinceTransaction = daysAgoISO(30, now)
   const entries: DigestEntry[] = []

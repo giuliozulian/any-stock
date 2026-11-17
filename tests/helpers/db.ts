@@ -18,3 +18,22 @@ export async function resetDb(): Promise<void> {
   await prisma.priceSnapshot.deleteMany()
   await prisma.stock.deleteMany()
 }
+
+interface WatchedData {
+  symbol: string
+  name: string
+  exchange: string
+  addedAt?: Date
+  entryPrice?: number | null
+  sellPrice?: number | null
+  entryTriggeredAt?: Date | null
+  sellTriggeredAt?: Date | null
+}
+
+// A stock that a user watches: the shared Stock row plus that user's own entry (the local no-login user by default).
+export async function watch({ data }: { data: WatchedData }, userId = 'dev', userEmail = 'dev@local') {
+  const { addedAt, entryPrice, sellPrice, entryTriggeredAt, sellTriggeredAt, ...shared } = data
+  const stock = await prisma.stock.create({ data: shared })
+  const entry = await prisma.watchlistEntry.create({ data: { userId, userEmail, stockId: stock.id, addedAt, entryPrice, sellPrice, entryTriggeredAt, sellTriggeredAt } })
+  return { ...stock, entry }
+}

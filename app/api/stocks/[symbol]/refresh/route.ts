@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
 import { refreshStock } from '@/lib/refresh'
 import { requireUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
+import { currentUserId, findEntry } from '@/lib/watchlist'
 
 export async function POST(_request: Request, { params }: { params: Promise<{ symbol: string }> }) {
   const auth = await requireUser()
@@ -11,7 +11,7 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sy
   if (limited) return limited
   const { symbol: rawSymbol } = await params
   const symbol = rawSymbol.toUpperCase()
-  const stock = await prisma.stock.findUnique({ where: { symbol } })
+  const stock = await findEntry(await currentUserId(), symbol)
 
   if (!stock) {
     return NextResponse.json({ error: `${symbol} is not in the watchlist` }, { status: 404 })

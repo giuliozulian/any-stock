@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { feedOwner, watchedBy } from '@/lib/watchlist'
 import { safeEqual } from '@/lib/safe-equal'
 
 // Compact watchlist feed for iPhone widgets (Shortcuts / Scriptable). It cannot log in, so ?token= must match WIDGET_TOKEN;
@@ -11,6 +12,7 @@ export async function GET(req: Request) {
   if (!required || !safeEqual(url.searchParams.get('token') ?? '', required)) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
   const stocks = await prisma.stock.findMany({
+    where: watchedBy(feedOwner()),
     orderBy: { symbol: 'asc' },
     select: { symbol: true, name: true, snapshots: { orderBy: { timestamp: 'desc' }, take: 1, select: { price: true, changePct: true, timestamp: true } } },
   })

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as refreshLib from '@/lib/refresh'
-import { resetDb } from '../helpers/db'
+import { resetDb, watch } from '../helpers/db'
 import { GET as listStocks, POST as addStock } from '@/app/api/stocks/route'
 import { GET as getStock, DELETE as deleteStock } from '@/app/api/stocks/[symbol]/route'
 
@@ -45,7 +45,7 @@ describe('stocks API', () => {
   })
 
   it('POST returns 409 when the symbol is already in the watchlist', async () => {
-    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
 
     const res = await addStock(jsonRequest({ symbol: 'AAPL' }))
     expect(res.status).toBe(409)
@@ -86,7 +86,7 @@ describe('stocks API', () => {
   })
 
   it('GET /api/stocks lists stocks with their latest snapshot', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const stock = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     await prisma.priceSnapshot.create({ data: { stockId: stock.id, price: 150, changePct: 1 } })
 
     const res = await listStocks()
@@ -96,7 +96,7 @@ describe('stocks API', () => {
   })
 
   it('DELETE removes a stock and cascades its snapshots', async () => {
-    const stock = await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const stock = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     await prisma.priceSnapshot.create({ data: { stockId: stock.id, price: 150, changePct: 1 } })
 
     const res = await deleteStock(new Request('http://localhost/api/stocks/AAPL') as any, { params: Promise.resolve({ symbol: 'AAPL' }) })
@@ -116,5 +116,48 @@ describe('stocks API', () => {
   it('GET detail returns 404 for a symbol not in the watchlist', async () => {
     const res = await getStock(new Request('http://localhost/api/stocks/NOPE') as any, { params: Promise.resolve({ symbol: 'NOPE' }) })
     expect(res.status).toBe(404)
+  })
+})
+
+describe('stocks API with two users', () => {
+  beforeEach(async () => {
+    await resetDb()
+    vi.restoreAllMocks()
+  })
+
+  it('keeps each user\'s watchlist and targets apart', async () => {
+    const mine = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', entryPrice: 100 } })
+    await prisma.watchlistEntry.create({ data: { userId: 'friend', userEmail: 'friend@x.it', stockId: mine.id, entryPrice: 50 } })
+    await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } }, 'friend', 'friend@x.it')
+
+    const body = await (await listStocks()).json()
+    expect(body.stocks.map((s: { symbol: string }) => s.symbol)).toEqual(['AAPL'])
+    expect(body.stocks[0].entryPrice).toBe(100)
+
+    const res = await getStock(new Request('http://localhost/api/stocks/MSFT') as any, { params: Promise.resolve({ symbol: 'MSFT' }) })
+    expect(res.status).toBe(404)
+  })
+
+  it('removing a stock drops only my entry while someone else still watches it', async () => {
+    const mine = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await prisma.watchlistEntry.create({ data: { userId: 'friend', stockId: mine.id } })
+
+    await deleteStock(new Request('http://localhost') as any, { params: Promise.resolve({ symbol: 'AAPL' }) })
+
+    expect(await prisma.stock.findUnique({ where: { symbol: 'AAPL' } })).not.toBeNull()
+    expect(await prisma.watchlistEntry.count({ where: { stockId: mine.id } })).toBe(1)
+    expect(await prisma.watchlistEntry.count({ where: { userId: 'dev' } })).toBe(0)
+  })
+
+  it('adding a stock someone else already follows creates only my entry and does no lookup', async () => {
+    const lookup = vi.spyOn(finnhub, 'searchSymbol')
+    const shared = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } }, 'friend', 'friend@x.it')
+
+    const res = await addStock(jsonRequest({ symbol: 'AAPL' }))
+
+    expect(res.status).toBe(201)
+    expect(lookup).not.toHaveBeenCalled()
+    expect(await prisma.stock.count()).toBe(1)
+    expect(await prisma.watchlistEntry.count({ where: { stockId: shared.id } })).toBe(2)
   })
 })

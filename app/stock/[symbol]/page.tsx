@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { currentUserId, flatten } from '@/lib/watchlist'
 import { PriceChart } from '@/components/PriceChart'
 import { PriceHistoryChart } from '@/components/PriceHistoryChart'
 import { AnalystTrendChart } from '@/components/AnalystTrendChart'
@@ -250,22 +251,27 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
   await refreshStockIfStale(symbol).catch(() => undefined)
 
-  const stock = await prisma.stock.findUnique({
-    where: { symbol },
+  const watched = await prisma.watchlistEntry.findFirst({
+    where: { userId: await currentUserId(), stock: { symbol } },
     include: {
-      snapshots: { orderBy: { timestamp: 'desc' }, take: 100 },
-      news: {
-        orderBy: { publishedAt: 'desc' },
-        take: 20,
-        include: { analysis: true },
+      stock: {
+        include: {
+          snapshots: { orderBy: { timestamp: 'desc' }, take: 100 },
+          news: {
+            orderBy: { publishedAt: 'desc' },
+            take: 20,
+            include: { analysis: true },
+          },
+          recommendations: { orderBy: { period: 'desc' }, take: 6 },
+          insight: true,
+          verdictNote: true,
+          earningsNote: true,
+          bullBearNote: true,
+        },
       },
-      recommendations: { orderBy: { period: 'desc' }, take: 6 },
-      insight: true,
-      verdictNote: true,
-      earningsNote: true,
-      bullBearNote: true,
     },
   })
+  const stock = watched ? flatten(watched) : null
 
   if (!stock) {
     return <StockPreview symbol={symbol} />

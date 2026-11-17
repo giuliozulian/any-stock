@@ -3,6 +3,7 @@ import { SectionSkeleton } from '@/components/SectionSkeleton'
 import { connection, after } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
+import { currentUserId } from '@/lib/watchlist'
 import { getMarketBigMovers, BIG_MOVE_THRESHOLD_PCT, type Market, type MarketMover } from '@/lib/market'
 import { ensureMoveExplanations, getMoveExplanations } from '@/lib/move-explanation'
 import { InfoTip } from '@/components/InfoTip'
@@ -64,7 +65,7 @@ async function BigMovers({ searchParams }: { searchParams: Promise<Search> }) {
   const parsed = Number(soglia)
   const threshold = THRESHOLDS.includes(parsed) ? parsed : BIG_MOVE_THRESHOLD_PCT
   const [watched, marketResult] = await Promise.all([
-    prisma.stock.findMany({ select: { symbol: true } }),
+    currentUserId().then((userId) => prisma.stock.findMany({ where: { watchers: { some: { userId } } }, select: { symbol: true } })),
     getMarketBigMovers(threshold, market.key).then(
       (movers) => ({ movers, failed: false }),
       (err) => {

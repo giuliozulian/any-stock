@@ -10,7 +10,7 @@ describe('ScanChart', () => {
     vi.stubGlobal('fetch', fetchMock)
     render(<ScanChart symbol="BRK.B" />)
     expect(fetchMock).toHaveBeenCalledWith('/api/scanner/chart/BRK.B')
-    expect(screen.getByText(/carico il grafico/i)).toBeInTheDocument()
+    expect(screen.getByRole('status', { name: /carico il grafico/i })).toBeInTheDocument()
   })
 
   it('says so when the prices cannot be loaded', async () => {

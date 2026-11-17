@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('next/server', async (importOriginal) => ({ ...(await importOriginal<typeof import('next/server')>()), connection: vi.fn(async () => {}) }))
 
 import { prisma } from '@/lib/db'
-import { resetDb } from '../helpers/db'
+import { resetDb, watch } from '../helpers/db'
 import { GET as widget } from '@/app/api/widget/route'
 import { GET as calendar } from '@/app/api/calendar/route'
 
@@ -14,7 +14,7 @@ describe('widget feed', () => {
   beforeEach(async () => {
     await resetDb()
     vi.stubEnv('WIDGET_TOKEN', 'widget-secret')
-    await prisma.stock.create({ data: { symbol: 'AAPL', name: 'Apple', exchange: 'NASDAQ' } })
+    await watch({ data: { symbol: 'AAPL', name: 'Apple', exchange: 'NASDAQ' } })
   })
   afterEach(() => vi.unstubAllEnvs())
 

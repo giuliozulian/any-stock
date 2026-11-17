@@ -7,6 +7,7 @@ import { InfoTip } from '@/components/InfoTip'
 import { MemberName, type MemberCard } from '@/components/MemberName'
 import { getMemberProfiles, memberStats } from '@/lib/politician-profiles'
 import { prisma } from '@/lib/db'
+import { currentUserId } from '@/lib/watchlist'
 import { rankSignals, topMembers, type Timing } from '@/lib/congress-signals'
 import styles from '../section.module.css'
 import local from './politici.module.css'
@@ -40,7 +41,7 @@ async function CongressBuys() {
 
   const people = new Map<string, { member: string; chamber: string; state: string }>()
   for (const b of buys) if (!people.has(b.member)) people.set(b.member, { member: b.member, chamber: b.chamber, state: b.state })
-  const [profiles, stats, watched] = await Promise.all([getMemberProfiles([...people.values()]), memberStats(buys), prisma.stock.findMany({ select: { symbol: true } })])
+  const [profiles, stats, watched] = await Promise.all([getMemberProfiles([...people.values()]), memberStats(buys), currentUserId().then((userId) => prisma.stock.findMany({ where: { watchers: { some: { userId } } }, select: { symbol: true } }))])
   const watchSet = new Set(watched.map((w) => w.symbol.toUpperCase()))
   const person = (name: string) => {
     const p = people.get(name)

@@ -1,5 +1,6 @@
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { feedOwner, watchedBy } from '@/lib/watchlist'
 import { safeEqual } from '@/lib/safe-equal'
 
 function ymd(d: Date): string {
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
   const start = new Date()
   start.setUTCHours(0, 0, 0, 0)
   const stocks = await prisma.stock.findMany({
-    where: { nextEarningsDate: { gte: start } },
+    where: { nextEarningsDate: { gte: start }, ...watchedBy(feedOwner()) },
     orderBy: { nextEarningsDate: 'asc' },
   })
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, '')
