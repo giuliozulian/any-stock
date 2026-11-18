@@ -50,7 +50,9 @@ describe('finviz', () => {
   })
 
   it('fails when the page is not the screener table (blocked or changed)', async () => {
-    await expect(fetchFinvizRows(async () => '<html>Just a moment...</html>', async () => {})).rejects.toBeInstanceOf(FinvizUnavailableError)
+    const err = await fetchFinvizRows(async () => '<html><head><title>Just a moment...</title></head></html>', async () => {}).catch((e) => e)
+    expect(err).toBeInstanceOf(FinvizUnavailableError)
+    expect(err.detail).toBe('risposta senza tabella: "Just a moment..."')
   })
 
   it('answers an empty list when Finviz finds nothing', async () => {

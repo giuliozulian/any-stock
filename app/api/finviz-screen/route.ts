@@ -15,7 +15,7 @@ export async function POST(request: Request) {
     return NextResponse.json(await runFinvizScreen())
   } catch (err) {
     console.error('Finviz screen failed:', err instanceof Error ? err.message : String(err))
-    if (err instanceof FinvizUnavailableError) return NextResponse.json({ error: 'Finviz non risponde o ha bloccato la richiesta. Riprova più tardi.' }, { status: 502 })
+    if (err instanceof FinvizUnavailableError) return NextResponse.json({ error: `Finviz non risponde o ha bloccato la richiesta (${err.detail}). Riprova più tardi.` }, { status: 502 })
     return NextResponse.json({ error: 'La ricerca non è riuscita' }, { status: 500 })
   }
 }

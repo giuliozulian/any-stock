@@ -235,6 +235,14 @@ model ScanRun {
   @@index([status, finishedAt])
 }
 
+// Stocks added to the scanner on top of the S&P 500, the watchlist and the candidates: the last Finviz list.
+model ScanExtra {
+  symbol  String   @id
+  name    String
+  source  String
+  addedAt DateTime @default(now())
+}
+
 model ScanResult {
   id               String   @id @default(cuid())
   runId            String

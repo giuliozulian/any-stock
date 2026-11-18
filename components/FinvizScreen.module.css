@@ -1,7 +1,5 @@
 .wrap {
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1px solid var(--rule);
+  margin: 0 0 24px;
 }
 
 .title {

@@ -53,7 +53,17 @@ export function passesTechnical(r: FinvizRow): boolean {
   return r.sma50 > 0 && r.high52 >= MAX_BELOW_HIGH && r.low52 >= MIN_ABOVE_LOW
 }
 
-export class FinvizUnavailableError extends Error {}
+// `detail` says what Finviz really answered (status code or page title), so a block can be told apart from a changed page.
+export class FinvizUnavailableError extends Error {
+  constructor(
+    message: string,
+    readonly detail: string = message,
+  ) {
+    super(message)
+  }
+}
+
+const titleOf = (html: string) => html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1].replace(/\s+/g, ' ').trim().slice(0, 80) || html.replace(/\s+/g, ' ').slice(0, 80)
 
 export interface FinvizFetchResult {
   rows: FinvizRow[]
@@ -67,8 +77,9 @@ export async function fetchFinvizRows(fetchPage: (url: string) => Promise<string
   let total = 0
   for (let page = 0; page < MAX_PAGES; page++) {
     if (page > 0) await wait(PAGE_DELAY_MS)
-    const parsed = parseScreener(await fetchPage(finvizUrl(page * PAGE_SIZE)))
-    if (parsed.total === null) throw new FinvizUnavailableError('Finviz did not return the screener table')
+    const html = await fetchPage(finvizUrl(page * PAGE_SIZE))
+    const parsed = parseScreener(html)
+    if (parsed.total === null) throw new FinvizUnavailableError('Finviz did not return the screener table', `risposta senza tabella: "${titleOf(html)}"`)
     total = parsed.total
     rows.push(...parsed.rows)
     if ((page + 1) * PAGE_SIZE >= total) break
@@ -80,6 +91,6 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
 async function defaultFetch(url: string): Promise<string> {
   const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'text/html' }, signal: AbortSignal.timeout(15_000) })
-  if (!res.ok) throw new FinvizUnavailableError(`Finviz answered ${res.status}`)
+  if (!res.ok) throw new FinvizUnavailableError(`Finviz answered ${res.status}`, `HTTP ${res.status}`)
   return res.text()
 }

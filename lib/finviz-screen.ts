@@ -4,7 +4,8 @@ import { isLlmConfigured, requestLlmJson } from '@/lib/llm-news'
 import { RS_MIN, percentileRank, type Criterion } from '@/lib/minervini'
 import { fetchFinvizRows, passesTechnical, type FinvizFetchResult } from '@/lib/finviz'
 import { VERDICT, planFor, sentence, toScanRow, type ScanRow } from '@/lib/scan-verdict'
-import { MIN_PEERS, isUsSession, marketHealth, missingCriterion, scanSymbol, type TradePlan } from '@/lib/scanner'
+import { toRow } from '@/lib/scanner-run'
+import { MIN_PEERS, isUsSession, marketHealth, missingCriterion, scanSymbol, type ScanSymbolResult, type TradePlan } from '@/lib/scanner'
 import { toYahooSymbol } from '@/lib/universe'
 
 const MAX_PICKS = 40
@@ -29,6 +30,8 @@ export interface FinvizScreen {
   truncated: boolean
   noteAvailable: boolean
   picks: FinvizPick[]
+  // Stocks of the list that were not in the last scan and now are.
+  addedToScan: number
 }
 
 async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -81,6 +84,24 @@ async function geminiNotes(picks: Omit<FinvizPick, 'note'>[]): Promise<Map<strin
   }
 }
 
+// The list replaces the previous Finviz list: the next scans cover it, and the last complete scan shows it right away.
+async function addToScanner(found: { symbol: string; scan: ScanSymbolResult; rs: number | null; passedCount: number }[]): Promise<number> {
+  await prisma.$transaction([
+    prisma.scanExtra.deleteMany({ where: { source: 'finviz' } }),
+    prisma.scanExtra.createMany({ data: found.map((f) => ({ symbol: f.symbol, name: f.symbol, source: 'finviz' })), skipDuplicates: true }),
+  ])
+  const run = await prisma.scanRun.findFirst({ where: { status: 'done' }, orderBy: { finishedAt: 'desc' } })
+  if (!run || found.length === 0) return 0
+  const have = new Set((await prisma.scanResult.findMany({ where: { runId: run.id, symbol: { in: found.map((f) => f.symbol) } }, select: { symbol: true } })).map((r) => r.symbol))
+  const fresh = found.filter((f) => !have.has(f.symbol))
+  if (fresh.length === 0) return 0
+  const created = await prisma.scanResult.createMany({
+    data: fresh.map((f) => ({ ...toRow(run.id, { symbol: f.symbol, name: f.symbol, sector: null }, f.scan), rs: f.rs, passedCount: f.passedCount })),
+    skipDuplicates: true,
+  })
+  return created.count
+}
+
 export interface ScreenDeps {
   fetchList?: () => Promise<FinvizFetchResult>
   fetchBars?: (symbol: string) => Promise<Bar[]>
@@ -100,23 +121,30 @@ export async function runFinvizScreen(deps: ScreenDeps = {}): Promise<FinvizScre
   })
 
   const picks: Omit<FinvizPick, 'note'>[] = []
+  const found: { symbol: string; scan: ScanSymbolResult; rs: number | null; passedCount: number }[] = []
   for (const { row, scan } of scanned) {
     if (!scan) continue
     const rs = returns.length >= MIN_PEERS ? percentileRank(scan.weightedReturn, returns) : null
     const trend = scan.criteria.filter((c) => c.ok).length
     const passedCount = trend + (rs !== null && rs >= RS_MIN ? 1 : 0)
+    found.push({ symbol: row.symbol, scan, rs, passedCount })
     const scanRow: ScanRow = { ...toScanRow({ symbol: row.symbol, name: row.symbol, sector: null, price: scan.price, rs, passedCount, vcpStatus: scan.vcpStatus, pivot: scan.pivot, pivotDistancePct: scan.pivotDistancePct, volumeRatio: scan.volumeRatio, volumeDryUp: scan.volumeDryUp, criteria: scan.criteria }), missing: passedCount === 7 ? missingCriterion(scan.criteria, rs) : null }
     const { plan, note } = planFor(scanRow, ctx)
     picks.push({ symbol: row.symbol, price: scan.price, passedCount, rs, verdict: plan.verdict, label: VERDICT[plan.verdict].label, plan, text: sentence(scanRow, plan, note) })
   }
   picks.sort((a, b) => VERDICT[a.verdict].rank - VERDICT[b.verdict].rank || (b.rs ?? -1) - (a.rs ?? -1))
 
+  const addedToScan = await addToScanner(found).catch((err) => {
+    console.error('Finviz screen: adding to the scanner failed:', err instanceof Error ? err.message : String(err))
+    return 0
+  })
   const notes = await geminiNotes(picks)
   return {
     total: list.total,
     passedTechnical: survivors.length,
     truncated: list.truncated,
     noteAvailable: notes !== null,
+    addedToScan,
     picks: picks.map((p) => ({ ...p, note: notes?.get(p.symbol) ?? null })),
   }
 }

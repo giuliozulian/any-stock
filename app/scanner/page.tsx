@@ -38,6 +38,7 @@ async function ScannerContent() {
   return (
     <>
       <ScannerButton resumable={running !== null} lockedLabel={lockedLabel} />
+      <FinvizScreen />
       <ScannerInfo
         defaultOpen={!run}
         status={
@@ -82,7 +83,6 @@ export default function ScannerPage() {
       <Suspense fallback={<ScannerSkeleton />}>
         <AuthGate path="/scanner">
           <ScannerContent />
-          <FinvizScreen />
         </AuthGate>
       </Suspense>
     </main>

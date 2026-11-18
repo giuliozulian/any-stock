@@ -47,15 +47,16 @@ export function runTiming(finishedAt: Date | null, now: Date): { lockedUntil: Da
 // Foreign listings carry an exchange suffix (ENI.MI); class shares have a single letter (BRK.B) and are US.
 const FOREIGN_SYMBOL = /\.[A-Z]{2,}$/
 
-// US stocks the user follows that the S&P 500 does not cover: the watchlist and the open discovery candidates.
+// US stocks the user follows that the S&P 500 does not cover: the watchlist, the open discovery candidates and the last Finviz list.
 export async function loadExtras(base: UniverseEntry[] = loadUniverse()): Promise<UniverseEntry[]> {
-  const [watched, candidates] = await Promise.all([
+  const [watched, candidates, added] = await Promise.all([
     prisma.stock.findMany({ select: { symbol: true, name: true } }),
     prisma.discoveredCandidate.findMany({ where: { dismissedAt: null, market: 'US' }, select: { symbol: true, name: true } }),
+    prisma.scanExtra.findMany({ select: { symbol: true, name: true } }),
   ])
   const seen = new Set(base.map((e) => e.symbol.toUpperCase()))
   const extras: UniverseEntry[] = []
-  for (const s of [...watched, ...candidates]) {
+  for (const s of [...watched, ...candidates, ...added]) {
     const symbol = s.symbol.toUpperCase()
     if (seen.has(symbol) || FOREIGN_SYMBOL.test(symbol)) continue
     seen.add(symbol)
@@ -137,7 +138,7 @@ export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepR
 }
 
 // Json columns reject a plain null: leave the key out for unread rows.
-function toRow(runId: string, entry: UniverseEntry, r: ScanSymbolResult | null): Prisma.ScanResultCreateManyInput {
+export function toRow(runId: string, entry: UniverseEntry, r: ScanSymbolResult | null): Prisma.ScanResultCreateManyInput {
   const base = { runId, symbol: entry.symbol, name: entry.name, sector: entry.sector }
   if (!r) return { ...base, status: 'unread' }
   return {

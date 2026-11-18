@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+const refresh = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh }) }))
+
 import { FinvizScreen } from '@/components/FinvizScreen'
 
 const plan = { verdict: 'watch', buyFrom: 94, buyTo: 98.7, stop: 86.5, riskPct: 8, profitFrom: 113, profitTo: 117.5 }
@@ -9,7 +12,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('FinvizScreen', () => {
   it('runs the search on click and lists each stock with verdict and Gemini note', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ total: 58, passedTechnical: 17, truncated: false, noteAvailable: true, picks: [pick] }), { status: 200 }))
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ total: 58, passedTechnical: 17, truncated: false, noteAvailable: true, addedToScan: 3, picks: [pick] }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     render(<FinvizScreen />)
     fireEvent.click(screen.getByRole('button', { name: 'Cerca con Finviz' }))
@@ -18,6 +21,8 @@ describe('FinvizScreen', () => {
     expect(screen.getByText('Da tenere d’occhio')).toBeInTheDocument()
     expect(screen.getByText('Crescita forte, base quasi pronta.')).toBeInTheDocument()
     expect(screen.getByText(/58 titoli; 17 passano/)).toBeInTheDocument()
+    expect(screen.getByText(/3 aggiunti alla lista dello scanner/)).toBeInTheDocument()
+    expect(refresh).toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledWith('/api/finviz-screen', { method: 'POST' })
   })
 

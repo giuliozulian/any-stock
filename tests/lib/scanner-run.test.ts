@@ -37,6 +37,7 @@ describe('scanner run', () => {
         { symbol: 'ENI.MI', name: 'Eni', exchange: 'MIL' },
       ],
     })
+    await prisma.scanExtra.create({ data: { symbol: 'FVZ', name: 'FVZ', source: 'finviz' } })
     const cand = { name: 'X', market: 'US', score: 1, momentumScore: 1, fundamentalsScore: 1, insiderScore: 1, reason: '', source: 'congress' }
     await prisma.discoveredCandidate.createMany({
       data: [
@@ -46,18 +47,18 @@ describe('scanner run', () => {
         { ...cand, symbol: 'ENEL.MI', market: 'IT' },
       ],
     })
-    expect((await loadExtras()).map((e) => e.symbol)).toEqual(['RCEL', 'ZZZ'])
+    expect((await loadExtras()).map((e) => e.symbol)).toEqual(['FVZ', 'RCEL', 'ZZZ'])
 
     const started = await startRun()
     if (started.kind === 'too-soon') throw new Error('unexpected')
-    expect(started.run.total).toBe(loadUniverse().length + 2)
+    expect(started.run.total).toBe(loadUniverse().length + 3)
 
     const fetchBars = vi.fn(async () => uptrend(0.5))
     const base = loadUniverse().length
     await prisma.scanRun.update({ where: { id: started.run.id }, data: { cursor: base } })
     await stepRun(started.run.id, { fetchBars })
     const rows = await prisma.scanResult.findMany({ where: { runId: started.run.id } })
-    expect(rows.map((r) => r.symbol).sort()).toEqual(['RCEL', 'ZZZ'])
+    expect(rows.map((r) => r.symbol).sort()).toEqual(['FVZ', 'RCEL', 'ZZZ'])
   })
 
   it('refuses a new run within an hour of the last complete one and gives the retry time', async () => {

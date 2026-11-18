@@ -76,6 +76,35 @@ describe('runFinvizScreen', () => {
   })
 })
 
+describe('adding the list to the scanner', () => {
+  beforeEach(async () => {
+    await resetDb()
+    isLlmConfigured.mockReturnValue(false)
+  })
+
+  it('stores the list for the next scans and puts the new stocks in the last complete scan', async () => {
+    const run = await prisma.scanRun.create({ data: { status: 'done', total: 1, cursor: 1, finishedAt: new Date() } })
+    await prisma.scanResult.create({ data: { runId: run.id, symbol: 'OLD', name: 'Old', status: 'ok', passedCount: 8 } })
+    await prisma.scanExtra.create({ data: { symbol: 'STALE', name: 'STALE', source: 'finviz' } })
+
+    const out = await runFinvizScreen({ fetchList: list([row('NEW1'), row('OLD')]), fetchBars: async () => uptrend(0.5), now: noon })
+
+    expect(out.addedToScan).toBe(1)
+    expect((await prisma.scanExtra.findMany()).map((e) => e.symbol).sort()).toEqual(['NEW1', 'OLD'])
+    const rows = await prisma.scanResult.findMany({ where: { runId: run.id }, orderBy: { symbol: 'asc' } })
+    expect(rows.map((r) => r.symbol)).toEqual(['NEW1', 'OLD'])
+    expect(rows[0]).toMatchObject({ status: 'ok' })
+    expect(rows[0].passedCount).toBeGreaterThan(0)
+    expect(rows[1].passedCount).toBe(8)
+  })
+
+  it('still stores the list for the next scan when no scan has been completed yet', async () => {
+    const out = await runFinvizScreen({ fetchList: list([row('NEW1')]), fetchBars: async () => uptrend(0.5), now: noon })
+    expect(out.addedToScan).toBe(0)
+    expect(await prisma.scanExtra.count()).toBe(1)
+  })
+})
+
 describe('parseNotes', () => {
   it('keeps only notes for the requested symbols, trimmed and capped', () => {
     const notes = parseNotes({ notes: { A: '  ok  ', B: '', C: 5, X: 'unknown', D: 'x'.repeat(500) } }, ['A', 'B', 'C', 'D'])

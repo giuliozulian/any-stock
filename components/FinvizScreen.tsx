@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { FinvizScreen as Screen } from '@/lib/finviz-screen'
 import { VERDICT, fmtNum, fmtPrice } from '@/lib/scan-verdict'
 import styles from './FinvizScreen.module.css'
 
 export function FinvizScreen() {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [screen, setScreen] = useState<Screen | null>(null)
@@ -23,6 +25,8 @@ export function FinvizScreen() {
         return
       }
       setScreen(data as Screen)
+      // The stocks were added to the scan: reload the table so they show up.
+      router.refresh()
     } catch {
       setError('La ricerca non è riuscita')
     } finally {
@@ -33,10 +37,10 @@ export function FinvizScreen() {
   return (
     <section className={styles.wrap} aria-labelledby="finviz-title">
       <h2 id="finviz-title" className={styles.title}>
-        Lista Finviz
+        Cerca su Finviz
       </h2>
       <p className={styles.lead}>
-        Titoli USA con utili e vendite in forte crescita e trend rialzista, cercati su Finviz e poi controllati con le regole dello scanner. Il verdetto e la nota non sono un consiglio di investimento.
+        Titoli USA con utili e vendite in forte crescita e trend rialzista, cercati su Finviz e aggiunti allo scanner, che li controlla con le sue regole. Il verdetto e la nota non sono un consiglio di investimento.
       </p>
       <button type="button" className={styles.button} onClick={run} disabled={loading}>
         {loading ? 'Cerco su Finviz…' : 'Cerca con Finviz'}
@@ -52,6 +56,7 @@ export function FinvizScreen() {
             {screen.picks.length === 0
               ? `Finviz ha trovato ${screen.total} titoli, ma nessuno passa anche i controlli su media a 50 giorni e distanza da massimi e minimi.`
               : `Finviz ha trovato ${screen.total} titoli; ${screen.passedTechnical} passano anche i controlli su media a 50 giorni e distanza da massimi e minimi.`}
+            {screen.addedToScan > 0 ? ` ${screen.addedToScan} aggiunti alla lista dello scanner.` : ''}
             {screen.truncated ? ' Letti solo i primi risultati: la lista completa è più lunga.' : ''}
           </p>
           {screen.picks.length > 0 && (
