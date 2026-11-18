@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { connection } from 'next/server'
 import { prisma } from '@/lib/db'
+import { FinvizScreen } from '@/components/FinvizScreen'
 import { ScannerButton } from '@/components/ScannerButton'
 import { ScannerInfo } from '@/components/ScannerInfo'
 import { ScannerTable } from '@/components/ScannerTable'
@@ -81,6 +82,7 @@ export default function ScannerPage() {
       <Suspense fallback={<ScannerSkeleton />}>
         <AuthGate path="/scanner">
           <ScannerContent />
+          <FinvizScreen />
         </AuthGate>
       </Suspense>
     </main>

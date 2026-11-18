@@ -1,0 +1,141 @@
+.wrap {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--rule);
+}
+
+.title {
+  font-family: var(--font-display, inherit);
+  font-size: 20px;
+  margin: 0 0 6px;
+}
+
+.lead {
+  max-width: 64ch;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+  margin: 0 0 16px;
+}
+
+.button {
+  font-family: var(--font-ui);
+  font-size: 14px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid var(--brass);
+  background: transparent;
+  color: var(--brass);
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.error {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--loss);
+}
+
+.summary {
+  margin: 16px 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+}
+
+.item {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background: var(--ink);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.symbol {
+  font-family: var(--font-num);
+  font-weight: 700;
+  color: inherit;
+  text-decoration: none;
+}
+
+.symbol:hover {
+  text-decoration: underline;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--surface-raised);
+  color: var(--muted);
+}
+
+.chip[data-tone='buy'] {
+  background: var(--brass);
+  color: var(--ink);
+}
+
+.chip[data-tone='gain'] {
+  background: color-mix(in srgb, var(--gain-bright) 20%, transparent);
+  color: var(--gain-bright);
+}
+
+.chip[data-tone='warn'] {
+  background: color-mix(in srgb, var(--amber-bright) 20%, transparent);
+  color: var(--amber-bright);
+}
+
+.chip[data-tone='loss'] {
+  background: color-mix(in srgb, var(--loss-bright) 20%, transparent);
+  color: var(--loss-bright);
+}
+
+.text,
+.note {
+  max-width: 64ch;
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.text {
+  color: var(--muted);
+}
+
+.note {
+  font-style: italic;
+}
+
+.fine {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
