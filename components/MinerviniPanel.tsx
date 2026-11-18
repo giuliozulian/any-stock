@@ -2,6 +2,7 @@ import { BREAKOUT_VOLUME, VCP_STATUS_LABEL, type Criterion, type Level, type Tre
 import type { MinerviniAnalysis } from '@/lib/minervini-data'
 import { VERDICT, sentence } from '@/lib/scan-verdict'
 import { tradePlan } from '@/lib/scanner'
+import { AlertBell } from '@/components/AlertBell'
 import styles from './MinerviniPanel.module.css'
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
@@ -244,13 +245,14 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
   )
 }
 
-export function MinerviniPanel({ analysis, symbol = '' }: { analysis: MinerviniAnalysis | null; symbol?: string }) {
+export function MinerviniPanel({ analysis, symbol = '', alert }: { analysis: MinerviniAnalysis | null; symbol?: string; alert?: { armed: boolean; emailReady: boolean } }) {
   if (!analysis) return <p className={styles.empty}>Dati insufficienti: servono almeno 222 giorni di quotazioni per applicare il metodo.</p>
 
   const { template, vcp, peerCount } = analysis
   const v = verdict(template)
   const next = action(template, vcp)
   const byId = new Map(template.criteria.map((c) => [c.id, c]))
+  const buyNow = tradePlan({ passedCount: template.passedCount, vcpStatus: vcp.status, pivot: vcp.pivot, volumeRatio: vcp.volumeRatio, volumeDryUp: vcp.volumeDryUp, price: template.levels.find((l) => l.key === 'price')?.value ?? 0 }).verdict === 'buy'
 
   return (
     <div className={styles.panel}>
@@ -272,6 +274,12 @@ export function MinerviniPanel({ analysis, symbol = '' }: { analysis: MinerviniA
         </div>
         <p className={styles.verdictText}>{v.text}</p>
         {template.passedCount >= template.total ? <Decision template={template} vcp={vcp} symbol={symbol} /> : next && <p className={styles.next}>{next}</p>}
+        {alert && symbol && !buyNow && (
+          <div className={styles.alertRow}>
+            <AlertBell symbol={symbol.toUpperCase()} armed={alert.armed} emailReady={alert.emailReady} />
+            <span>{alert.armed ? 'Avviso attivo: ti scrivo quando si può comprare.' : 'Avvisami per email quando si può comprare.'}</span>
+          </div>
+        )}
       </section>
 
       <section className={styles.intro} aria-label="Come funziona il metodo">

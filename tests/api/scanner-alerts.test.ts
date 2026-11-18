@@ -40,6 +40,13 @@ describe('scanner alerts API: arm and disarm', () => {
     expect(await prisma.scanAlert.count()).toBe(0)
   })
 
+  it('POST arms a followed stock the last scan did not include yet', async () => {
+    await makeRun([{ symbol: 'AAA', passedCount: 7 }])
+    await prisma.stock.create({ data: { symbol: 'RCEL', name: 'Avita', exchange: 'NASDAQ' } })
+    expect((await POST(req('POST'), ctx('RCEL'))).status).toBe(200)
+    expect(await prisma.scanAlert.count({ where: { symbol: 'RCEL' } })).toBe(1)
+  })
+
   it('POST answers 404 for a stock the scan could not read', async () => {
     await makeRun([{ symbol: 'AAA', passedCount: 7, status: 'unread' }])
     expect((await POST(req('POST'), ctx('AAA'))).status).toBe(404)

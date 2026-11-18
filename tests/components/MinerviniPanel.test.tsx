@@ -49,6 +49,18 @@ describe('MinerviniPanel', () => {
     expect(screen.getByText('Aspetta conferma')).toBeInTheDocument()
   })
 
+  it('offers the email alert until the stock is ready to buy', () => {
+    const { rerender } = render(<MinerviniPanel analysis={analysis} symbol="RCEL" alert={{ armed: false, emailReady: true }} />)
+    expect(screen.getByRole('button', { name: /Avvisami per email quando RCEL si può comprare/ })).toBeEnabled()
+    rerender(<MinerviniPanel analysis={analysis} symbol="RCEL" alert={{ armed: true, emailReady: true }} />)
+    expect(screen.getByText(/Avviso attivo: ti scrivo quando si può comprare/)).toBeInTheDocument()
+
+    const all = criteria.map((c) => ({ ...c, ok: true }))
+    const ready = { ...analysis, template: { ...analysis.template, criteria: all, passedCount: 8, passed: true }, vcp: { ...vcp, status: 'breakout' as const, volumeRatio: 2 } }
+    rerender(<MinerviniPanel analysis={ready} symbol="RCEL" alert={{ armed: false, emailReady: true }} />)
+    expect(screen.queryByRole('button', { name: /Avvisami/ })).not.toBeInTheDocument()
+  })
+
   it('shows the ideal and actual order of price and averages', () => {
     const swapped = levels.map((l) => (l.key === 'price' ? { ...l, value: 92 } : l))
     render(<MinerviniPanel analysis={{ ...analysis, template: { ...analysis.template, levels: swapped } }} />)

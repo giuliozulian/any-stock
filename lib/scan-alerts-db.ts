@@ -76,10 +76,19 @@ interface Owner {
 }
 
 // Arms the alert of one stock for one user; the stock must be among the stocks the last complete scan could read.
+async function isFollowed(symbol: string): Promise<boolean> {
+  const [stock, candidate] = await Promise.all([
+    prisma.stock.findUnique({ where: { symbol }, select: { id: true } }),
+    prisma.discoveredCandidate.findFirst({ where: { symbol, dismissedAt: null, market: 'US' }, select: { id: true } }),
+  ])
+  return Boolean(stock || candidate)
+}
+
 export async function armAlert(owner: Owner, symbol: string): Promise<'ok' | 'unknown-symbol'> {
   const run = await latestDoneRun()
   const known = run ? await prisma.scanResult.findFirst({ where: { runId: run.id, symbol, status: 'ok' }, select: { id: true } }) : null
-  if (!known) return 'unknown-symbol'
+  // A followed stock that the last scan did not include yet is scanned from the next run on, so it can be armed too.
+  if (!known && !(await isFollowed(symbol))) return 'unknown-symbol'
   await prisma.scanAlert.upsert({
     where: { userId_symbol: { userId: owner.id, symbol } },
     create: { userId: owner.id, userEmail: owner.email, symbol },
