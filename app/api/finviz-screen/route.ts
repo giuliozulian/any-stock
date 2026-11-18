@@ -9,7 +9,7 @@ export const maxDuration = 60
 export async function POST(request: Request) {
   const auth = await requireUser(request)
   if (!auth.ok) return auth.response
-  const limited = await rateLimit('scan')
+  const limited = await rateLimit('finviz')
   if (limited) return limited
   try {
     return NextResponse.json(await runFinvizScreen())

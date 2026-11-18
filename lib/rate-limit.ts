@@ -11,6 +11,8 @@ export const BUCKETS = {
   heavy: { limit: 30, windowMs: 60_000 },
   // A full market scan.
   scan: { limit: 3, windowMs: 60 * 60_000 },
+  // The Finviz list: a few pages of someone else's site per click, so few clicks (failed ones count too).
+  finviz: { limit: 6, windowMs: 60 * 60_000 },
 } as const
 
 export type Bucket = keyof typeof BUCKETS
