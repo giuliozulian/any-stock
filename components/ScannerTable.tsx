@@ -6,6 +6,7 @@ import { AlertBell } from '@/components/AlertBell'
 import { AlertSwitch } from '@/components/AlertSwitch'
 import { ChartChecklist } from '@/components/ChartChecklist'
 import { ScanChart } from '@/components/ScanChart'
+import { MinerviniAiAnalysis } from '@/components/MinerviniAiAnalysis'
 import { InfoTip } from '@/components/InfoTip'
 import { PivotGauge } from '@/components/PivotGauge'
 import { MARKET_TEXT, VERDICT, fmtNum as num, fmtPrice as price, sentence, type ScanRow } from '@/lib/scan-verdict'
@@ -172,6 +173,7 @@ function Plan({ plan }: { plan: TradePlan }) {
 function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactNode }) {
   const verdict = VERDICT[plan.verdict]
   const [chartOpen, setChartOpen] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
   return (
     <li className={styles.item} data-bell={bell ? '' : undefined}>
       <Link href={`/stock/${r.symbol}`} className={styles.row} data-verdict={plan.verdict}>
@@ -210,10 +212,25 @@ function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactN
         </span>
       </Link>
       {bell && <span className={styles.bell}>{bell}</span>}
-      <button type="button" className={styles.chartToggle} aria-expanded={chartOpen} onClick={() => setChartOpen((o) => !o)}>
-        {chartOpen ? 'Nascondi grafico' : 'Mostra grafico'}
-      </button>
+      <div className={styles.actions}>
+        <button type="button" className={styles.chartToggle} aria-expanded={chartOpen} onClick={() => setChartOpen((o) => !o)}>
+          {chartOpen ? 'Nascondi grafico' : 'Mostra grafico'}
+        </button>
+        <button type="button" className={styles.chartToggle} aria-expanded={aiOpen} onClick={() => setAiOpen((o) => !o)}>
+          Analisi AI
+        </button>
+        <a
+          href={`https://www.tradingview.com/chart/?symbol=${encodeURIComponent(r.symbol)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={styles.tvLink}
+          aria-label={`Apri ${r.symbol} su TradingView (nuova scheda)`}
+        >
+          Apri su TradingView
+        </a>
+      </div>
       {chartOpen && <ScanChart symbol={r.symbol} />}
+      {aiOpen && <MinerviniAiAnalysis symbol={r.symbol} autoStart />}
     </li>
   )
 }

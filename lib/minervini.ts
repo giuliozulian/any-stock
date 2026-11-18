@@ -204,6 +204,50 @@ export const VCP_STATUS_LABEL: Record<VcpStatus, string> = {
   failed: 'Base rotta',
 }
 
+// Minervini: bases inside a stage 2 uptrend last 5 to 26 weeks; corrections are usually 15-40%, up to 50% in rough markets, beyond 60% too deep.
+export const BASE_WEEKS_MIN = 5
+export const BASE_WEEKS_MAX = 26
+export const BASE_DEPTH_MAX = 0.5
+// Each pullback should be about half the previous one; 0.75 is the tolerance for "about".
+export const CONTRACTION_RATIO_MAX = 0.75
+// Sessions before today whose closing range measures how tight the base has become.
+const TIGHTNESS_WINDOW = 5
+const BARS_PER_WEEK = 5
+
+export interface BaseMetrics {
+  weeks: number
+  // Depth of the deepest pullback, as a fraction.
+  depth: number
+  // Closing range over the last sessions before today, as a fraction of the high. Measured only: the books give no cut-off.
+  tightness: number | null
+  // Each pullback over the one before it.
+  ratios: number[]
+  halves: boolean
+  weeksOk: boolean
+  depthOk: boolean
+}
+
+export function describeBase(contractions: number[], baseBars: number, tightness: number | null): BaseMetrics {
+  const weeks = baseBars / BARS_PER_WEEK
+  const depth = Math.max(...contractions)
+  const ratios = contractions.slice(1).map((c, i) => c / contractions[i])
+  return {
+    weeks,
+    depth,
+    tightness,
+    ratios,
+    halves: ratios.every((r) => r <= CONTRACTION_RATIO_MAX),
+    weeksOk: weeks >= BASE_WEEKS_MIN && weeks <= BASE_WEEKS_MAX,
+    depthOk: depth <= BASE_DEPTH_MAX,
+  }
+}
+
+// Gain to the target over the risk to the stop; Minervini wants at least 2:1 and aims for 3:1.
+export function riskReward(entry: number, stop: number, target: number): number | null {
+  if (stop >= entry || target <= entry) return null
+  return (target - entry) / (entry - stop)
+}
+
 export interface Vcp {
   contractions: number[]
   pivot: number | null
@@ -213,10 +257,11 @@ export interface Vcp {
   status: VcpStatus | null
   // Today's volume over its 50-day average; a valid breakout wants at least 1.4.
   volumeRatio: number | null
+  base: BaseMetrics | null
 }
 
-// A base is only a VCP if its last pullback is tight.
-export const MAX_LAST_CONTRACTION = 0.1
+// A base is only a VCP if its last pullback is tight. Minervini's examples end at 2-5%; swings are confirmed at 5%, so 7% leaves a little room.
+export const MAX_LAST_CONTRACTION = 0.07
 // Heavy-volume down days in the last 20 sessions that make a base "distributed" rather than quiet.
 export const MAX_DISTRIBUTION_DAYS = 2
 const DISTRIBUTION_WINDOW = 20
@@ -245,7 +290,7 @@ export function detectVcp(bars: Bar[]): Vcp {
   // Clean base volume: recent sessions quieter than the 50-day average and few heavy selling days.
   const volumeDryUp = quiet && distribution <= MAX_DISTRIBUTION_DAYS
   const volumeRatio = avg50 > 0 ? volumes[volumes.length - 1] / avg50 : null
-  const none: Vcp = { contractions: [], pivot: null, volumeDryUp, suggestedStop: null, lastLow: null, status: null, volumeRatio }
+  const none: Vcp = { contractions: [], pivot: null, volumeDryUp, suggestedStop: null, lastLow: null, status: null, volumeRatio, base: null }
 
   const points = swings(recent.map((b) => b.close), VCP_REVERSAL)
   const depths: number[] = []
@@ -275,9 +320,14 @@ export function detectVcp(bars: Bar[]): Vcp {
   for (let i = lowIndex + 1; i < recent.length - 1 && recent[i].close <= pivot; i++) {
     if (recent[i].high > pivot) pivot = recent[i].high
   }
+  const last = recent.length - 1
+  const closes = recent.map((b) => b.close)
+  const window = closes.slice(Math.max(0, last - TIGHTNESS_WINDOW), last)
+  const tightness = window.length === TIGHTNESS_WINDOW ? (Math.max(...window) - Math.min(...window)) / Math.max(...window) : null
+  const base = describeBase(contractions, last - highs[start].index, tightness)
   const price = recent[recent.length - 1].close
   const status: VcpStatus = price < lastLow ? 'failed' : price <= pivot ? 'forming' : price <= pivot * (1 + MAX_CHASE) ? 'breakout' : 'extended'
   // The stop is 8% below the price actually paid: the pivot while the price is still below it, the current price once it breaks out.
   const entry = status === 'breakout' ? price : pivot
-  return { contractions, pivot, volumeDryUp, suggestedStop: entry * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio }
+  return { contractions, pivot, volumeDryUp, suggestedStop: entry * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio, base }
 }

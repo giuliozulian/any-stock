@@ -17,6 +17,7 @@ import { POST as scannerPost } from '@/app/api/scanner/route'
 import { POST as scannerStep } from '@/app/api/scanner/step/route'
 import { POST as alertPost, DELETE as alertDelete } from '@/app/api/scanner/alerts/[symbol]/route'
 import { PUT as alertSettings } from '@/app/api/scanner/alerts/settings/route'
+import { POST as minerviniAiPost } from '@/app/api/minervini-ai/[symbol]/route'
 
 type Handler = (request: Request, context: { params: Promise<{ symbol: string }> }) => Promise<Response>
 const ctx = { params: Promise.resolve({ symbol: 'AAPL' }) }
@@ -38,6 +39,7 @@ const PROTECTED: Array<[string, Handler, string, string]> = [
   ['POST /api/scanner/alerts/[symbol]', alertPost as unknown as Handler, '/api/scanner/alerts/AAPL', 'POST'],
   ['DELETE /api/scanner/alerts/[symbol]', alertDelete as unknown as Handler, '/api/scanner/alerts/AAPL', 'DELETE'],
   ['PUT /api/scanner/alerts/settings', alertSettings as unknown as Handler, '/api/scanner/alerts/settings', 'PUT'],
+  ['POST /api/minervini-ai/[symbol]', minerviniAiPost as unknown as Handler, '/api/minervini-ai/AAPL', 'POST'],
 ]
 
 const client = vi.mocked(createSupabaseServerClient)

@@ -56,3 +56,9 @@ rae-run.ndjson
 rae-run.pid
 scripts/
 skills-lock.json
+
+# private source material
+data/sources/
+
+# live eval output
+tests/eval/results.json

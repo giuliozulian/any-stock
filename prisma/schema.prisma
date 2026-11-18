@@ -313,3 +313,17 @@ model WatchlistEntry {
   @@unique([userId, stockId])
   @@index([stockId])
 }
+
+model MinerviniAiNote {
+  id            String   @id @default(cuid())
+  symbol        String
+  // UTC day as YYYY-MM-DD: one analysis per symbol and day.
+  day           String
+  inputHash     String
+  result        Json
+  model         String
+  promptVersion Int
+  generatedAt   DateTime @default(now())
+
+  @@unique([symbol, day])
+}

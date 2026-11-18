@@ -9,6 +9,8 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
+    // .claude/worktrees holds other checkouts of this repo: their tests are not ours to run here.
+    exclude: ['**/node_modules/**', 'tests/eval/**', '.claude/**'],
     setupFiles: ['./tests/setup.ts'],
     globals: true,
     // Integration tests share one real Postgres instance; running test

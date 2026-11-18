@@ -8,6 +8,7 @@ export async function resetDb(): Promise<void> {
     )
   }
 
+  await prisma.minerviniAiNote.deleteMany()
   await prisma.scanAlert.deleteMany()
   await prisma.scannerAlertSettings.deleteMany()
   await prisma.scanResult.deleteMany()

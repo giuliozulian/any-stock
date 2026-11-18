@@ -1,0 +1,148 @@
+.wrap {
+  --tone: var(--muted);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--rule));
+  border-radius: var(--radius-card);
+  background: var(--surface);
+}
+
+.wrap[data-tone='gain'] {
+  --tone: var(--gain-bright);
+}
+
+.wrap[data-tone='warn'] {
+  --tone: var(--amber-bright);
+}
+
+.wrap[data-tone='loss'] {
+  --tone: var(--loss-bright);
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  color: var(--tone);
+}
+
+.summary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.button {
+  justify-self: start;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--bone);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.button:hover {
+  border-color: var(--brass);
+}
+
+.criteria,
+.list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.criterion {
+  display: grid;
+  grid-template-columns: 44px 112px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.ruleId {
+  font-family: var(--font-num);
+  color: var(--muted);
+}
+
+.outcome {
+  color: var(--muted);
+}
+
+.criterion[data-outcome='met'] .outcome {
+  color: var(--gain-bright);
+}
+
+.criterion[data-outcome='not_met'] .outcome {
+  color: var(--loss-bright);
+}
+
+.note {
+  min-width: 0;
+  color: var(--bone);
+}
+
+.block {
+  display: grid;
+  gap: 4px;
+}
+
+.blockTitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.list li {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--bone);
+}
+
+.sk {
+  border-radius: 6px;
+  background: var(--surface-raised);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+.skTitle {
+  width: 40%;
+  height: 20px;
+}
+
+.skLine {
+  width: 100%;
+  height: 14px;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (max-width: 480px) {
+  .criterion {
+    grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .note {
+    grid-column: 1 / -1;
+  }
+}

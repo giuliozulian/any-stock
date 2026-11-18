@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
-import { RS_MIN, RS_MIN_BARS, TREND_TEMPLATE_LABELS, VCP_STATUS_LABEL, detectVcp, evaluateTrendTemplate, percentileRank, sma, weightedReturn } from '@/lib/minervini'
+import { RS_MIN, RS_MIN_BARS, TREND_TEMPLATE_LABELS, VCP_STATUS_LABEL, describeBase, detectVcp, evaluateTrendTemplate, percentileRank, riskReward, sma, weightedReturn } from '@/lib/minervini'
 
 const bar = (i: number, close: number): Bar => ({ t: i * 86_400_000, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
 const series = (n: number, f: (i: number) => number): Bar[] => Array.from({ length: n }, (_, i) => bar(i, f(i)))
@@ -65,10 +65,20 @@ describe('detectVcp', () => {
 describe('detectVcp strictness', () => {
   const base = path([80, 100, 75, 95, 83.6, 94, 88.36, 93])
 
-  it('rejects a base whose last pullback is wider than 10%', () => {
+  it('rejects a base whose last pullback is wider than 7%', () => {
     const loose = detectVcp(path([80, 100, 70, 95, 80, 98, 85, 90]))
     expect(loose.contractions).toEqual([])
     expect(loose.status).toBeNull()
+    // 30% → 15.8% → 8.7%: still shrinking, but the final pullback is too loose to be a tight base.
+    const almost = detectVcp(path([80, 100, 70, 95, 80, 98, 89.5, 94.5]))
+    expect(almost.contractions).toEqual([])
+    expect(almost.status).toBeNull()
+  })
+
+  it('accepts a base whose last pullback is at most 7%', () => {
+    const tight = detectVcp(path([80, 100, 70, 95, 80, 98, 91.5, 96.5]))
+    expect(tight.contractions).toHaveLength(3)
+    expect(tight.contractions[2]).toBeCloseTo(0.066, 2)
   })
 
   it('moves the pivot up to a wick that was rejected, so a close just above the old peak is not a breakout', () => {
@@ -190,5 +200,62 @@ describe('shared constants', () => {
 
   it('labels every VCP status', () => {
     expect(VCP_STATUS_LABEL).toEqual({ forming: 'Base pronta', breakout: 'In rottura', extended: 'Troppo tardi', failed: 'Base rotta' })
+  })
+})
+
+describe('describeBase', () => {
+  it('measures weeks, depth and whether each pullback is about half the previous', () => {
+    const m = describeBase([0.25, 0.12, 0.06], 60, 0.02)
+    expect(m.weeks).toBe(12)
+    expect(m.depth).toBe(0.25)
+    expect(m.tightness).toBe(0.02)
+    expect(m.ratios[0]).toBeCloseTo(0.48, 2)
+    expect(m.ratios[1]).toBeCloseTo(0.5, 2)
+    expect(m).toMatchObject({ halves: true, weeksOk: true, depthOk: true })
+  })
+
+  it('flags a pullback that barely shrinks from the previous one', () => {
+    expect(describeBase([0.2, 0.18, 0.06], 60, 0.02).halves).toBe(false)
+  })
+
+  it('accepts bases of 5 to 26 weeks only', () => {
+    expect(describeBase([0.2, 0.1], 20, 0.02).weeksOk).toBe(false)
+    expect(describeBase([0.2, 0.1], 25, 0.02).weeksOk).toBe(true)
+    expect(describeBase([0.2, 0.1], 130, 0.02).weeksOk).toBe(true)
+    expect(describeBase([0.2, 0.1], 135, 0.02).weeksOk).toBe(false)
+  })
+
+  it('rejects a base deeper than 50%', () => {
+    expect(describeBase([0.5, 0.2], 60, 0.02).depthOk).toBe(true)
+    expect(describeBase([0.55, 0.2], 60, 0.02).depthOk).toBe(false)
+  })
+})
+
+describe('detectVcp base metrics', () => {
+  it('reports the base length, depth and the tightness of the last sessions', () => {
+    const v = detectVcp(path([80, 100, 75, 95, 83.6, 94, 88.36, 93]))
+    expect(v.base?.weeks).toBe(12)
+    expect(v.base?.depth).toBeCloseTo(0.25, 2)
+    expect(v.base?.tightness).toBeCloseTo(0.02, 3)
+    expect(v.base?.halves).toBe(true)
+  })
+
+  it('has no base metrics when there is no VCP', () => {
+    expect(detectVcp(path([80, 100, 94, 99, 80, 95])).base).toBeNull()
+  })
+
+  it('does not call a base with barely shrinking pullbacks one that halves', () => {
+    expect(detectVcp(path([80, 100, 80, 99, 81.2, 97, 91.2, 96])).base?.halves).toBe(false)
+  })
+})
+
+describe('riskReward', () => {
+  it('divides the gain to the target by the risk to the stop', () => {
+    expect(riskReward(100, 92, 120)).toBeCloseTo(2.5, 5)
+  })
+
+  it('returns null when the stop is not below the entry or the target not above it', () => {
+    expect(riskReward(100, 100, 120)).toBeNull()
+    expect(riskReward(100, 92, 100)).toBeNull()
   })
 })

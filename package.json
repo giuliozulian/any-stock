@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "eval:minervini": "vitest run --config vitest.eval.config.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

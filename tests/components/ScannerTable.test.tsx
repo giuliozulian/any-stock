@@ -14,7 +14,11 @@ const rows = [
   row({ symbol: 'NEAR', name: 'Near miss', rs: 60, passedCount: 7, missing: TREND_TEMPLATE_LABELS[7] }),
 ]
 
-const hrefs = () => within(screen.getByRole('list')).getAllByRole('link').map((a) => a.getAttribute('href'))
+const hrefs = () =>
+  within(screen.getByRole('list'))
+    .getAllByRole('link')
+    .map((a) => a.getAttribute('href'))
+    .filter((h) => h?.startsWith('/stock/'))
 const rowOf = (symbol: string) => within(screen.getByRole('list')).getByText(symbol, { selector: 'span' }).closest('a')!
 
 describe('ScannerTable groups and order', () => {
@@ -302,7 +306,7 @@ describe('email alerts', () => {
     fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
     const bell = screen.getByRole('button', { name: 'Avvisami per email quando NEAR si può comprare' })
     expect(bell.closest('a')).toBeNull()
-    expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(1)
+    expect(hrefs()).toHaveLength(1)
   })
 
   it('shows the switch with the saved state', () => {
@@ -315,5 +319,15 @@ describe('email alerts', () => {
     expect(screen.getByRole('switch')).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
     expect(screen.getByRole('button', { name: /avvisami per email quando NEAR/i })).toBeDisabled()
+  })
+})
+
+describe('TradingView link', () => {
+  it('opens each stock on TradingView in a new tab', () => {
+    render(<ScannerTable rows={rows} />)
+    const link = screen.getByRole('link', { name: 'Apri TOP su TradingView (nuova scheda)' })
+    expect(link).toHaveAttribute('href', 'https://www.tradingview.com/chart/?symbol=TOP')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })
 })

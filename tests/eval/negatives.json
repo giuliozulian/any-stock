@@ -1,0 +1,152 @@
+[
+  {
+    "symbol": "A",
+    "date": "2025-11-24",
+    "price": 153.60000610351562,
+    "label": "failed"
+  },
+  {
+    "symbol": "ACN",
+    "date": "2023-09-08",
+    "price": 325.4700012207031,
+    "label": "failed"
+  },
+  {
+    "symbol": "AJG",
+    "date": "2025-03-31",
+    "price": 345.239990234375,
+    "label": "failed"
+  },
+  {
+    "symbol": "AMAT",
+    "date": "2025-10-27",
+    "price": 231.3300018310547,
+    "label": "failed"
+  },
+  {
+    "symbol": "ARES",
+    "date": "2023-04-24",
+    "price": 86.8499984741211,
+    "label": "failed"
+  },
+  {
+    "symbol": "AXP",
+    "date": "2025-02-07",
+    "price": 316.7699890136719,
+    "label": "failed"
+  },
+  {
+    "symbol": "BIIB",
+    "date": "2026-01-08",
+    "price": 186,
+    "label": "failed"
+  },
+  {
+    "symbol": "CEG",
+    "date": "2023-11-15",
+    "price": 121.98999786376953,
+    "label": "failed"
+  },
+  {
+    "symbol": "COF",
+    "date": "2025-09-22",
+    "price": 225.41000366210938,
+    "label": "failed"
+  },
+  {
+    "symbol": "DASH",
+    "date": "2025-03-17",
+    "price": 189.86000061035156,
+    "label": "failed"
+  },
+  {
+    "symbol": "DG",
+    "date": "2022-08-18",
+    "price": 257.6600036621094,
+    "label": "failed"
+  },
+  {
+    "symbol": "ECHO",
+    "date": "2024-12-02",
+    "price": 25.200000762939453,
+    "label": "failed"
+  },
+  {
+    "symbol": "EQT",
+    "date": "2025-06-18",
+    "price": 59.369998931884766,
+    "label": "failed"
+  },
+  {
+    "symbol": "GOOGL",
+    "date": "2024-01-25",
+    "price": 151.8699951171875,
+    "label": "failed"
+  },
+  {
+    "symbol": "HAL",
+    "date": "2022-03-11",
+    "price": 37.40999984741211,
+    "label": "failed"
+  },
+  {
+    "symbol": "HPQ",
+    "date": "2024-11-22",
+    "price": 38.130001068115234,
+    "label": "failed"
+  },
+  {
+    "symbol": "IT",
+    "date": "2024-04-01",
+    "price": 477.44000244140625,
+    "label": "failed"
+  },
+  {
+    "symbol": "LMT",
+    "date": "2026-03-09",
+    "price": 664.1500244140625,
+    "label": "failed"
+  },
+  {
+    "symbol": "LVS",
+    "date": "2023-03-03",
+    "price": 60.79999923706055,
+    "label": "failed"
+  },
+  {
+    "symbol": "NKE",
+    "date": "2023-05-01",
+    "price": 127.91999816894531,
+    "label": "failed"
+  },
+  {
+    "symbol": "NTRS",
+    "date": "2024-04-01",
+    "price": 88.44000244140625,
+    "label": "failed"
+  },
+  {
+    "symbol": "PANW",
+    "date": "2023-09-08",
+    "price": 124.37000274658203,
+    "label": "failed"
+  },
+  {
+    "symbol": "PFE",
+    "date": "2022-04-08",
+    "price": 55.16999816894531,
+    "label": "failed"
+  },
+  {
+    "symbol": "PNW",
+    "date": "2023-07-20",
+    "price": 84.5,
+    "label": "failed"
+  },
+  {
+    "symbol": "PSX",
+    "date": "2026-06-03",
+    "price": 184.67999267578125,
+    "label": "failed"
+  }
+]

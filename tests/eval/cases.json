@@ -1,0 +1,104 @@
+[
+  {
+    "symbol": "NVDA",
+    "date": "2023-01-12",
+    "price": 160.56,
+    "label": "winner"
+  },
+  {
+    "symbol": "ANF",
+    "date": "2022-10-25",
+    "price": 17.72,
+    "label": "winner"
+  },
+  {
+    "symbol": "ACLS",
+    "date": "2022-11-03",
+    "price": 60.67,
+    "label": "winner"
+  },
+  {
+    "symbol": "APP",
+    "date": "2023-01-03",
+    "price": 11.18,
+    "label": "winner"
+  },
+  {
+    "symbol": "BLDR",
+    "date": "2022-12-08",
+    "price": 65.78,
+    "label": "winner"
+  },
+  {
+    "symbol": "SMCI",
+    "date": "2023-02-08",
+    "price": 85.85,
+    "label": "winner"
+  },
+  {
+    "symbol": "ELF",
+    "date": "2023-01-24",
+    "price": 54.7,
+    "label": "winner"
+  },
+  {
+    "symbol": "IOT",
+    "date": "2023-01-17",
+    "price": 12.58,
+    "label": "winner"
+  },
+  {
+    "symbol": "DKNG",
+    "date": "2023-01-27",
+    "price": 14.71,
+    "label": "winner"
+  },
+  {
+    "symbol": "CAMT",
+    "date": "2023-05-05",
+    "price": 24.25,
+    "label": "winner"
+  },
+  {
+    "symbol": "TOL",
+    "date": "2022-10-27",
+    "price": 44.46,
+    "label": "winner"
+  },
+  {
+    "symbol": "AEHR",
+    "date": "2022-07-13",
+    "price": 7.77,
+    "label": "winner"
+  },
+  {
+    "symbol": "AKRO",
+    "date": "2022-06-16",
+    "price": 9.32,
+    "label": "winner"
+  },
+  {
+    "symbol": "CEG",
+    "date": "2022-02-25",
+    "price": 44.93,
+    "label": "winner"
+  },
+  {
+    "symbol": "CEIX",
+    "date": "2022-02-08",
+    "price": 26.99,
+    "label": "winner"
+  },
+  {
+    "symbol": "CELH",
+    "date": "2022-05-13",
+    "price": 58.21,
+    "label": "winner"
+  },
+  {
+    "symbol": "FTNT",
+    "date": "2021-01-12",
+    "price": 151.985,
+    "label": "winner"
+  }
+]
