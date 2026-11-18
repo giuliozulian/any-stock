@@ -34,6 +34,8 @@ import { BullBearNote } from '@/components/BullBearNote'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
 import { StockTabs } from '@/components/StockTabs'
+import { StockChat } from '@/components/StockChat'
+import { isChatConfigured } from '@/lib/gemini-chat'
 import { FairValueCard } from '@/components/FairValueCard'
 import { buildFairValueInput, fairValue } from '@/lib/fair-value'
 import { altmanZ } from '@/lib/solidity'
@@ -615,6 +617,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           },
         ]}
       />
+      {isChatConfigured() && <StockChat symbol={stock.symbol} name={stock.name} />}
     </>
   )
 }
