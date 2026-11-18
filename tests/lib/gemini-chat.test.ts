@@ -24,11 +24,14 @@ async function collect(gen: AsyncGenerator<ChatEvent>) {
 const args = { system: 'sys', history: [{ role: 'user' as const, text: 'ciao' }] }
 
 describe('gemini-chat', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>
   beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.stubEnv('GEMINI_API_KEY', 'k')
     vi.stubEnv('GEMINI_CHAT_MODEL', '')
   })
   afterEach(() => {
+    errorSpy.mockRestore()
     vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
@@ -109,6 +112,30 @@ describe('gemini-chat', () => {
     expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'rate_limited' }])
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 503 })))
     expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'upstream' }])
+  })
+
+  it('logs a non-OK response once with its status, never the key', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('quota exceeded', { status: 503 })))
+    await collect(streamChat(args))
+    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(errorSpy).toHaveBeenCalledWith('Stock chat: Gemini request failed:', 503, 'quota exceeded')
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('"k"')
+  })
+
+  it('logs a fetch failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('dns down')))
+    await collect(streamChat(args))
+    expect(errorSpy).toHaveBeenCalledWith('Stock chat: Gemini stream failed:', 'dns down')
+  })
+
+  it('does not log when the caller aborts', async () => {
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => {
+      controller.abort()
+      throw new DOMException('aborted', 'AbortError')
+    }))
+    await collect(streamChat({ ...args, signal: controller.signal }))
+    expect(errorSpy).not.toHaveBeenCalled()
   })
 
   it('reports an error after partial text when the network drops mid-stream', async () => {

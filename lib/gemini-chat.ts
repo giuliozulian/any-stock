@@ -52,10 +52,12 @@ export async function* streamChat({ system, history, signal }: { system: string;
     })
   } catch (err) {
     if (signal?.aborted) return
+    console.error('Stock chat: Gemini stream failed:', err instanceof Error ? err.message : String(err))
     yield { type: 'error', code: isTimeout(err) ? 'timeout' : 'upstream' }
     return
   }
   if (!res.ok || !res.body) {
+    console.error('Stock chat: Gemini request failed:', res.status, (await res.text().catch(() => '')).slice(0, 300))
     yield { type: 'error', code: res.status === 429 ? 'rate_limited' : 'upstream' }
     return
   }
@@ -85,6 +87,7 @@ export async function* streamChat({ system, history, signal }: { system: string;
     }
   } catch (err) {
     if (signal?.aborted) return
+    console.error('Stock chat: Gemini stream failed:', err instanceof Error ? err.message : String(err))
     yield { type: 'error', code: isTimeout(err) ? 'timeout' : 'upstream' }
     return
   }

@@ -44,8 +44,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ sym
           if (abort.signal.aborted) break
           controller.enqueue(sse(event.type, event))
         }
-      } catch {
-        if (!abort.signal.aborted) controller.enqueue(sse('error', { type: 'error', code: 'upstream' }))
+      } catch (err) {
+        if (!abort.signal.aborted) {
+          console.error('Stock chat: stream failed:', err instanceof Error ? err.message : String(err))
+          controller.enqueue(sse('error', { type: 'error', code: 'upstream' }))
+        }
       }
       if (!abort.signal.aborted) controller.close()
     },
