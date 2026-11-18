@@ -93,7 +93,6 @@ describe('POST /api/stocks/[symbol]/chat', () => {
   it('reports upstream when the model client throws', async () => {
     await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    // eslint-disable-next-line require-yield
     mocks.streamChat.mockImplementation(async function* () {
       throw new Error('boom')
     })
