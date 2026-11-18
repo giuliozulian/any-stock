@@ -137,7 +137,7 @@ const COLUMNS: Array<{ key: SortKey | null; label: string; first?: SortDir; tip?
 function RsMeter({ rs }: { rs: number | null }) {
   if (rs === null) return <span className={styles.rs}>{dash}</span>
   return (
-    <span className={styles.rs}>
+    <span className={styles.rs} data-tier={rs >= 90 ? 'top' : rs >= RS_MIN ? 'high' : 'low'}>
       <span className={styles.rsNum}>{Math.round(rs)}</span>
       <span className={styles.rsTrack} aria-hidden>
         <span className={styles.rsFill} style={{ width: `${Math.min(100, Math.max(0, rs))}%` }} />
@@ -153,16 +153,16 @@ function Plan({ plan }: { plan: TradePlan }) {
   }
   return (
     <>
-      <span className={styles.planLine}>
+      <span className={styles.planLine} data-kind="buy">
         <span className={styles.planLabel}>Compra</span>
         <span className={styles.planValue}>{plan.verdict === 'watch' ? `sopra ${price(plan.buyFrom)}` : `tra ${price(plan.buyFrom)} e ${price(plan.buyTo)}`}</span>
       </span>
-      <span className={styles.planLine}>
+      <span className={styles.planLine} data-kind="stop">
         <span className={styles.planLabel}>Vendi sotto</span>
         <span className={styles.planValue}>{price(plan.stop)}</span>
         {plan.riskPct !== null && <span className={styles.planNote}>perdita massima circa {num(plan.riskPct)}%</span>}
       </span>
-      <span className={styles.planLine}>
+      <span className={styles.planLine} data-kind="profit">
         <span className={styles.planLabel}>Profitto</span>
         <span className={styles.planValue}>{`verso ${price(plan.profitFrom)}–${price(plan.profitTo)}`}</span>
       </span>
@@ -175,7 +175,7 @@ function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactN
   const [chartOpen, setChartOpen] = useState(false)
   const [aiOpen, setAiOpen] = useState(false)
   return (
-    <li className={styles.item} data-bell={bell ? '' : undefined}>
+    <li className={styles.item} data-bell={bell ? '' : undefined} data-verdict={plan.verdict}>
       <Link href={`/stock/${r.symbol}`} className={styles.row} data-verdict={plan.verdict}>
         <span className={styles.who}>
           <span className={styles.symbol}>{r.symbol}</span>

@@ -212,7 +212,7 @@
 }
 
 .row {
-  padding: 16px 20px 14px;
+  padding: 16px 20px 12px;
   color: inherit;
   text-decoration: none;
 }
@@ -460,15 +460,14 @@
   padding-right: 64px;
 }
 
-/* Strumenti della riga: una fascia propria, allineata al contenuto e separata dai dati da una linea */
+/* Strumenti della riga: continuano la riga (stesso sfondo e stessa barra), allineati al contenuto */
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px 10px;
   margin: 0 20px;
-  padding: 12px 0 16px;
-  border-top: 1px solid var(--rule);
+  padding: 0 0 16px;
 }
 
 .tvLink {
@@ -588,3 +587,91 @@
     flex-basis: 100%;
   }
 }
+
+/* Colore che significa qualcosa: ogni riga prende il tono del suo verdetto */
+.item {
+  --tone: var(--muted);
+  --wash: 5%;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) var(--wash), transparent), transparent 60%),
+    transparent;
+  box-shadow: inset var(--accent-bar) 0 0 color-mix(in srgb, var(--tone) 70%, transparent);
+}
+
+.item[data-verdict='buy'] {
+  --tone: var(--brass);
+  --wash: 16%;
+  box-shadow: inset var(--accent-bar) 0 0 var(--brass);
+}
+
+.item[data-verdict='watch'] {
+  --tone: var(--gain);
+  --wash: 9%;
+}
+
+.item[data-verdict='confirm'],
+.item[data-verdict='noisy'] {
+  --tone: var(--amber-bright);
+  --wash: 9%;
+}
+
+.item[data-verdict='late'] {
+  --tone: var(--amber-bright);
+  --wash: 5%;
+}
+
+.item[data-verdict='broken'] {
+  --tone: var(--loss-bright);
+  --wash: 8%;
+}
+
+.item[data-verdict='almost'],
+.item[data-verdict='no-base'] {
+  --tone: var(--muted);
+  --wash: 3%;
+}
+
+/* Il verdetto "buy" non ha più bisogno della barra sulla riga: la porta già la scheda */
+.row[data-verdict='buy'] {
+  box-shadow: none;
+}
+
+.item:hover {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--tone) 12%, transparent), transparent 60%),
+    var(--surface-raised);
+}
+
+.row:hover {
+  background: transparent;
+}
+
+.symbol {
+  font-size: 17px;
+  letter-spacing: 0.01em;
+}
+
+.planLine[data-kind='stop'] .planValue {
+  color: var(--loss-bright);
+}
+
+.planLine[data-kind='profit'] .planValue {
+  color: var(--gain-bright);
+}
+
+.rs[data-tier='top'] .rsNum {
+  color: var(--brass);
+}
+
+.rs[data-tier='top'] .rsFill {
+  background: var(--brass);
+}
+
+.rs[data-tier='high'] .rsFill {
+  background: var(--gain);
+}
+
+.rs[data-tier='low'] .rsNum {
+  color: var(--muted);
+}
+
