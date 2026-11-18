@@ -14,22 +14,22 @@ const item = (over: Partial<ScanRow> = {}, reason: EmailItem['reason'] = 'watche
 const input = (items: EmailItem[], over: Partial<EmailInput> = {}): EmailInput => ({ items, market: null, sessionScan: false, appUrl: null, ...over })
 
 describe('collectAlerts', () => {
-  it('watches the armed stocks that reached 8 of 8, ignoring the others', () => {
-    expect(collectAlerts({ full: ['AAA', 'BBB'], armed: ['AAA', 'CCC'], newEntrantsOn: false, knownFull: [] })).toEqual({ watched: ['AAA'], entrants: [] })
+  it('watches the armed stocks that are ready to buy, ignoring the others', () => {
+    expect(collectAlerts({ ready: ['AAA', 'BBB'], armed: ['AAA', 'CCC'], newEntrantsOn: false, knownReady: [] })).toEqual({ watched: ['AAA'], entrants: [] })
   })
 
   it('adds the new 8-of-8 stocks only when the switch is on', () => {
-    const base = { full: ['AAA', 'BBB', 'CCC'], armed: [], knownFull: ['AAA'] }
+    const base = { ready: ['AAA', 'BBB', 'CCC'], armed: [], knownReady: ['AAA'] }
     expect(collectAlerts({ ...base, newEntrantsOn: false }).entrants).toEqual([])
     expect(collectAlerts({ ...base, newEntrantsOn: true }).entrants).toEqual(['BBB', 'CCC'])
   })
 
   it('never lists a stock twice: a watched stock is not also a new entrant', () => {
-    expect(collectAlerts({ full: ['AAA', 'BBB'], armed: ['BBB'], newEntrantsOn: true, knownFull: [] })).toEqual({ watched: ['BBB'], entrants: ['AAA'] })
+    expect(collectAlerts({ ready: ['AAA', 'BBB'], armed: ['BBB'], newEntrantsOn: true, knownReady: [] })).toEqual({ watched: ['BBB'], entrants: ['AAA'] })
   })
 
   it('says nothing when there is nothing new', () => {
-    expect(collectAlerts({ full: [], armed: ['AAA'], newEntrantsOn: true, knownFull: [] })).toEqual({ watched: [], entrants: [] })
+    expect(collectAlerts({ ready: [], armed: ['AAA'], newEntrantsOn: true, knownReady: [] })).toEqual({ watched: [], entrants: [] })
   })
 })
 
@@ -41,12 +41,12 @@ describe('escapeHtml', () => {
 
 describe('buildScanEmail subject', () => {
   it('names the stock when there is one', () => {
-    expect(buildScanEmail(input([item()])).subject).toBe('Scanner Minervini: AAA ha raggiunto 8 su 8')
+    expect(buildScanEmail(input([item()])).subject).toBe('Scanner Minervini: AAA si può comprare')
   })
 
   it('counts and lists the stocks, strongest relative strength first', () => {
     const { subject } = buildScanEmail(input([item({ symbol: 'LOW', rs: 75 }), item({ symbol: 'TOP', rs: 99 })]))
-    expect(subject).toBe('Scanner Minervini: 2 titoli hanno raggiunto 8 su 8 (TOP, LOW)')
+    expect(subject).toBe('Scanner Minervini: 2 titoli si possono comprare (TOP, LOW)')
   })
 })
 
@@ -82,7 +82,7 @@ describe('buildScanEmail content', () => {
   it('names why each stock is in the email', () => {
     const { text } = buildScanEmail(input([item({ symbol: 'AAA', rs: 99 }, 'watched'), item({ symbol: 'BBB', rs: 80 }, 'new')]))
     expect(text).toContain('Motivo: Lo seguivi')
-    expect(text).toContain('Motivo: Nuovo negli 8 su 8')
+    expect(text).toContain('Motivo: Nuovo da comprare')
   })
 
   it('opens with the health of the market and the partial-volume warning', () => {

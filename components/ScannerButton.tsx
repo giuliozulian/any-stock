@@ -74,13 +74,7 @@ export function ScannerButton({ resumable, lockedLabel = null }: { resumable: bo
           </div>
         )}
       </div>
-      {running ? (
-        <p className={styles.hint}>Lascia aperta questa pagina: servono 2–4 minuti.</p>
-      ) : (
-        <p className={styles.hint}>
-          Quando farla: a mercato USA chiuso, dopo le 22:30 ora italiana o la mattina dopo. A mercato aperto l’ultima barra è incompleta e il volume è parziale. I dati sono giornalieri: una volta al giorno basta.
-        </p>
-      )}
+      {running && <p className={styles.hint}>Lascia aperta questa pagina: servono 2–4 minuti.</p>}
       {error && (
         <p role="alert" className={styles.error}>
           {error}

@@ -405,7 +405,7 @@ export function ScannerTable({
               <Row
                 key={item.r.symbol}
                 item={item}
-                bell={alerts && item.r.passedCount === 7 ? <AlertBell symbol={item.r.symbol} armed={alerts.armed.includes(item.r.symbol)} emailReady={alerts.emailReady} /> : null}
+                bell={alerts && item.r.passedCount >= 7 && item.plan.verdict !== 'buy' ? <AlertBell symbol={item.r.symbol} armed={alerts.armed.includes(item.r.symbol)} emailReady={alerts.emailReady} /> : null}
               />
             ))}
           </ul>

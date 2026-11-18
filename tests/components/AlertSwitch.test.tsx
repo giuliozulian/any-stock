@@ -12,7 +12,7 @@ describe('AlertSwitch', () => {
 
   it('is a switch labelled with what it does', () => {
     render(<AlertSwitch enabled={false} emailReady />)
-    expect(screen.getByRole('switch', { name: /avvisami dei nuovi 8 su 8/i })).toHaveAttribute('aria-checked', 'false')
+    expect(screen.getByRole('switch', { name: /avvisami quando un titolo è da comprare/i })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('turns on and saves the setting', async () => {

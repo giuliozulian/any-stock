@@ -13,14 +13,14 @@ const send = vi.mocked(sendEmail)
 const DAY = 86_400_000
 const CRITERIA = Array.from({ length: 7 }, (_, i) => ({ id: i + 1, label: `c${i + 1}`, ok: true, value: '', margin: null }))
 
-async function makeRun(rows: Array<{ symbol: string; passedCount: number; rs?: number; name?: string }>, startedAt = new Date('2026-11-16T22:00:00Z')) {
+async function makeRun(rows: Array<{ symbol: string; passedCount: number; rs?: number; name?: string; vcpStatus?: string; pivotDistancePct?: number; volumeRatio?: number }>, startedAt = new Date('2026-11-16T22:00:00Z')) {
   const run = await prisma.scanRun.create({
     data: { status: 'done', total: rows.length, cursor: rows.length, startedAt, finishedAt: new Date(startedAt.getTime() + 120_000) },
   })
   await prisma.scanResult.createMany({
     data: rows.map((r) => ({
       runId: run.id, symbol: r.symbol, name: r.name ?? `${r.symbol} Inc`, sector: 'Tech', status: 'ok', price: 102, weightedReturn: 0.5,
-      criteria: CRITERIA, rs: r.rs ?? 90, passedCount: r.passedCount, vcpStatus: 'breakout', pivot: 100, pivotDistancePct: 2, volumeRatio: 1.8,
+      criteria: CRITERIA, rs: r.rs ?? 90, passedCount: r.passedCount, vcpStatus: r.vcpStatus ?? 'breakout', pivot: 100, pivotDistancePct: r.pivotDistancePct ?? 2, volumeRatio: r.volumeRatio ?? 1.8,
     })),
   })
   return run
@@ -104,7 +104,7 @@ describe('notifyScanAlerts', () => {
     const [subject, text] = send.mock.calls[0]
     expect(subject).toContain('NEW')
     expect(subject).not.toContain('OLD')
-    expect(text).toContain('Nuovo negli 8 su 8')
+    expect(text).toContain('Nuovo da comprare')
     expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })).knownFull.sort()).toEqual(['NEW', 'OLD'])
   })
 
@@ -127,18 +127,33 @@ describe('notifyScanAlerts', () => {
     expect(send).toHaveBeenCalledTimes(1)
     const text = send.mock.calls[0][1]
     expect(text).toContain('Lo seguivi')
-    expect(text).toContain('Nuovo negli 8 su 8')
+    expect(text).toContain('Nuovo da comprare')
   })
 
-  it('downgrades a buy to "wait for confirmation" when the scan ran with the US market open', async () => {
+  it('stays silent when the scan ran with the US market open: a partial-volume breakout is not a buy', async () => {
     await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
     const run = await makeRun([{ symbol: 'AAA', passedCount: 8 }], new Date('2026-11-16T15:00:00Z'))
 
-    await notifyScanAlerts(run.id)
+    expect(await notifyScanAlerts(run.id)).toBe('nothing')
+    expect(send).not.toHaveBeenCalled()
+  })
 
-    const text = send.mock.calls[0][1]
-    expect(text).toContain('Cosa fare: Aspetta conferma')
-    expect(text).toContain('mercato aperto')
+  it('stays silent for an 8-of-8 stock that is still below its pivot', async () => {
+    await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'AAA' } })
+    const run = await makeRun([{ symbol: 'AAA', passedCount: 8, vcpStatus: 'ready', pivotDistancePct: -2, volumeRatio: 0.8 }])
+
+    expect(await notifyScanAlerts(run.id)).toBe('nothing')
+    expect(send).not.toHaveBeenCalled()
+  })
+
+  it('a stock that drops out of the buy list and comes back is news again', async () => {
+    await prisma.scannerAlertSettings.create({ data: { userId: 'dev', newEntrants: true, knownFull: ['AAA'] } })
+    const quiet = await makeRun([{ symbol: 'AAA', passedCount: 7 }])
+    expect(await notifyScanAlerts(quiet.id)).toBe('nothing')
+    expect((await prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })).knownFull).toEqual([])
+
+    const back = await makeRun([{ symbol: 'AAA', passedCount: 8 }])
+    expect(await notifyScanAlerts(back.id)).toBe('sent')
   })
 
   it('links to the stock page when APP_URL is set', async () => {

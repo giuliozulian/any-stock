@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AlertBell, EMAIL_NOT_READY } from '@/components/AlertBell'
 
 const ok = { ok: true, status: 200, json: () => Promise.resolve({}) }
-const unarmed = () => screen.getByRole('button', { name: 'Avvisami per email quando AAA arriva a 8 su 8' })
+const unarmed = () => screen.getByRole('button', { name: 'Avvisami per email quando AAA si può comprare' })
 const armedButton = () => screen.getByRole('button', { name: 'Avviso attivo per AAA, clicca per disattivarlo' })
 
 describe('AlertBell', () => {

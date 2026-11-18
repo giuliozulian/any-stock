@@ -298,14 +298,14 @@ describe('email alerts', () => {
   it('keeps the bell outside the link of the row', () => {
     render(<ScannerTable rows={rows} alerts={{ ...alerts, armed: [] }} />)
     fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
-    const bell = screen.getByRole('button', { name: 'Avvisami per email quando NEAR arriva a 8 su 8' })
+    const bell = screen.getByRole('button', { name: 'Avvisami per email quando NEAR si può comprare' })
     expect(bell.closest('a')).toBeNull()
     expect(within(screen.getByRole('list')).getAllByRole('link')).toHaveLength(1)
   })
 
   it('shows the switch with the saved state', () => {
     render(<ScannerTable rows={rows} alerts={{ ...alerts, newEntrants: true }} />)
-    expect(screen.getByRole('switch', { name: /nuovi 8 su 8/i })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('switch', { name: /titolo è da comprare/i })).toHaveAttribute('aria-checked', 'true')
   })
 
   it('disables bells and switch when email is not configured', () => {

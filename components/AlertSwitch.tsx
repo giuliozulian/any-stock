@@ -31,13 +31,13 @@ export function AlertSwitch({ enabled: initial, emailReady }: { enabled: boolean
     <span className={styles.wrap}>
       <button type="button" role="switch" aria-checked={enabled} className={styles.switch} title={emailReady ? undefined : EMAIL_NOT_READY} disabled={!emailReady} onClick={toggle}>
         <EnvelopeIcon />
-        <span>Avvisami dei nuovi 8 su 8</span>
+        <span>Avvisami quando un titolo è da comprare</span>
         <span className={styles.track} aria-hidden="true">
           <span className={styles.thumb} />
         </span>
       </button>
-      <InfoTip label="Come funziona l’avviso sui nuovi 8 su 8" source="Scansione serale dell’app">
-        Quando è attivo, ricevi una email con i titoli entrati negli 8 su 8 dall’ultima volta. La scansione parte da sola ogni sera dopo la chiusura del mercato USA; puoi sempre lanciarla a mano.
+      <InfoTip label="Come funziona l’avviso per email" source="Scansione serale dell’app">
+        Quando è attivo, ricevi una email con i titoli che per il metodo si possono comprare: hanno superato il pivot con molti scambi e hanno passato tutti gli 8 controlli. Con mercato aperto o debole non ti scrivo. La scansione parte da sola ogni sera dopo la chiusura del mercato USA; puoi sempre lanciarla a mano.
       </InfoTip>
       {failed && (
         <span role="status" className={styles.error}>

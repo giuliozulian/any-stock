@@ -1,12 +1,12 @@
 import { MARKET_TEXT, VERDICT, fmtNum, fmtPrice, sentence, type ScanRow } from '@/lib/scan-verdict'
 import type { MarketLevel, PlanNote, TradePlan } from '@/lib/scanner'
 
-// Which stocks an email is about: the armed ones that reached 8 of 8, plus (switch on) the 8-of-8 ones not seen before.
-export function collectAlerts(input: { full: string[]; armed: string[]; newEntrantsOn: boolean; knownFull: string[] }): { watched: string[]; entrants: string[] } {
-  const full = new Set(input.full)
-  const watched = [...new Set(input.armed)].filter((symbol) => full.has(symbol))
-  const taken = new Set([...watched, ...input.knownFull])
-  const entrants = input.newEntrantsOn ? input.full.filter((symbol) => !taken.has(symbol)) : []
+// Which stocks an email is about: the armed ones that are ready to buy, plus (switch on) the ready ones not seen before.
+export function collectAlerts(input: { ready: string[]; armed: string[]; newEntrantsOn: boolean; knownReady: string[] }): { watched: string[]; entrants: string[] } {
+  const ready = new Set(input.ready)
+  const watched = [...new Set(input.armed)].filter((symbol) => ready.has(symbol))
+  const taken = new Set([...watched, ...input.knownReady])
+  const entrants = input.newEntrantsOn ? input.ready.filter((symbol) => !taken.has(symbol)) : []
   return { watched, entrants }
 }
 
@@ -28,7 +28,7 @@ export interface EmailInput {
   appUrl: string | null
 }
 
-const REASON = { watched: 'Lo seguivi', new: 'Nuovo negli 8 su 8' } as const
+const REASON = { watched: 'Lo seguivi', new: 'Nuovo da comprare' } as const
 const DISCLAIMER = 'Indicazioni calcolate con le regole del metodo: non è consulenza finanziaria.'
 const SESSION_WARNING = 'Scansione fatta a mercato aperto: il volume di oggi è parziale, quindi nessun titolo è segnalato come da comprare.'
 const NO_PRICES = 'Prezzi: nessuno, al momento non c’è un punto d’ingresso.'
@@ -119,7 +119,7 @@ ${link ? `<p style="margin:0"><a href="${e(link)}" style="color:#0b57d0;font-siz
 
 function subjectFor(items: EmailItem[]): string {
   const symbols = items.map((i) => i.row.symbol)
-  return items.length === 1 ? `Scanner Minervini: ${symbols[0]} ha raggiunto 8 su 8` : `Scanner Minervini: ${items.length} titoli hanno raggiunto 8 su 8 (${symbols.join(', ')})`
+  return items.length === 1 ? `Scanner Minervini: ${symbols[0]} si può comprare` : `Scanner Minervini: ${items.length} titoli si possono comprare (${symbols.join(', ')})`
 }
 
 export function buildScanEmail(input: EmailInput): { subject: string; text: string; html: string } {

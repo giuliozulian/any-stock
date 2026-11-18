@@ -1,11 +1,16 @@
+import type { ReactNode } from 'react'
 import { TREND_TEMPLATE_LABELS } from '@/lib/minervini'
 import styles from './ScannerInfo.module.css'
 
-export function ScannerInfo({ defaultOpen = false }: { defaultOpen?: boolean }) {
+export function ScannerInfo({ defaultOpen = false, status }: { defaultOpen?: boolean; status?: ReactNode }) {
   return (
     <details className={styles.info} open={defaultOpen}>
       <summary className={styles.summary}>Come funziona</summary>
       <div className={styles.body}>
+        {status}
+        <p>
+          <strong>Quando farla</strong>: a mercato USA chiuso, dopo le 22:30 ora italiana o la mattina dopo. A mercato aperto l’ultima barra è incompleta e il volume è parziale. I dati sono giornalieri: una volta al giorno basta.
+        </p>
         <p>
           Il metodo di Mark Minervini compra titoli già in forte salita nel momento in cui superano un livello chiave, il <strong>pivot</strong>, e li vende subito se il prezzo scende sotto uno <strong>stop</strong> deciso in anticipo. Lo scanner cerca questi titoli tra i circa 500 dell’S&amp;P 500.
         </p>

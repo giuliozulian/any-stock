@@ -34,7 +34,7 @@ export function AlertBell({ symbol, armed: initial, emailReady }: { symbol: stri
         type="button"
         className={styles.bell}
         aria-pressed={armed}
-        aria-label={armed ? `Avviso attivo per ${symbol}, clicca per disattivarlo` : `Avvisami per email quando ${symbol} arriva a 8 su 8`}
+        aria-label={armed ? `Avviso attivo per ${symbol}, clicca per disattivarlo` : `Avvisami per email quando ${symbol} si può comprare`}
         title={emailReady ? undefined : EMAIL_NOT_READY}
         disabled={!emailReady}
         onClick={toggle}

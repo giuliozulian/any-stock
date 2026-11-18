@@ -36,15 +36,21 @@ async function ScannerContent() {
 
   return (
     <>
-      <ScannerInfo defaultOpen={!run} />
       <ScannerButton resumable={running !== null} lockedLabel={lockedLabel} />
+      <ScannerInfo
+        defaultOpen={!run}
+        status={
+          run?.finishedAt && (
+            <p>
+              <strong>Ultima scansione</strong>: {day(run.finishedAt)} alle {time(run.finishedAt)}. Letti {run.total - run.unreadCount} titoli su {run.total}.
+            </p>
+          )
+        }
+      />
       {!run || !run.finishedAt ? (
         <p className={styles.empty}>Nessuna scansione ancora eseguita. Premi “Avvia scansione” per iniziare.</p>
       ) : (
         <>
-          <p className={local.meta}>
-            Ultima scansione il {day(run.finishedAt)} alle {time(run.finishedAt)}. Letti {run.total - run.unreadCount} titoli su {run.total}.
-          </p>
           {session && (
             <p role="note" className={local.stale}>
               Scansione fatta a mercato aperto: il volume di oggi è parziale, quindi nessun titolo è segnalato come da comprare. Rilancia dopo le 22:30 ora italiana.

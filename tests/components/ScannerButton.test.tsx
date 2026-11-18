@@ -83,17 +83,15 @@ describe('ScannerButton', () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled())
   })
 
-  it('says when it is best to scan, and swaps it for the wait message while scanning', async () => {
+  it('shows the wait message while scanning', async () => {
     let release: (v: unknown) => void = () => {}
     ;(fetch as any)
       .mockResolvedValueOnce(ok({ runId: 'r1', cursor: 0, total: 50, status: 'running', resumed: false }))
       .mockImplementationOnce(() => new Promise((r) => { release = r }))
     render(<ScannerButton resumable={false} />)
-    expect(screen.getByText(/dopo le 22:30/i)).toBeInTheDocument()
-    expect(screen.getByText(/una volta al giorno basta/i)).toBeInTheDocument()
+    expect(screen.queryByText(/lascia aperta questa pagina/i)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /avvia scansione/i }))
     expect(await screen.findByText(/lascia aperta questa pagina/i)).toBeInTheDocument()
-    expect(screen.queryByText(/dopo le 22:30/i)).not.toBeInTheDocument()
     release(ok({ cursor: 50, total: 50, status: 'done', advanced: true }))
     await waitFor(() => expect(refresh).toHaveBeenCalled())
   })

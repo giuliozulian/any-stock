@@ -133,9 +133,9 @@
 }
 
 .signalNone {
-  margin: 0 0 18px;
+  margin: 0 0 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .cols,
@@ -429,9 +429,9 @@
 }
 
 .market {
-  margin: 0 0 12px;
+  margin: 0 0 8px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .market[data-level='healthy'] {
