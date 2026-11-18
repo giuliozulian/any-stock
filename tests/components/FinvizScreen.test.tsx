@@ -15,7 +15,7 @@ describe('FinvizScreen', () => {
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ total: 58, passedTechnical: 17, truncated: false, noteAvailable: true, addedToScan: 3, picks: [pick] }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     render(<FinvizScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'Cerca con Finviz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cerca su Finviz' }))
 
     expect(await screen.findByRole('link', { name: 'RCEL' })).toHaveAttribute('href', '/stock/RCEL#minervini')
     expect(screen.getByText('Da tenere d’occhio')).toBeInTheDocument()
@@ -29,8 +29,8 @@ describe('FinvizScreen', () => {
   it('shows the error the route gives, and lets the user try again', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: 'Finviz non risponde o ha bloccato la richiesta. Riprova più tardi.' }), { status: 502 })))
     render(<FinvizScreen />)
-    fireEvent.click(screen.getByRole('button', { name: 'Cerca con Finviz' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cerca su Finviz' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Finviz non risponde')
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerca con Finviz' })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cerca su Finviz' })).toBeEnabled())
   })
 })

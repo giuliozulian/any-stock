@@ -294,8 +294,11 @@ export function ScannerTable({
         : 'Nessun titolo supera tutti i criteri.'
       : 'Nessun titolo è a un solo criterio dal template.'
 
+  const moreActive = sector !== '' || minRs > 0
+
   return (
     <div>
+      <div className={styles.strip}>
       {market && (
         <p className={styles.market} data-level={market.level}>
           {MARKET_TEXT[market.level](market.abovePct)}
@@ -325,6 +328,7 @@ export function ScannerTable({
         ) : (
           <p className={styles.signalNone}>Nessun titolo da comprare adesso: aspetta che uno rompa il livello chiave con molti scambi.</p>
         ))}
+      </div>
 
       <div className={styles.controls}>
         <div className={styles.group} role="group" aria-label="Gruppo">
@@ -350,22 +354,6 @@ export function ScannerTable({
 
       <div className={styles.filters}>
         <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Cerca titolo" aria-label="Cerca titolo" className={styles.search} />
-        <select value={sector} onChange={(e) => setSector(e.target.value)} aria-label="Settore" className={styles.select}>
-          <option value="">Tutti i settori</option>
-          {sectors.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        <select value={minRs} onChange={(e) => setMinRs(Number(e.target.value))} aria-label="RS minima" className={styles.select}>
-          <option value={0}>RS qualsiasi</option>
-          {RS_FLOORS.map((v) => (
-            <option key={v} value={v}>
-              {`RS almeno ${v}`}
-            </option>
-          ))}
-        </select>
         <div className={styles.group} role="group" aria-label="Cosa fare">
           {(
             [
@@ -379,14 +367,35 @@ export function ScannerTable({
             </button>
           ))}
         </div>
-        <select value={sort.key} onChange={(e) => sortBy(e.target.value as SortKey)} aria-label="Ordina per" className={`${styles.select} ${styles.sortSelect}`}>
-          {COLUMNS.filter((c) => c.key !== null).map((c) => (
-            <option key={c.key} value={c.key!}>
-              {`Ordina per ${c.label.toLowerCase()}`}
-            </option>
-          ))}
-        </select>
-        {alerts && <AlertSwitch enabled={alerts.newEntrants} emailReady={alerts.emailReady} />}
+        <details className={styles.more} open={moreActive || undefined}>
+          <summary className={styles.moreSummary}>Altri filtri{moreActive ? ' •' : ''}</summary>
+          <div className={styles.moreBody}>
+            <select value={sector} onChange={(e) => setSector(e.target.value)} aria-label="Settore" className={styles.select}>
+              <option value="">Tutti i settori</option>
+              {sectors.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <select value={minRs} onChange={(e) => setMinRs(Number(e.target.value))} aria-label="RS minima" className={styles.select}>
+              <option value={0}>RS qualsiasi</option>
+              {RS_FLOORS.map((v) => (
+                <option key={v} value={v}>
+                  {`RS almeno ${v}`}
+                </option>
+              ))}
+            </select>
+            <select value={sort.key} onChange={(e) => sortBy(e.target.value as SortKey)} aria-label="Ordina per" className={`${styles.select} ${styles.sortSelect}`}>
+              {COLUMNS.filter((c) => c.key !== null).map((c) => (
+                <option key={c.key} value={c.key!}>
+                  {`Ordina per ${c.label.toLowerCase()}`}
+                </option>
+              ))}
+            </select>
+            {alerts && <AlertSwitch enabled={alerts.newEntrants} emailReady={alerts.emailReady} />}
+          </div>
+        </details>
         {filtersActive && (
           <button type="button" onClick={reset} className={styles.reset}>
             Azzera filtri

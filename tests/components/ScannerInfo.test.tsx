@@ -18,11 +18,10 @@ describe('ScannerInfo', () => {
     expect(screen.getByText(/non è consulenza finanziaria/i)).toBeInTheDocument()
   })
 
-  it('says when it is best to scan and renders the status passed in', () => {
-    render(<ScannerInfo status={<p>Ultima scansione: ieri</p>} />)
+  it('says when it is best to scan', () => {
+    render(<ScannerInfo />)
     expect(screen.getByText(/dopo le 22:30/i)).toBeInTheDocument()
     expect(screen.getByText(/una volta al giorno basta/i)).toBeInTheDocument()
-    expect(screen.getByText(/Ultima scansione: ieri/)).toBeInTheDocument()
   })
 
   it('is collapsed by default and open when asked', () => {

@@ -35,15 +35,15 @@ export function FinvizScreen() {
   }
 
   return (
-    <section className={styles.wrap} aria-labelledby="finviz-title">
-      <h2 id="finviz-title" className={styles.title}>
-        Cerca su Finviz
-      </h2>
-      <p className={styles.lead}>
-        Titoli USA con utili e vendite in forte crescita e trend rialzista, cercati su Finviz e aggiunti allo scanner, che li controlla con le sue regole. Il verdetto e la nota non sono un consiglio di investimento.
-      </p>
-      <button type="button" className={styles.button} onClick={run} disabled={loading}>
-        {loading ? 'Cerco su Finviz…' : 'Cerca con Finviz'}
+    <section className={styles.wrap} aria-label="Cerca su Finviz">
+      <button
+        type="button"
+        className={styles.button}
+        onClick={run}
+        disabled={loading}
+        title="Cerca su Finviz titoli USA con utili e vendite in forte crescita e trend rialzista, li aggiunge allo scanner e li controlla con le sue regole."
+      >
+        {loading ? 'Cerco su Finviz…' : 'Cerca su Finviz'}
       </button>
       {error && (
         <p role="alert" className={styles.error}>
@@ -51,13 +51,16 @@ export function FinvizScreen() {
         </p>
       )}
       {screen && (
-        <>
+        <div className={styles.panel}>
           <p role="status" className={styles.summary}>
             {screen.picks.length === 0
               ? `Finviz ha trovato ${screen.total} titoli, ma nessuno passa anche i controlli su media a 50 giorni e distanza da massimi e minimi.`
               : `Finviz ha trovato ${screen.total} titoli; ${screen.passedTechnical} passano anche i controlli su media a 50 giorni e distanza da massimi e minimi.`}
             {screen.addedToScan > 0 ? ` ${screen.addedToScan} aggiunti alla lista dello scanner.` : ''}
             {screen.truncated ? ' Letti solo i primi risultati: la lista completa è più lunga.' : ''}
+            <button type="button" className={styles.close} onClick={() => setScreen(null)}>
+              Chiudi
+            </button>
           </p>
           {screen.picks.length > 0 && (
             <ul className={styles.list}>
@@ -85,9 +88,9 @@ export function FinvizScreen() {
             </ul>
           )}
           <p className={styles.fine}>
-            {screen.noteAvailable ? 'Note generate da Gemini a partire dai numeri dello scanner.' : 'Note AI non disponibili in questo momento.'} Finviz non verifica SMA150, forza relativa e base: le calcola l’app.
+            {screen.noteAvailable ? 'Note generate da Gemini a partire dai numeri dello scanner.' : 'Note AI non disponibili in questo momento.'} Finviz non verifica SMA150, forza relativa e base: le calcola l’app. Non è consulenza finanziaria.
           </p>
-        </>
+        </div>
       )}
     </section>
   )

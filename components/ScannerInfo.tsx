@@ -1,13 +1,11 @@
-import type { ReactNode } from 'react'
 import { TREND_TEMPLATE_LABELS } from '@/lib/minervini'
 import styles from './ScannerInfo.module.css'
 
-export function ScannerInfo({ defaultOpen = false, status }: { defaultOpen?: boolean; status?: ReactNode }) {
+export function ScannerInfo({ defaultOpen = false }: { defaultOpen?: boolean }) {
   return (
     <details className={styles.info} open={defaultOpen}>
       <summary className={styles.summary}>Come funziona</summary>
       <div className={styles.body}>
-        {status}
         <p>
           <strong>Quando farla</strong>: a mercato USA chiuso, dopo le 22:30 ora italiana o la mattina dopo. A mercato aperto l’ultima barra è incompleta e il volume è parziale. I dati sono giornalieri: una volta al giorno basta.
         </p>
