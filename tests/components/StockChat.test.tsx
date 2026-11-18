@@ -111,6 +111,16 @@ describe('StockChat', () => {
     expect(screen.queryByText(/qualcosa è andato storto|riprova/i)).toBeNull()
   })
 
+  it('tells an exhausted AI quota apart from the app rate limit, with no retry button', async () => {
+    ;(fetch as any).mockResolvedValue(ok([{ event: 'error', data: { type: 'error', code: 'quota' } }]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'domanda' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText(/quota del servizio ia è esaurita/i)).toBeInTheDocument()
+    expect(screen.queryByText(/troppe richieste/i)).toBeNull()
+    expect(screen.queryByRole('button', { name: /riprova/i })).toBeNull()
+  })
+
   it('shows the error for the status code and retries the same question', async () => {
     ;(fetch as any).mockResolvedValueOnce({ ok: false, status: 429, body: null }).mockResolvedValueOnce(ok([text('risposta')]))
     const box = open()

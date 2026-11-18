@@ -5,7 +5,7 @@ import { sseMessages } from '@/lib/sse'
 import { MAX_CHARS, MAX_MESSAGES, type ChatTurn } from '@/lib/chat-request'
 import styles from './StockChat.module.css'
 
-type ErrorCode = 'rate_limited' | 'upstream' | 'timeout' | 'unavailable' | 'session'
+type ErrorCode = 'rate_limited' | 'quota' | 'upstream' | 'timeout' | 'unavailable' | 'session'
 
 interface Message {
   role: 'user' | 'model'
@@ -16,6 +16,7 @@ interface Message {
 
 const ERRORS: Record<ErrorCode, string> = {
   rate_limited: 'Troppe richieste in poco tempo: riprova tra un minuto.',
+  quota: 'La quota del servizio IA è esaurita: riprova più tardi.',
   upstream: 'Il servizio non ha risposto: riprova.',
   timeout: 'La risposta ha impiegato troppo: riprova.',
   unavailable: 'La chat non è disponibile al momento.',
@@ -154,7 +155,7 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
   }
 
   const last = messages[messages.length - 1]
-  const canRetry = !streaming && last?.role === 'model' && Boolean(last.error) && last.error !== 'unavailable' && last.error !== 'session'
+  const canRetry = !streaming && last?.role === 'model' && Boolean(last.error) && last.error !== 'unavailable' && last.error !== 'session' && last.error !== 'quota'
 
   return (
     <>

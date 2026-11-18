@@ -107,9 +107,9 @@ describe('gemini-chat', () => {
     expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'upstream' }])
   })
 
-  it('maps HTTP 429 to rate_limited and other failures to upstream', async () => {
+  it('maps HTTP 429 to quota and other failures to upstream', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 429 })))
-    expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'rate_limited' }])
+    expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'quota' }])
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('', { status: 503 })))
     expect(await collect(streamChat(args))).toEqual([{ type: 'error', code: 'upstream' }])
   })
@@ -119,6 +119,27 @@ describe('gemini-chat', () => {
     await collect(streamChat(args))
     expect(errorSpy).toHaveBeenCalledTimes(1)
     expect(errorSpy).toHaveBeenCalledWith('Stock chat: Gemini request failed:', 503, 'quota exceeded')
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('"k"')
+  })
+
+  it('keeps the exhausted quota and the retry delay in the log even when the body is long', async () => {
+    const body = JSON.stringify({
+      error: {
+        code: 429,
+        message: 'x'.repeat(1500),
+        details: [
+          { '@type': 'type.googleapis.com/google.rpc.QuotaFailure', violations: [{ quotaMetric: 'generativelanguage.googleapis.com/generate_content_free_tier_requests', quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }] },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '27s' },
+        ],
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 429 })))
+    await collect(streamChat(args))
+    const logged = errorSpy.mock.calls[0][2] as string
+    expect(logged).toContain('generate_content_free_tier_requests')
+    expect(logged).toContain('GenerateRequestsPerDayPerProjectPerModel-FreeTier')
+    expect(logged).toContain('retryDelay=27s')
+    expect(logged.length).toBeLessThan(1400)
     expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('"k"')
   })
 

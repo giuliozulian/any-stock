@@ -6,7 +6,8 @@ const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const DEFAULT_MODEL = 'gemini-3.8-flash'
 const TIMEOUT_MS = 45_000
 
-export type ChatErrorCode = 'rate_limited' | 'upstream' | 'timeout' | 'unavailable'
+// 'quota' is Gemini refusing the project's quota; the app's own rate limit answers with an HTTP 429 before the stream starts.
+export type ChatErrorCode = 'quota' | 'upstream' | 'timeout' | 'unavailable'
 
 export type ChatEvent =
   | { type: 'text'; delta: string }
@@ -26,6 +27,26 @@ export function isChatConfigured(): boolean {
 
 function isTimeout(err: unknown): boolean {
   return err instanceof Error && err.name === 'TimeoutError'
+}
+
+// Gemini reports the exhausted quota and the retry delay deep in error.details: keep them in the log even when the body is cut.
+function describeFailure(body: string): string {
+  const text = body.slice(0, 1000)
+  try {
+    const details = (JSON.parse(body) as { error?: { details?: Record<string, unknown>[] } }).error?.details ?? []
+    const extra: string[] = []
+    for (const detail of details) {
+      const violations = detail.violations as { quotaMetric?: string; quotaId?: string }[] | undefined
+      for (const v of violations ?? []) {
+        if (v.quotaMetric) extra.push(`quotaMetric=${v.quotaMetric}`)
+        if (v.quotaId) extra.push(`quotaId=${v.quotaId}`)
+      }
+      if (typeof detail.retryDelay === 'string') extra.push(`retryDelay=${detail.retryDelay}`)
+    }
+    return extra.length > 0 ? `${text} [${extra.join(' ')}]` : text
+  } catch {
+    return text
+  }
 }
 
 export async function* streamChat({ system, history, signal }: { system: string; history: ChatTurn[]; signal?: AbortSignal }): AsyncGenerator<ChatEvent> {
@@ -57,8 +78,8 @@ export async function* streamChat({ system, history, signal }: { system: string;
     return
   }
   if (!res.ok || !res.body) {
-    console.error('Stock chat: Gemini request failed:', res.status, (await res.text().catch(() => '')).slice(0, 300))
-    yield { type: 'error', code: res.status === 429 ? 'rate_limited' : 'upstream' }
+    console.error('Stock chat: Gemini request failed:', res.status, describeFailure(await res.text().catch(() => '')))
+    yield { type: 'error', code: res.status === 429 ? 'quota' : 'upstream' }
     return
   }
 

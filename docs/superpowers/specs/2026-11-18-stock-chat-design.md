@@ -82,7 +82,7 @@ Il tool `google_search` è documentato solo sull'API nativa Gemini, non sull'end
 - Body `{ messages: [{ role, text }] }`: massimo 20 messaggi, ruoli alternati, ultimo messaggio `user`. Il limite di 2000 caratteri vale per i messaggi dell'utente; i turni `model` rimandati nella cronologia non vengono rifiutati ma troncati a 8000 caratteri.
 - Il titolo deve essere nella watchlist dell'utente (`findEntry`), altrimenti 404; per questo il bottone compare solo nella scheda dei titoli seguiti. Senza chiave, 503. Payload invalido, 400.
 - Risposta `text/event-stream` con `Cache-Control: no-store`. Eventi verso il client: `event: text|sources|error`, `data` in JSON. Il formato Gemini non esce da `gemini-chat.ts`.
-- Codici d'errore stabili: `rate_limited`, `upstream`, `timeout`, `unavailable`. Il testo italiano lo sceglie la UI.
+- Codici d'errore stabili: `quota` (Gemini rifiuta per quota esaurita), `upstream`, `timeout`, `unavailable`. Il limite dell'app risponde invece con HTTP 429 prima dello stream, e la UI lo mostra come `rate_limited`; la UI usa anche `session` per un 401. Il testo italiano lo sceglie la UI. Nel log del server un errore di Gemini riporta fino a 1000 caratteri del corpo più `quotaMetric`, `quotaId` e `retryDelay` quando presenti.
 - La route esporta solo `maxDuration = 60`: un `POST` non è in cache e `cacheComponents` non ammette `dynamic`. Lo streaming di `Response` è stato verificato nei docs di Next 16.
 
 ### 3. UI (`components/StockChat.tsx`)
