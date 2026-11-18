@@ -30,7 +30,8 @@ async function ScannerContent() {
   const lockedLabel = lockedUntil && !running ? `Disponibile dalle ${time(lockedUntil)}` : null
 
   const readable = run ? await prisma.scanResult.findMany({ where: { runId: run.id, status: 'ok' } }) : []
-  const rows = readable.filter((r) => (r.passedCount ?? 0) >= 7).map(toScanRow)
+  const finviz = new Set((await prisma.scanExtra.findMany({ where: { source: 'finviz' }, select: { symbol: true } })).map((e) => e.symbol))
+  const rows = readable.filter((r) => (r.passedCount ?? 0) >= 7).map((r) => ({ ...toScanRow(r), fromFinviz: finviz.has(r.symbol) }))
   const market = marketHealth(readable.map((r) => (Array.isArray(r.criteria) ? r.criteria : []) as unknown as Criterion[]))
   const session = run !== null && duringSession(run.startedAt, run.finishedAt)
   const caution = session ? 'session' : ageDays >= 1 ? 'stale' : null

@@ -178,7 +178,14 @@ function Row({ item: { r, plan, note }, bell }: { item: Item; bell: React.ReactN
     <li className={styles.item} data-bell={bell ? '' : undefined} data-verdict={plan.verdict}>
       <Link href={`/stock/${r.symbol}`} className={styles.row} data-verdict={plan.verdict}>
         <span className={styles.who}>
-          <span className={styles.symbol}>{r.symbol}</span>
+          <span className={styles.symbol}>
+            {r.symbol}
+            {r.fromFinviz && (
+              <span className={styles.origin} title="Trovato con la ricerca su Finviz">
+                Finviz
+              </span>
+            )}
+          </span>
           <span className={styles.name}>{r.name}</span>
           <span className={styles.sub}>
             <span>{r.sector ?? dash}</span>
@@ -251,6 +258,7 @@ export function ScannerTable({
   const [query, setQuery] = useState('')
   const [sector, setSector] = useState('')
   const [minRs, setMinRs] = useState(0)
+  const [onlyFinviz, setOnlyFinviz] = useState(false)
   const [sort, setSort] = useState<{ key: SortKey; dir: SortDir }>({ key: 'rs', dir: 'desc' })
 
   const items: Item[] = rows.map((r) => ({ r, ...withContext(tradePlan(r), { caution, market: market?.level ?? null }) }))
@@ -260,7 +268,8 @@ export function ScannerTable({
   const buys = full.filter((i) => i.plan.verdict === 'buy').sort((a, b) => (b.r.rs ?? -1) - (a.r.rs ?? -1))
   const sectors = [...new Set(rows.map((r) => r.sector).filter((s): s is string => s !== null))].sort((a, b) => a.localeCompare(b))
   const needle = query.trim().toLowerCase()
-  const filtersActive = action !== 'all' || needle !== '' || sector !== '' || minRs > 0
+  const hasFinviz = rows.some((r) => r.fromFinviz)
+  const filtersActive = action !== 'all' || needle !== '' || sector !== '' || minRs > 0 || onlyFinviz
 
   const matchesAction = ({ plan }: Item) => {
     if (action === 'all') return true
@@ -271,6 +280,7 @@ export function ScannerTable({
     .filter(matchesAction)
     .filter(({ r }) => needle === '' || r.symbol.toLowerCase().includes(needle) || r.name.toLowerCase().includes(needle))
     .filter(({ r }) => sector === '' || r.sector === sector)
+    .filter(({ r }) => !onlyFinviz || r.fromFinviz)
     .filter(({ r }) => minRs === 0 || (r.rs !== null && r.rs >= minRs))
     .sort(comparator(sort.key, sort.dir))
 
@@ -284,6 +294,7 @@ export function ScannerTable({
     setQuery('')
     setSector('')
     setMinRs(0)
+    setOnlyFinviz(false)
   }
 
   const empty = filtersActive
@@ -367,6 +378,11 @@ export function ScannerTable({
             </button>
           ))}
         </div>
+        {hasFinviz && (
+          <button type="button" aria-pressed={onlyFinviz} onClick={() => setOnlyFinviz((v) => !v)} className={styles.pill}>
+            Da Finviz
+          </button>
+        )}
         <details className={styles.more} open={moreActive || undefined}>
           <summary className={styles.moreSummary}>Altri filtri{moreActive ? ' •' : ''}</summary>
           <div className={styles.moreBody}>

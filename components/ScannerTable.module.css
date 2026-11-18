@@ -678,3 +678,16 @@
   color: var(--muted);
 }
 
+
+/* Titolo arrivato dalla ricerca su Finviz */
+.origin {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid color-mix(in srgb, var(--brass) 55%, transparent);
+  border-radius: 999px;
+  color: var(--brass);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 3px;
+}

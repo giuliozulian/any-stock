@@ -25,6 +25,8 @@ export interface ScanRow {
   volumeRatio: number | null
   volumeDryUp?: boolean | null
   missing: string | null
+  // Came in through the Finviz search rather than the S&P 500 list.
+  fromFinviz?: boolean
 }
 
 export const fmtNum = (v: number, digits = 1) => v.toLocaleString('it-IT', { minimumFractionDigits: digits, maximumFractionDigits: digits })

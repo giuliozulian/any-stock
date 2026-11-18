@@ -20,10 +20,23 @@ describe('FinvizScreen', () => {
     expect(await screen.findByRole('link', { name: 'RCEL' })).toHaveAttribute('href', '/stock/RCEL#minervini')
     expect(screen.getByText('Da tenere d’occhio')).toBeInTheDocument()
     expect(screen.getByText('Crescita forte, base quasi pronta.')).toBeInTheDocument()
-    expect(screen.getByText(/58 titoli; 17 passano/)).toBeInTheDocument()
-    expect(screen.getByText(/3 aggiunti alla lista dello scanner/)).toBeInTheDocument()
+    expect(screen.getByText(/Finviz ne ha trovati 58, 17 passano/)).toBeInTheDocument()
+    expect(screen.getByText(/Nessun titolo da comprare adesso: 1 passano/)).toBeInTheDocument()
+    expect(screen.getByText(/in elenco qui sotto, con l’etichetta Finviz/)).toBeInTheDocument()
     expect(refresh).toHaveBeenCalled()
     expect(fetchMock).toHaveBeenCalledWith('/api/finviz-screen', { method: 'POST' })
+  })
+
+  it('puts the stocks to buy first and lets the user close the result', async () => {
+    const buy = { ...pick, symbol: 'ABCD', verdict: 'buy', label: 'Si può comprare', rs: 80 }
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ total: 5, passedTechnical: 2, truncated: false, noteAvailable: false, addedToScan: 0, picks: [pick, buy] }), { status: 200 })))
+    render(<FinvizScreen />)
+    fireEvent.click(screen.getByRole('button', { name: 'Cerca su Finviz' }))
+    await screen.findByRole('link', { name: 'ABCD' })
+    expect(screen.getAllByRole('link').map((l) => l.textContent)).toEqual(['ABCD', 'RCEL'])
+    expect(screen.getByText(/1 titolo si può comprare su 2/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Chiudi il risultato' }))
+    expect(screen.queryByRole('link', { name: 'ABCD' })).toBeNull()
   })
 
   it('shows the error the route gives, and lets the user try again', async () => {
