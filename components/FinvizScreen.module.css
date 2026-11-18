@@ -3,21 +3,44 @@
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-ui);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   min-height: 36px;
-  padding: 0 18px;
+  padding: 0 18px 0 14px;
   border-radius: 999px;
-  border: 1px solid var(--rule);
-  background: transparent;
-  color: var(--bone);
+  border: 1px solid var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+  color: var(--brass);
   cursor: pointer;
 }
 
+/* Lente di ingrandimento: è una ricerca, non un'altra scansione */
+.button::before {
+  content: '';
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 4px 4px 0 -3px currentColor;
+  margin-right: 3px;
+}
+
 .button:hover:not(:disabled) {
-  border-color: var(--brass);
-  color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: wait;
 }
 
 /* Il risultato occupa tutta la larghezza sotto la barra delle azioni */
@@ -36,11 +59,6 @@
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
-}
-
-.button:disabled {
-  opacity: 0.5;
-  cursor: wait;
 }
 
 .error {
