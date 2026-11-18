@@ -37,14 +37,15 @@ Flusso: il client invia la cronologia alla route; la route autentica, applica il
 
 Blocchi, ciascuno con etichetta e, dove esiste, la data del dato:
 
-- Identità: simbolo, nome, settore, valuta.
+- Identità: simbolo, nome, valuta.
 - Prezzo: ultimo prezzo, variazione, range a 52 settimane, capitalizzazione, P/E.
 - Valutazione dell'app: verdetto e motivi (`evaluateStock`), fair value, Altman Z.
 - Trend Template di Minervini: criteri passati e falliti.
-- Dividendi: rendimento e crescita.
+- Dividendi e crescita: rendimento, payout, crescita EPS a 5 anni.
 - Prossima trimestrale: data ed EPS stimato.
 - Ultime 5 notizie: titolo, fonte, data (senza corpo).
-- Insider e congresso: ultimi movimenti netti.
+- Insider: ultimi movimenti netti.
+- Congresso: acquisti e vendite negli ultimi 180 giorni.
 
 Regole:
 
@@ -70,18 +71,17 @@ Il tool `google_search` è documentato solo sull'API nativa Gemini, non sull'end
 - Body: `systemInstruction`, `contents` (ruoli `user`/`model` alternati), `tools: [{ google_search: {} }]`.
 - Eventi emessi: `{ type: 'text', delta }`, `{ type: 'sources', items: [{ title, url }] }` (da `groundingMetadata.groundingChunks`, deduplicati, a fine stream), `{ type: 'error', code }`.
 - Configurazione: `GEMINI_API_KEY`; modello da `GEMINI_CHAT_MODEL` (non `LLM_MODEL`, che può puntare a un modello non Gemini) con un default in costante. `isChatConfigured()` è false senza chiave.
-- Timeout 45 s; `AbortSignal` collegato alla richiesta, così la chiusura del pannello ferma lo stream.
+- Timeout 45 s; `AbortSignal` collegato alla richiesta, così lo stream si ferma con "Interrompi", "Nuova chat" o lasciando la pagina; il server annulla la chiamata a Gemini se il client si disconnette. Chiudere il pannello conserva la chat e lascia proseguire lo stream.
 - Nessun retry automatico: a metà risposta duplicherebbe il testo. Un 429/5xx prima del primo byte diventa un errore pulito e l'utente riprova dalla UI.
 
 `POST /api/stocks/[symbol]/chat`:
 
 - Autenticazione con `getAuthedUser`; poi `rateLimit('heavy')`.
 - Body `{ messages: [{ role, text }] }`: massimo 20 messaggi, massimo 2000 caratteri ciascuno, ruoli alternati, ultimo messaggio `user`.
-- Il simbolo deve esistere in `Stock`, altrimenti 404. Senza chiave, 503. Payload invalido, 400.
+- Il titolo deve essere nella watchlist dell'utente (`findEntry`), altrimenti 404; per questo il bottone compare solo nella scheda dei titoli seguiti. Senza chiave, 503. Payload invalido, 400.
 - Risposta `text/event-stream` con `Cache-Control: no-store`. Eventi verso il client: `event: text|sources|error`, `data` in JSON. Il formato Gemini non esce da `gemini-chat.ts`.
 - Codici d'errore stabili: `rate_limited`, `upstream`, `timeout`, `unavailable`. Il testo italiano lo sceglie la UI.
-- Nessuna cache di Next: dati letti a ogni richiesta (`connection()`, come la pagina).
-- Da verificare nei docs di Next 16 (`node_modules/next/dist/docs/`) prima del piano: runtime Node e streaming di `Response` nel formato usato (vedi `AGENTS.md`).
+- La route esporta solo `maxDuration = 60`: un `POST` non è in cache e `cacheComponents` non ammette `dynamic`. Lo streaming di `Response` è stato verificato nei docs di Next 16.
 
 ### 3. UI (`components/StockChat.tsx`)
 
