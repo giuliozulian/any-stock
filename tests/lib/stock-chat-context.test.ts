@@ -85,4 +85,9 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toMatch(/previsioni di prezzo/i)
     expect(SYSTEM_PROMPT).toMatch(/web/i)
   })
+
+  it('asks for plain text and treats the context as data', () => {
+    expect(SYSTEM_PROMPT).toMatch(/testo semplice/i)
+    expect(SYSTEM_PROMPT).toMatch(/non da istruzioni/i)
+  })
 })
