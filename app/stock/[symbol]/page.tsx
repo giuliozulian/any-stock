@@ -200,48 +200,70 @@ async function StockPreview({ symbol }: { symbol: string }) {
         </div>
         {covered && <WatchStar symbol={symbol} watched={false} prominent />}
       </div>
-      {discovery && <DiscoveryInsight data={discovery} />}
-      <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
-        <CompanyOverview symbol={symbol} name={name} industry={profile?.industry} />
-      </Suspense>
-      {history.length > 1 && (
-        <section className={styles.chartCard} aria-label="Andamento del prezzo">
-          <h2 className={styles.sectionTitle}>Andamento del prezzo</h2>
-          <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} long={longHistory} />
-        </section>
-      )}
-      {covered && price > 0 && metrics && (
-        <FairValueCard
-          input={buildFairValueInput(price, metrics)}
-          altman={years.length > 0 ? altmanZ(years[years.length - 1], profile?.marketCapitalization ? profile.marketCapitalization * 1e6 : null) : null}
-        />
-      )}
-      {metrics && (metrics.week52Low !== null || metrics.peRatio !== null) && (
-        <dl className={styles.previewStats}>
-          {metrics.week52Low !== null && metrics.week52High !== null && (
-            <div>
-              <dt>Range 52 settimane</dt>
-              <dd>
-                {currency}
-                {metrics.week52Low.toFixed(2)} – {currency}
-                {metrics.week52High.toFixed(2)}
-              </dd>
-            </div>
-          )}
-          {metrics.peRatio !== null && (
-            <div>
-              <dt>P/E</dt>
-              <dd>{metrics.peRatio.toFixed(1)}</dd>
-            </div>
-          )}
-          {profile?.marketCapitalization ? (
-            <div>
-              <dt>Capitalizzazione</dt>
-              <dd>${(profile.marketCapitalization / 1000).toFixed(1)} mld</dd>
-            </div>
-          ) : null}
-        </dl>
-      )}
+      <StockTabs
+        tabs={[
+          {
+            id: 'panoramica',
+            label: 'Panoramica',
+            content: (
+              <>
+                {discovery && <DiscoveryInsight data={discovery} />}
+                <Suspense fallback={<p className={styles.stale}>Carico la descrizione…</p>}>
+                  <CompanyOverview symbol={symbol} name={name} industry={profile?.industry} />
+                </Suspense>
+                {history.length > 1 && (
+                  <section className={styles.chartCard} aria-label="Andamento del prezzo">
+                    <h2 className={styles.sectionTitle}>Andamento del prezzo</h2>
+                    <PriceHistoryChart points={history} intraday={intraday.points} prevClose={intraday.prevClose} long={longHistory} />
+                  </section>
+                )}
+                {covered && price > 0 && metrics && (
+                  <FairValueCard
+                    input={buildFairValueInput(price, metrics)}
+                    altman={years.length > 0 ? altmanZ(years[years.length - 1], profile?.marketCapitalization ? profile.marketCapitalization * 1e6 : null) : null}
+                  />
+                )}
+                {metrics && (metrics.week52Low !== null || metrics.peRatio !== null) && (
+                  <dl className={styles.previewStats}>
+                    {metrics.week52Low !== null && metrics.week52High !== null && (
+                      <div>
+                        <dt>Range 52 settimane</dt>
+                        <dd>
+                          {currency}
+                          {metrics.week52Low.toFixed(2)} – {currency}
+                          {metrics.week52High.toFixed(2)}
+                        </dd>
+                      </div>
+                    )}
+                    {metrics.peRatio !== null && (
+                      <div>
+                        <dt>P/E</dt>
+                        <dd>{metrics.peRatio.toFixed(1)}</dd>
+                      </div>
+                    )}
+                    {profile?.marketCapitalization ? (
+                      <div>
+                        <dt>Capitalizzazione</dt>
+                        <dd>${(profile.marketCapitalization / 1000).toFixed(1)} mld</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                )}
+              </>
+            ),
+          },
+          {
+            id: 'minervini',
+            label: 'Minervini',
+            badge: 'New',
+            content: (
+              <Suspense fallback={<p className={styles.stale}>Calcolo il Trend Template…</p>}>
+                <MinerviniSection symbol={symbol} />
+              </Suspense>
+            ),
+          },
+        ]}
+      />
     </>
   )
 }
