@@ -172,6 +172,91 @@ describe('StockChat', () => {
     expect(screen.getByRole('button', { name: /chiedi all.ia/i })).toHaveFocus()
   })
 
+  it('gives the focus back to the input once the answer is complete', async () => {
+    ;(fetch as any).mockResolvedValue(ok([text('fatto')]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    box.blur() // browsers drop the focus when a focused textarea becomes disabled; jsdom does not
+    await screen.findByText('fatto')
+    await waitFor(() => expect(screen.getByRole('textbox')).toHaveFocus())
+  })
+
+  it('shows a waiting line until the first token, and drops it on "Interrompi"', async () => {
+    ;(fetch as any).mockImplementation(hanging([]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText('Sto cercando…')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /interrompi/i }))
+    await waitFor(() => expect(screen.queryByText('Sto cercando…')).toBeNull())
+  })
+
+  it('reports an error when the stream closes without any event', async () => {
+    ;(fetch as any).mockResolvedValue(ok([]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText(/il servizio non ha risposto/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /riprova/i })).toBeInTheDocument()
+  })
+
+  it('asks to reload on 401, without a retry button', async () => {
+    ;(fetch as any).mockResolvedValue({ ok: false, status: 401, body: null })
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText(/sessione scaduta: ricarica la pagina/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /riprova/i })).toBeNull()
+  })
+
+  it('shows the unavailable message on 404', async () => {
+    ;(fetch as any).mockResolvedValue({ ok: false, status: 404, body: null })
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText(/la chat non è disponibile/i)).toBeInTheDocument()
+  })
+
+  it('falls back to the upstream message for an unknown error code', async () => {
+    ;(fetch as any).mockResolvedValue(ok([{ event: 'error', data: { type: 'error', code: 'weird' } }]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(await screen.findByText(/il servizio non ha risposto/i)).toBeInTheDocument()
+  })
+
+  it('marks the message list busy only while streaming', async () => {
+    ;(fetch as any).mockImplementation(hanging([text('x')]))
+    const box = open()
+    const list = screen.getByRole('dialog').querySelector('[aria-live="polite"]')!
+    expect(list).toHaveAttribute('aria-busy', 'false')
+    fireEvent.change(box, { target: { value: 'q' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await screen.findByText('x')
+    expect(list).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /interrompi/i }))
+    await waitFor(() => expect(list).toHaveAttribute('aria-busy', 'false'))
+  })
+
+  it('a late finish of a reset stream does not clobber the new one', async () => {
+    ;(fetch as any).mockImplementation(hanging([text('vecchio')]))
+    const box = open()
+    fireEvent.change(box, { target: { value: 'uno' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await screen.findByText('vecchio')
+    fireEvent.click(screen.getByRole('button', { name: /nuova chat/i }))
+    fireEvent.change(box, { target: { value: 'due' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    // let the aborted first request settle
+    await new Promise((r) => setTimeout(r, 20))
+    expect(screen.getByRole('button', { name: /interrompi/i })).toBeInTheDocument()
+    fireEvent.change(box, { target: { value: 'tre' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
   it('aborts a running answer when the page is left', async () => {
     ;(fetch as any).mockImplementation(hanging([text('x')]))
     const { unmount } = render(<StockChat symbol="AAPL" name="Apple Inc." />)

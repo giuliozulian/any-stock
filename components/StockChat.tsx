@@ -5,7 +5,7 @@ import { sseMessages } from '@/lib/sse'
 import { MAX_CHARS, MAX_MESSAGES, type ChatTurn } from '@/lib/chat-request'
 import styles from './StockChat.module.css'
 
-type ErrorCode = 'rate_limited' | 'upstream' | 'timeout' | 'unavailable'
+type ErrorCode = 'rate_limited' | 'upstream' | 'timeout' | 'unavailable' | 'session'
 
 interface Message {
   role: 'user' | 'model'
@@ -19,6 +19,7 @@ const ERRORS: Record<ErrorCode, string> = {
   upstream: 'Il servizio non ha risposto: riprova.',
   timeout: 'La risposta ha impiegato troppo: riprova.',
   unavailable: 'La chat non è disponibile al momento.',
+  session: 'Sessione scaduta: ricarica la pagina per accedere di nuovo.',
 }
 
 const SUGGESTIONS = ['Perché si è mosso oggi?', 'Ci sono notizie recenti rilevanti?', 'Quali sono i rischi principali?']
@@ -58,6 +59,12 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
       launcherRef.current?.focus()
     }
   }, [open])
+  // The textarea is disabled while streaming, which drops the focus: take it back when the answer is done.
+  const wasStreaming = useRef(false)
+  useEffect(() => {
+    if (wasStreaming.current && !streaming && open) inputRef.current?.focus()
+    wasStreaming.current = streaming
+  }, [streaming, open])
   useEffect(() => {
     const list = listRef.current
     if (list) list.scrollTop = list.scrollHeight
@@ -77,7 +84,12 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
     setMessages([...base, { role: 'user', text: question }, { role: 'model', text: '' }])
     const controller = new AbortController()
     abortRef.current = controller
-    const patch = (fn: (m: Message) => Message) => setMessages((cur) => cur.map((m, i) => (i === cur.length - 1 ? fn(m) : m)))
+    let gotContent = false
+    // Updates from a request that was replaced (new chat) or finished are ignored.
+    const patch = (fn: (m: Message) => Message) => {
+      if (abortRef.current !== controller) return
+      setMessages((cur) => cur.map((m, i) => (i === cur.length - 1 ? fn(m) : m)))
+    }
 
     try {
       const res = await fetch(`/api/stocks/${encodeURIComponent(symbol)}/chat`, {
@@ -87,21 +99,31 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
         signal: controller.signal,
       })
       if (!res.ok || !res.body) {
-        const error: ErrorCode = res.status === 429 ? 'rate_limited' : res.status === 503 ? 'unavailable' : 'upstream'
+        const error: ErrorCode =
+          res.status === 429 ? 'rate_limited' : res.status === 503 || res.status === 404 ? 'unavailable' : res.status === 401 ? 'session' : 'upstream'
         patch((m) => ({ ...m, error }))
         return
       }
       for await (const message of sseMessages(res.body)) {
         const data = JSON.parse(message.data)
-        if (message.event === 'text') patch((m) => ({ ...m, text: m.text + data.delta }))
-        else if (message.event === 'sources') patch((m) => ({ ...m, sources: data.items }))
-        else if (message.event === 'error') patch((m) => ({ ...m, error: data.code }))
+        if (message.event === 'text') {
+          gotContent = true
+          patch((m) => ({ ...m, text: m.text + data.delta }))
+        } else if (message.event === 'sources') patch((m) => ({ ...m, sources: data.items }))
+        else if (message.event === 'error') {
+          gotContent = true
+          const error: ErrorCode = Object.hasOwn(ERRORS, data.code) ? data.code : 'upstream'
+          patch((m) => ({ ...m, error }))
+        }
       }
+      if (!gotContent && !controller.signal.aborted) patch((m) => ({ ...m, error: 'upstream' }))
     } catch {
       if (!controller.signal.aborted) patch((m) => ({ ...m, error: 'upstream' }))
     } finally {
-      busy.current = false
-      setStreaming(false)
+      if (abortRef.current === controller) {
+        busy.current = false
+        setStreaming(false)
+      }
     }
   }
 
@@ -112,6 +134,7 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
 
   function reset() {
     abortRef.current?.abort()
+    abortRef.current = null
     busy.current = false
     setStreaming(false)
     setMessages([])
@@ -131,7 +154,7 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
   }
 
   const last = messages[messages.length - 1]
-  const canRetry = !streaming && last?.role === 'model' && Boolean(last.error) && last.error !== 'unavailable'
+  const canRetry = !streaming && last?.role === 'model' && Boolean(last.error) && last.error !== 'unavailable' && last.error !== 'session'
 
   return (
     <>
@@ -168,7 +191,7 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
             </div>
           </header>
 
-          <div ref={listRef} className={styles.list} aria-live="polite">
+          <div ref={listRef} className={styles.list} aria-live="polite" aria-busy={streaming}>
             {messages.length === 0 && (
               <div className={styles.empty}>
                 <p>Chiedimi di {name}: uso i dati dell’app e, per le notizie recenti, il web.</p>
@@ -180,9 +203,10 @@ export function StockChat({ symbol, name }: { symbol: string; name: string }) {
               </div>
             )}
             {messages.map((m, i) =>
-              m.role === 'model' && !m.text && !m.error ? null : (
+              m.role === 'model' && !m.text && !m.error && !(streaming && i === messages.length - 1) ? null : (
                 <div key={i} className={m.role === 'user' ? styles.user : styles.model}>
                   {m.text && <p className={styles.text}>{m.text}</p>}
+                  {m.role === 'model' && !m.text && !m.error && <p className={styles.waiting}>Sto cercando…</p>}
                   {m.sources && m.sources.length > 0 && (
                     <p className={styles.sources}>
                       Fonti:{' '}
