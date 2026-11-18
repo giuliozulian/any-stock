@@ -73,6 +73,15 @@ describe('POST /api/stocks/[symbol]/chat', () => {
     expect(args.system).toContain('italiano')
   })
 
+  it('accepts a long model turn in the history', async () => {
+    await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const long = 'y'.repeat(3000)
+    const res = await call('AAPL', { messages: [{ role: 'user', text: 'a' }, { role: 'model', text: long }, { role: 'user', text: 'b' }] })
+    expect(res.status).toBe(200)
+    await res.text()
+    expect(mocks.streamChat.mock.calls[0][0].history[1]).toEqual({ role: 'model', text: long })
+  })
+
   it('forwards a model error event and still closes the stream', async () => {
     await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
     mocks.streamChat.mockImplementation(async function* () {

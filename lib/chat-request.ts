@@ -2,6 +2,8 @@ export type ChatTurn = { role: 'user' | 'model'; text: string }
 
 export const MAX_MESSAGES = 20
 export const MAX_CHARS = 2000
+// Model turns come back from the client untruncated: cap them instead of rejecting the request.
+export const MAX_MODEL_CHARS = 8000
 
 export type ParsedChat = { ok: true; history: ChatTurn[] } | { ok: false; error: string }
 
@@ -19,8 +21,8 @@ export function parseChatRequest(json: unknown): ParsedChat {
     if (typeof text !== 'string') return { ok: false, error: 'invalid text' }
     const trimmed = text.trim()
     if (trimmed.length === 0) return { ok: false, error: 'empty message' }
-    if (trimmed.length > MAX_CHARS) return { ok: false, error: `message over ${MAX_CHARS} characters` }
-    history.push({ role, text: trimmed })
+    if (role === 'user' && trimmed.length > MAX_CHARS) return { ok: false, error: `message over ${MAX_CHARS} characters` }
+    history.push({ role, text: role === 'model' ? trimmed.slice(0, MAX_MODEL_CHARS) : trimmed })
   }
   if (history[history.length - 1].role !== 'user') return { ok: false, error: 'last message must be from the user' }
   return { ok: true, history }

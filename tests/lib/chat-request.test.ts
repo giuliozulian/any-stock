@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseChatRequest, MAX_CHARS, MAX_MESSAGES } from '@/lib/chat-request'
+import { parseChatRequest, MAX_CHARS, MAX_MESSAGES, MAX_MODEL_CHARS } from '@/lib/chat-request'
 
 const u = (text: string) => ({ role: 'user', text })
 const m = (text: string) => ({ role: 'model', text })
@@ -25,10 +25,21 @@ describe('parseChatRequest', () => {
     ['starts with model', { messages: [m('x'), u('y')] }],
     ['ends with model', { messages: [u('x'), m('y')] }],
     ['two user messages in a row', { messages: [u('x'), u('y')] }],
-    ['text over the limit', { messages: [u('x'.repeat(MAX_CHARS + 1))] }],
+    ['user text over the limit', { messages: [u('x'.repeat(MAX_CHARS + 1))] }],
     ['too many messages', { messages: Array.from({ length: MAX_MESSAGES + 1 }, (_, i) => (i % 2 === 0 ? u('x') : m('y'))) }],
   ])('rejects %s', (_name, body) => {
     expect(parseChatRequest(body).ok).toBe(false)
+  })
+
+  it('keeps long model turns instead of rejecting them', () => {
+    const r = parseChatRequest({ messages: [u('a'), m('y'.repeat(3000)), u('c')] })
+    expect(r.ok && r.history[1].text.length).toBe(3000)
+  })
+
+  it('truncates model turns over MAX_MODEL_CHARS', () => {
+    const r = parseChatRequest({ messages: [u('a'), m('y'.repeat(9000)), u('c')] })
+    expect(MAX_MODEL_CHARS).toBe(8000)
+    expect(r.ok && r.history[1].text.length).toBe(MAX_MODEL_CHARS)
   })
 
   it('accepts exactly the limits', () => {
