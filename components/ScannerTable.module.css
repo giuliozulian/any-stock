@@ -212,7 +212,7 @@
 }
 
 .row {
-  padding: 16px 20px;
+  padding: 16px 20px 14px;
   color: inherit;
   text-decoration: none;
 }
@@ -413,7 +413,11 @@
 
   .row {
     grid-template-columns: 6rem minmax(0, 1fr);
-    padding: 16px;
+    padding: 16px 16px 12px;
+  }
+
+  .actions {
+    margin: 0 16px;
   }
 
   .who,
@@ -456,12 +460,15 @@
   padding-right: 64px;
 }
 
+/* Strumenti della riga: una fascia propria, allineata al contenuto e separata dai dati da una linea */
 .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 14px;
-  margin: 6px 0 0;
+  gap: 8px 10px;
+  margin: 0 20px;
+  padding: 12px 0 16px;
+  border-top: 1px solid var(--rule);
 }
 
 .tvLink {
@@ -469,6 +476,7 @@
   align-items: center;
   gap: 6px;
   min-height: 36px;
+  margin-left: auto;
   color: var(--muted);
   font-size: 13px;
   text-decoration: underline;
@@ -500,13 +508,14 @@
   gap: 8px;
   min-height: 36px;
   margin: 0;
-  padding: 0 14px;
-  border: 1px solid var(--rule);
+  padding: 0 16px;
+  border: 1px solid var(--muted);
   border-radius: 999px;
-  background: transparent;
+  background: var(--surface-raised);
   color: var(--bone);
   font: inherit;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
 }
 
