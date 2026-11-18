@@ -1,5 +1,7 @@
 import { BREAKOUT_VOLUME, VCP_STATUS_LABEL, type Criterion, type Level, type TrendTemplate, type Vcp } from '@/lib/minervini'
 import type { MinerviniAnalysis } from '@/lib/minervini-data'
+import { VERDICT, sentence } from '@/lib/scan-verdict'
+import { tradePlan } from '@/lib/scanner'
 import styles from './MinerviniPanel.module.css'
 
 const pct = (v: number) => `${Math.round(v * 100)}%`
@@ -83,6 +85,30 @@ function action(t: TrendTemplate, vcp: Vcp): string | null {
     default:
       return null
   }
+}
+
+// All eight criteria met: say plainly whether to buy or wait and why, with the same rules the scanner applies.
+function Decision({ template, vcp, symbol }: { template: TrendTemplate; vcp: Vcp; symbol: string }) {
+  const last = template.levels.find((l) => l.key === 'price')?.value ?? 0
+  const row = { symbol, name: symbol, sector: null, price: last, rs: null, passedCount: template.passedCount, vcpStatus: vcp.status, pivot: vcp.pivot, pivotDistancePct: vcp.pivot === null ? null : (last / vcp.pivot - 1) * 100, volumeRatio: vcp.volumeRatio, volumeDryUp: vcp.volumeDryUp, missing: null }
+  const plan = tradePlan(row)
+  const v = VERDICT[plan.verdict]
+  const hasPrices = plan.buyFrom !== null && plan.buyTo !== null && plan.stop !== null && plan.profitFrom !== null && plan.profitTo !== null
+  return (
+    <div className={styles.decision} data-tone={v.tone}>
+      <p className={styles.decisionHead}>
+        <span className={styles.chip} data-tone={v.tone === 'buy' ? 'gain' : v.tone}>
+          {v.label}
+        </span>
+      </p>
+      <p>{sentence(row, plan, null)}</p>
+      {hasPrices && (
+        <p className={styles.decisionPlan}>
+          {`Acquisto tra ${price(plan.buyFrom!)} e ${price(plan.buyTo!)} · stop ${price(plan.stop!)} (−${Math.round(plan.riskPct ?? 0)}%) · obiettivo ${price(plan.profitFrom!)}–${price(plan.profitTo!)}`}
+        </p>
+      )}
+    </div>
+  )
 }
 
 const MARK: Record<State, string> = { ok: '✓', near: '!', ko: '✗', na: '–' }
@@ -218,7 +244,7 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
   )
 }
 
-export function MinerviniPanel({ analysis }: { analysis: MinerviniAnalysis | null }) {
+export function MinerviniPanel({ analysis, symbol = '' }: { analysis: MinerviniAnalysis | null; symbol?: string }) {
   if (!analysis) return <p className={styles.empty}>Dati insufficienti: servono almeno 222 giorni di quotazioni per applicare il metodo.</p>
 
   const { template, vcp, peerCount } = analysis
@@ -245,7 +271,7 @@ export function MinerviniPanel({ analysis }: { analysis: MinerviniAnalysis | nul
           ))}
         </div>
         <p className={styles.verdictText}>{v.text}</p>
-        {next && <p className={styles.next}>{next}</p>}
+        {template.passedCount >= template.total ? <Decision template={template} vcp={vcp} symbol={symbol} /> : next && <p className={styles.next}>{next}</p>}
       </section>
 
       <section className={styles.intro} aria-label="Come funziona il metodo">

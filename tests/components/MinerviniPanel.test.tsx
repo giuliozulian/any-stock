@@ -34,6 +34,21 @@ describe('MinerviniPanel', () => {
     expect(screen.getByText('Pivot, prezzo d’ingresso')).toBeInTheDocument()
   })
 
+  it('with all eight criteria says whether to buy or wait, why, and the prices', () => {
+    const all = criteria.map((c) => ({ ...c, ok: true }))
+    const base = { ...analysis, template: { ...analysis.template, criteria: all, passedCount: 8, passed: true } }
+    const { rerender } = render(<MinerviniPanel analysis={base} symbol="RCEL" />)
+    expect(screen.getByText('Da tenere d’occhio')).toBeInTheDocument()
+    expect(screen.getByText(/non ha ancora superato il livello chiave \(94,00\)/)).toBeInTheDocument()
+    expect(screen.getByText(/Acquisto tra 94,00 e 98,70 · stop 86,48/)).toBeInTheDocument()
+
+    rerender(<MinerviniPanel analysis={{ ...base, vcp: { ...vcp, status: 'breakout', volumeRatio: 2 } }} symbol="RCEL" />)
+    expect(screen.getByText('Si può comprare')).toBeInTheDocument()
+
+    rerender(<MinerviniPanel analysis={{ ...base, vcp: { ...vcp, status: 'breakout', volumeRatio: 0.9 } }} symbol="RCEL" />)
+    expect(screen.getByText('Aspetta conferma')).toBeInTheDocument()
+  })
+
   it('shows the ideal and actual order of price and averages', () => {
     const swapped = levels.map((l) => (l.key === 'price' ? { ...l, value: 92 } : l))
     render(<MinerviniPanel analysis={{ ...analysis, template: { ...analysis.template, levels: swapped } }} />)

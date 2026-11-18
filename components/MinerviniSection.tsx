@@ -6,7 +6,7 @@ export async function MinerviniSection({ symbol }: { symbol: string }) {
   const analysis = await getMinerviniAnalysis(symbol).catch(() => null)
   return (
     <>
-      <MinerviniPanel analysis={analysis} />
+      <MinerviniPanel analysis={analysis} symbol={symbol} />
       {analysis && <MinerviniAiAnalysis symbol={symbol} />}
     </>
   )

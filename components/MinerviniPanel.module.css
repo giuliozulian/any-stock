@@ -499,3 +499,24 @@
     text-align: left;
   }
 }
+
+.decision {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 6px;
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.decisionHead {
+  display: flex;
+  align-items: center;
+}
+
+.decisionPlan {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
