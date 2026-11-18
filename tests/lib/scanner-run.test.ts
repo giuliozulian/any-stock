@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/db'
 import type { Bar } from '@/lib/history'
-import { BLOCK_SIZE, MIN_INTERVAL_MS, latestCompleteRun, runTiming, startRun, stepRun } from '@/lib/scanner-run'
+import { BLOCK_SIZE, MIN_INTERVAL_MS, latestCompleteRun, loadExtras, runTiming, startRun, stepRun } from '@/lib/scanner-run'
+import { loadUniverse } from '@/lib/universe'
 import type { UniverseEntry } from '@/lib/universe'
 import { resetDb } from '../helpers/db'
 
@@ -26,6 +27,37 @@ describe('scanner run', () => {
     expect(again.kind).toBe('resumed')
     if (first.kind !== 'too-soon' && again.kind !== 'too-soon') expect(again.run.id).toBe(first.run.id)
     expect(await prisma.scanRun.count()).toBe(1)
+  })
+
+  it('adds the watchlist and open candidates to the S&P 500, skipping duplicates, dismissed and foreign ones', async () => {
+    await prisma.stock.createMany({
+      data: [
+        { symbol: 'RCEL', name: 'Avita', exchange: 'NASDAQ' },
+        { symbol: 'AAPL', name: 'Apple', exchange: 'NASDAQ' },
+        { symbol: 'ENI.MI', name: 'Eni', exchange: 'MIL' },
+      ],
+    })
+    const cand = { name: 'X', market: 'US', score: 1, momentumScore: 1, fundamentalsScore: 1, insiderScore: 1, reason: '', source: 'congress' }
+    await prisma.discoveredCandidate.createMany({
+      data: [
+        { ...cand, symbol: 'RCEL' },
+        { ...cand, symbol: 'ZZZ' },
+        { ...cand, symbol: 'OLD', dismissedAt: new Date() },
+        { ...cand, symbol: 'ENEL.MI', market: 'IT' },
+      ],
+    })
+    expect((await loadExtras()).map((e) => e.symbol)).toEqual(['RCEL', 'ZZZ'])
+
+    const started = await startRun()
+    if (started.kind === 'too-soon') throw new Error('unexpected')
+    expect(started.run.total).toBe(loadUniverse().length + 2)
+
+    const fetchBars = vi.fn(async () => uptrend(0.5))
+    const base = loadUniverse().length
+    await prisma.scanRun.update({ where: { id: started.run.id }, data: { cursor: base } })
+    await stepRun(started.run.id, { fetchBars })
+    const rows = await prisma.scanResult.findMany({ where: { runId: started.run.id } })
+    expect(rows.map((r) => r.symbol).sort()).toEqual(['RCEL', 'ZZZ'])
   })
 
   it('refuses a new run within an hour of the last complete one and gives the retry time', async () => {

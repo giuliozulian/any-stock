@@ -226,6 +226,8 @@ model ScanRun {
   total       Int
   cursor      Int          @default(0)
   unreadCount Int          @default(0)
+  // Watchlist and candidate stocks scanned on top of the S&P 500, fixed when the run starts so the cursor stays valid.
+  extras      Json?
   startedAt   DateTime     @default(now())
   finishedAt  DateTime?
   results     ScanResult[]

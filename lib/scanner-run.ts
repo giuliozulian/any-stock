@@ -44,14 +44,37 @@ export function runTiming(finishedAt: Date | null, now: Date): { lockedUntil: Da
   return { lockedUntil: unlock > now.getTime() ? new Date(unlock) : null, ageDays: Math.floor((now.getTime() - finishedAt.getTime()) / DAY_MS) }
 }
 
-export async function startRun(universe: UniverseEntry[] = loadUniverse(), now: Date = new Date()): Promise<StartResult> {
+// Foreign listings carry an exchange suffix (ENI.MI); class shares have a single letter (BRK.B) and are US.
+const FOREIGN_SYMBOL = /\.[A-Z]{2,}$/
+
+// US stocks the user follows that the S&P 500 does not cover: the watchlist and the open discovery candidates.
+export async function loadExtras(base: UniverseEntry[] = loadUniverse()): Promise<UniverseEntry[]> {
+  const [watched, candidates] = await Promise.all([
+    prisma.stock.findMany({ select: { symbol: true, name: true } }),
+    prisma.discoveredCandidate.findMany({ where: { dismissedAt: null, market: 'US' }, select: { symbol: true, name: true } }),
+  ])
+  const seen = new Set(base.map((e) => e.symbol.toUpperCase()))
+  const extras: UniverseEntry[] = []
+  for (const s of [...watched, ...candidates]) {
+    const symbol = s.symbol.toUpperCase()
+    if (seen.has(symbol) || FOREIGN_SYMBOL.test(symbol)) continue
+    seen.add(symbol)
+    extras.push({ symbol, name: s.name, sector: null })
+  }
+  return extras.sort((a, b) => a.symbol.localeCompare(b.symbol))
+}
+
+// An explicit universe is scanned as given; by default the S&P 500 plus the extras.
+export async function startRun(universe?: UniverseEntry[], now: Date = new Date()): Promise<StartResult> {
   const running = await runningRun()
   if (running) return { kind: 'resumed', run: state(running) }
   const last = await latestCompleteRun()
   if (last?.finishedAt && now.getTime() - last.finishedAt.getTime() < MIN_INTERVAL_MS) {
     return { kind: 'too-soon', retryAt: new Date(last.finishedAt.getTime() + MIN_INTERVAL_MS) }
   }
-  const run = await prisma.scanRun.create({ data: { status: 'running', total: universe.length } })
+  const extras = universe ? [] : await loadExtras()
+  const total = universe ? universe.length : loadUniverse().length + extras.length
+  const run = await prisma.scanRun.create({ data: { status: 'running', total, extras: extras as unknown as Prisma.InputJsonValue } })
   return { kind: 'started', run: state(run) }
 }
 
@@ -76,13 +99,13 @@ export interface StepDeps {
 }
 
 export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepResult> {
-  const universe = deps.universe ?? loadUniverse()
   const fetchBars = deps.fetchBars ?? ((symbol: string) => getDailyBars(symbol, { shared: false }))
   const now = deps.now ?? Date.now
 
   const run = await prisma.scanRun.findUnique({ where: { id: runId } })
   if (!run) return { kind: 'not-found' }
   if (run.status === 'done') return { kind: 'done', run: state(run) }
+  const universe = deps.universe ?? [...loadUniverse(), ...((run.extras as UniverseEntry[] | null) ?? [])]
 
   const from = run.cursor
   const block = universe.slice(from, from + BLOCK_SIZE)
