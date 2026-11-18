@@ -288,11 +288,13 @@ describe('email alerts', () => {
     expect(screen.queryByRole('button', { name: /avvisami|avviso attivo/i })).not.toBeInTheDocument()
   })
 
-  it('puts a bell only on the 7-of-8 stocks, not on the ones that already made it', () => {
-    render(<ScannerTable rows={rows} alerts={alerts} />)
-    expect(screen.queryByRole('button', { name: /avvisami|avviso attivo/i })).not.toBeInTheDocument()
+  it('puts a bell on the stocks that are not ready to buy yet, not on the ones that are', () => {
+    render(<ScannerTable rows={rows} alerts={{ ...alerts, armed: [] }} />)
+    const bells = () => screen.queryAllByRole('button', { name: /avvisami per email quando/i }).map((b) => b.getAttribute('aria-label'))
+    expect(bells()).toContain('Avvisami per email quando TOP si può comprare')
+    expect(bells()).not.toContain('Avvisami per email quando BRK si può comprare')
     fireEvent.click(screen.getByRole('button', { name: /quasi/i }))
-    expect(screen.getByRole('button', { name: 'Avviso attivo per NEAR, clicca per disattivarlo' })).toBeInTheDocument()
+    expect(bells()).toContain('Avvisami per email quando NEAR si può comprare')
   })
 
   it('keeps the bell outside the link of the row', () => {

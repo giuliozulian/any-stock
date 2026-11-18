@@ -7,10 +7,10 @@ import { PUT } from '@/app/api/scanner/alerts/settings/route'
 const ctx = (symbol: string) => ({ params: Promise.resolve({ symbol }) })
 const req = (method: string, body?: string) => new Request('http://localhost/api/scanner/alerts/x', { method, body })
 
-async function makeRun(rows: Array<{ symbol: string; passedCount: number; status?: string }>) {
+async function makeRun(rows: Array<{ symbol: string; passedCount: number; status?: string; buy?: boolean }>) {
   const run = await prisma.scanRun.create({ data: { status: 'done', total: rows.length, cursor: rows.length, finishedAt: new Date() } })
   await prisma.scanResult.createMany({
-    data: rows.map((r) => ({ runId: run.id, symbol: r.symbol, name: r.symbol, status: r.status ?? 'ok', passedCount: r.passedCount })),
+    data: rows.map((r) => ({ runId: run.id, symbol: r.symbol, name: r.symbol, status: r.status ?? 'ok', passedCount: r.passedCount, ...(r.buy ? { price: 102, vcpStatus: 'breakout', pivot: 100, pivotDistancePct: 2, volumeRatio: 1.8 } : {}) })),
   })
   return run
 }
@@ -85,8 +85,8 @@ describe('scanner alerts API: settings', () => {
   const put = (body: string) => PUT(new Request('http://localhost/api/scanner/alerts/settings', { method: 'PUT', body }))
   const settings = () => prisma.scannerAlertSettings.findUniqueOrThrow({ where: { userId: 'dev' } })
 
-  it('turning the switch on remembers the stocks that are already 8 of 8', async () => {
-    await makeRun([{ symbol: 'AAA', passedCount: 8 }, { symbol: 'BBB', passedCount: 7 }, { symbol: 'CCC', passedCount: 8 }])
+  it('turning the switch on remembers the stocks that are already ready to buy', async () => {
+    await makeRun([{ symbol: 'AAA', passedCount: 8, buy: true }, { symbol: 'BBB', passedCount: 7 }, { symbol: 'CCC', passedCount: 8, buy: true }, { symbol: 'DDD', passedCount: 8 }])
     const res = await put('{"newEntrants":true}')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ newEntrants: true })
@@ -109,7 +109,7 @@ describe('scanner alerts API: settings', () => {
   })
 
   it('turning it off keeps what it knew', async () => {
-    await makeRun([{ symbol: 'AAA', passedCount: 8 }])
+    await makeRun([{ symbol: 'AAA', passedCount: 8, buy: true }])
     await put('{"newEntrants":true}')
     await put('{"newEntrants":false}')
     const s = await settings()

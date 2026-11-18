@@ -230,9 +230,20 @@ describe('closing a scan sends the alerts', () => {
       return { t: i * DAY, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 }
     })
   const universe = Array.from({ length: 8 }, (_, i) => ({ symbol: `S${i}`, name: `Stock ${i}`, sector: 'Tech' }))
-  const fetchBars = async (symbol: string) => uptrend(0.1 + Number(symbol.slice(1)) * 0.1)
+  // S7 ends on a clean breakout: two shrinking pullbacks, quiet volume, then a loud close just above the pivot.
+  const breakout = (): Bar[] => {
+    const closes: number[] = []
+    for (let i = 0; i < 240; i++) closes.push(100 + i * 0.5)
+    const seg = (to: number, n: number) => {
+      const from = closes[closes.length - 1]
+      for (let k = 1; k <= n; k++) closes.push(from + ((to - from) * k) / n)
+    }
+    seg(240, 8); seg(218, 6); seg(238, 8); seg(224, 4); seg(232, 4); seg(241, 3)
+    return closes.map((close, i) => ({ t: i * DAY, high: close * 1.002, low: close * 0.998, close, volume: i === closes.length - 1 ? 3_000_000 : i > closes.length - 12 ? 600_000 : 1_000_000 }))
+  }
+  const fetchBars = async (symbol: string) => (symbol === 'S7' ? breakout() : uptrend(0.1 + Number(symbol.slice(1)) * 0.1))
 
-  it('sends one email when a real scan closes with an armed stock at 8 of 8', async () => {
+  it('sends one email when a real scan closes with an armed stock ready to buy', async () => {
     await prisma.scanAlert.create({ data: { userId: 'dev', symbol: 'S7' } })
     const started = await startRun(universe)
     if (started.kind === 'too-soon') throw new Error('unexpected')
