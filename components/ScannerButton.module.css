@@ -10,22 +10,44 @@
 }
 
 .button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
-  min-height: 36px;
-  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 40px;
+  padding: 0 22px 0 18px;
   border-radius: 999px;
   border: 1px solid var(--brass);
   background: var(--brass);
   color: var(--ink);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 16%, transparent);
   cursor: pointer;
+}
+
+/* Triangolo di avvio */
+.button::before {
+  content: '';
+  border-left: 8px solid currentColor;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+.button:hover:not(:disabled) {
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--brass) 22%, transparent);
+}
+
+.button:focus-visible {
+  outline: 2px solid var(--bone);
+  outline-offset: 3px;
 }
 
 .button:disabled {
   border-color: var(--rule);
   background: transparent;
   color: var(--muted);
+  box-shadow: none;
   cursor: default;
 }
 
