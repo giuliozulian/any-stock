@@ -14,25 +14,29 @@ import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
 import { WatchlistSummary } from '@/components/WatchlistSummary'
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
+import { DropdownMenu } from '@/components/DropdownMenu'
+import { applyView, isFiltered, nextSortDir, parseView, viewHref, SORT_OPTIONS, TREND_OPTIONS, type ViewParams } from '@/lib/watchlist-view'
 import styles from './page.module.css'
 import { AuthGate } from '@/components/AuthGate'
 
-type SortKey = 'sym' | 'settore' | 'prezzo' | 'oggi' | 'da'
-type Search = { ordina?: string; dir?: string }
+type Search = ViewParams
 
-const COLUMNS: { key: SortKey; label: string }[] = [
-  { key: 'sym', label: 'Titolo' },
-  { key: 'settore', label: 'Settore' },
-  { key: 'prezzo', label: 'Prezzo' },
-  { key: 'oggi', label: 'Oggi' },
-  { key: 'da', label: 'Da quando lo segui' },
-]
+// What each sort puts first, said in the menu so a choice needs no guessing.
+function sortHint(key: string): string {
+  switch (key) {
+    case 'sym':
+    case 'settore':
+      return 'A-Z'
+    case 'agg':
+      return 'più recenti'
+    default:
+      return 'più alto'
+  }
+}
 
 async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> }) {
   await connection()
-  const { ordina, dir } = await searchParams
-  const sortKey = COLUMNS.find((c) => c.key === ordina)?.key ?? null
-  const sortDir: 'asc' | 'desc' = dir === 'asc' ? 'asc' : 'desc'
+  const params = await searchParams
   const entries = await prisma.watchlistEntry.findMany({
     where: { userId: await currentUserId() },
     orderBy: { addedAt: 'asc' },
@@ -69,7 +73,7 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
 
   const sectors = await Promise.all(stocks.map((stock) => getSector(stock.symbol)))
 
-  const unsorted = stocks.map((stock, idx) => {
+  const all = stocks.map((stock, idx) => {
     const latest = stock.snapshots[0]
     const ext = extended[idx]
     const entry = firstSnapshots[idx]
@@ -77,27 +81,20 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
     const sincePct = latest && entry && entry.price > 0 ? ((latest.price - entry.price) / entry.price) * 100 : null
     return { stock, latest, ext, extPct, sincePct, entryPrice: entry?.price ?? null, sector: sectors[idx] }
   })
-  const sortValue = (r: (typeof unsorted)[number]): number | string | null => {
-    switch (sortKey) {
-      case 'sym': return r.stock.symbol
-      case 'settore': return r.sector
-      case 'prezzo': return r.latest?.price ?? null
-      case 'oggi': return r.latest?.changePct ?? null
-      case 'da': return r.sincePct
-      default: return null
-    }
-  }
-  const rows = sortKey
-    ? [...unsorted].sort((a, b) => {
-        const x = sortValue(a)
-        const y = sortValue(b)
-        if (x === null && y === null) return 0
-        if (x === null) return 1
-        if (y === null) return -1
-        const cmp = typeof x === 'string' ? x.localeCompare(y as string) : x - (y as number)
-        return sortDir === 'asc' ? cmp : -cmp
-      })
-    : unsorted
+  const sectorList = [...new Set(all.map((r) => r.sector).filter((x): x is string => Boolean(x)))].sort((a, b) => a.localeCompare(b))
+  const view = parseView(params, sectorList)
+  const viewRows = all.map((r) => ({
+    ...r,
+    symbol: r.stock.symbol,
+    name: r.stock.name,
+    price: r.latest?.price ?? null,
+    marketCap: r.latest?.marketCap ?? null,
+    changePct: r.latest?.changePct ?? null,
+    addedAt: r.stock.addedAt,
+    hasAlert: r.stock.entryPrice !== null || r.stock.sellPrice !== null,
+  }))
+  const rows = applyView(viewRows, view)
+  const activeFilters = Number(view.trend !== 'tutti') + Number(view.onlyAlerts) + Number(view.sector !== null)
   const tone = (n: number | null) => (n === null || n === 0 ? styles.dash : n > 0 ? styles.gain : styles.loss)
   const tones = { gain: styles.gain, loss: styles.loss, flat: styles.dash }
   const signed = (n: number) => `${n >= 0 ? '+' : '−'}${Math.abs(n).toFixed(2)}%`
@@ -105,24 +102,138 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
   return (
     <>
       <WatchlistSummary
-        items={rows.map((r) => ({ symbol: r.stock.symbol, entryPrice: r.entryPrice, price: r.latest?.price ?? null }))}
+        items={all.map((r) => ({ symbol: r.stock.symbol, entryPrice: r.entryPrice, price: r.latest?.price ?? null }))}
       />
       <section className={styles.board}>
-      <nav className={styles.sortBar} aria-label="Ordina la watchlist">
-        <span className={styles.sortLabel}>Ordina per</span>
-        {COLUMNS.map((c) => {
-          const active = c.key === sortKey
-          const nextDir = active && sortDir === 'desc' ? 'asc' : 'desc'
-          const href = `/?${new URLSearchParams({ ordina: c.key, dir: c.key === 'sym' || c.key === 'settore' ? (active && sortDir === 'asc' ? 'desc' : 'asc') : nextDir })}`
-          return (
-            <Link key={c.key} href={href} className={styles.sort} data-active={active || undefined} aria-current={active ? 'true' : undefined}>
-              {c.label}
-              {active && <span className={styles.arrow} aria-label={sortDir === 'asc' ? 'crescente' : 'decrescente'}>{sortDir === 'asc' ? '▲' : '▼'}</span>}
-            </Link>
-          )
-        })}
-      </nav>
+      <div className={styles.toolbar}>
+        <form action="/" method="get" role="search" className={styles.search}>
+          {view.sortKey && <input type="hidden" name="ordina" value={view.sortKey} />}
+          {view.sortKey && <input type="hidden" name="dir" value={view.sortDir} />}
+          {view.sector && <input type="hidden" name="settore" value={view.sector} />}
+          {view.trend !== 'tutti' && <input type="hidden" name="andamento" value={view.trend} />}
+          {view.onlyAlerts && <input type="hidden" name="avvisi" value="1" />}
+          <input type="search" name="q" defaultValue={view.query} placeholder="Cerca simbolo o nome" aria-label="Cerca nella watchlist" maxLength={40} className={styles.searchInput} />
+          <button type="submit" className={styles.searchButton} aria-label="Cerca">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </form>
+
+        <DropdownMenu label="Filtri" count={activeFilters}>
+          <section className={styles.menuSection}>
+            <h3 className={styles.menuTitle}>Andamento</h3>
+            <ul className={styles.menuList}>
+              {TREND_OPTIONS.map((t) => (
+                <li key={t.key}>
+                  <Link href={viewHref(view, { andamento: t.key === 'tutti' ? '' : t.key })} className={styles.menuItem} aria-current={view.trend === t.key ? 'true' : undefined}>
+                    {t.label}
+                    {view.trend === t.key && <span className={styles.check} aria-hidden="true">✓</span>}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section className={styles.menuSection}>
+            <h3 className={styles.menuTitle}>Avvisi</h3>
+            <ul className={styles.menuList}>
+              <li>
+                <Link href={viewHref(view, { avvisi: view.onlyAlerts ? '' : '1' })} className={styles.menuItem} aria-current={view.onlyAlerts ? 'true' : undefined}>
+                  Solo titoli con un avviso di prezzo
+                  {view.onlyAlerts && <span className={styles.check} aria-hidden="true">✓</span>}
+                </Link>
+              </li>
+            </ul>
+          </section>
+          {sectorList.length > 1 && (
+            <section className={styles.menuSection}>
+              <h3 className={styles.menuTitle}>Settore</h3>
+              <ul className={styles.menuList}>
+                <li>
+                  <Link href={viewHref(view, { settore: '' })} className={styles.menuItem} aria-current={view.sector === null ? 'true' : undefined}>
+                    Tutti i settori
+                    {view.sector === null && <span className={styles.check} aria-hidden="true">✓</span>}
+                  </Link>
+                </li>
+                {sectorList.map((sector) => (
+                  <li key={sector}>
+                    <Link href={viewHref(view, { settore: sector })} className={styles.menuItem} aria-current={view.sector === sector ? 'true' : undefined}>
+                      {sector}
+                      {view.sector === sector && <span className={styles.check} aria-hidden="true">✓</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </DropdownMenu>
+
+        <DropdownMenu label={view.sortKey ? `Ordina: ${SORT_OPTIONS.find((o) => o.key === view.sortKey)!.label} ${view.sortDir === 'asc' ? '↑' : '↓'}` : 'Ordina'} active={view.sortKey !== null}>
+          <ul className={styles.menuList}>
+            {SORT_OPTIONS.map((o) => {
+              const active = o.key === view.sortKey
+              return (
+                <li key={o.key}>
+                  <Link href={viewHref(view, { ordina: o.key, dir: nextSortDir(view, o.key) })} className={styles.menuItem} aria-current={active ? 'true' : undefined}>
+                    {o.label}
+                    {active ? <span className={styles.check}>{view.sortDir === 'asc' ? 'crescente ↑' : 'decrescente ↓'}</span> : <span className={styles.hintText}>{sortHint(o.key)}</span>}
+                  </Link>
+                </li>
+              )
+            })}
+            {view.sortKey && (
+              <li>
+                <Link href={viewHref(view, { ordina: '', dir: '' })} className={styles.menuItem}>
+                  Ordine in cui li hai aggiunti
+                </Link>
+              </li>
+            )}
+          </ul>
+        </DropdownMenu>
+      </div>
+
+      {isFiltered(view) && (
+        <div className={styles.chipsRow}>
+          <ul className={styles.chips} aria-label="Filtri attivi">
+            {view.query && (
+              <li>
+                <Link href={viewHref(view, { q: '' })} className={styles.chip} aria-label={`Togli la ricerca ${view.query}`}>
+                  «{view.query}» <span aria-hidden="true">×</span>
+                </Link>
+              </li>
+            )}
+            {view.trend !== 'tutti' && (
+              <li>
+                <Link href={viewHref(view, { andamento: '' })} className={styles.chip} aria-label={`Togli il filtro ${TREND_OPTIONS.find((t) => t.key === view.trend)!.label}`}>
+                  {TREND_OPTIONS.find((t) => t.key === view.trend)!.label} <span aria-hidden="true">×</span>
+                </Link>
+              </li>
+            )}
+            {view.onlyAlerts && (
+              <li>
+                <Link href={viewHref(view, { avvisi: '' })} className={styles.chip} aria-label="Togli il filtro Con avvisi">
+                  Con avvisi <span aria-hidden="true">×</span>
+                </Link>
+              </li>
+            )}
+            {view.sector && (
+              <li>
+                <Link href={viewHref(view, { settore: '' })} className={styles.chip} aria-label={`Togli il filtro ${view.sector}`}>
+                  {view.sector} <span aria-hidden="true">×</span>
+                </Link>
+              </li>
+            )}
+          </ul>
+          <p className={styles.filterNote}>
+            {rows.length} di {all.length} titoli
+            {' · '}
+            <Link href={viewHref({ ...view, sector: null, trend: 'tutti', onlyAlerts: false, query: '' })}>Azzera</Link>
+          </p>
+        </div>
+      )}
       <CompareSelectionProvider>
+      {rows.length === 0 && <p className={styles.emptyText}>Nessun titolo corrisponde ai filtri scelti.</p>}
       <ul className={styles.list}>
         {rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash

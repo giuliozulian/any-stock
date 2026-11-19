@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as refreshLib from '@/lib/refresh'
+import * as yahooLib from '@/lib/yahoo-quote'
 import { resetDb, watch } from '../helpers/db'
 import { GET as listStocks, POST as addStock } from '@/app/api/stocks/route'
 import { GET as getStock, DELETE as deleteStock } from '@/app/api/stocks/[symbol]/route'
@@ -44,6 +45,17 @@ describe('stocks API', () => {
     expect(stored).toBeNull()
   })
 
+  it('POST adds a symbol outside Finnhub coverage using Yahoo', async () => {
+    vi.spyOn(finnhub, 'searchSymbol').mockResolvedValue([])
+    vi.spyOn(yahooLib, 'getYahooQuote').mockResolvedValue({ name: 'WisdomTree Cybersecurity UCITS ETF', exchange: 'Milan', currency: 'EUR', price: 30, changePct: 1 })
+    vi.spyOn(refreshLib, 'refreshStock').mockResolvedValue({ symbol: 'WCBR.MI', ok: true })
+
+    const res = await addStock(jsonRequest({ symbol: 'wcbr.mi' }))
+    expect(res.status).toBe(201)
+    const stored = await prisma.stock.findUnique({ where: { symbol: 'WCBR.MI' } })
+    expect(stored).toMatchObject({ name: 'WisdomTree Cybersecurity UCITS ETF', exchange: 'Milan' })
+  })
+
   it('POST returns 409 when the symbol is already in the watchlist', async () => {
     await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
 
@@ -53,6 +65,7 @@ describe('stocks API', () => {
 
   it('POST returns 502 instead of crashing when Finnhub is unreachable', async () => {
     vi.spyOn(finnhub, 'searchSymbol').mockRejectedValue(new Error('Finnhub request failed: 500 /search'))
+    vi.spyOn(yahooLib, 'getYahooQuote').mockResolvedValue(null)
 
     const res = await addStock(jsonRequest({ symbol: 'AAPL' }))
     expect(res.status).toBe(502)

@@ -4,6 +4,7 @@ import { refreshStockInsight } from './stock-insight'
 import { refreshVerdictNote } from './verdict-note'
 import { refreshEarningsNote } from './earnings-note'
 import { refreshBullBearNote } from './bull-bear-note'
+import { getYahooQuote } from './yahoo-quote'
 import { getQuote, getProfile, getMetrics, getCompanyNews, getRecommendationTrend, getNextEarnings } from './finnhub'
 import { notifyTargets } from './alert-runner'
 import { buildFairValueInput, fairValue } from './fair-value'
@@ -27,11 +28,21 @@ export async function refreshStock(symbol: string): Promise<RefreshResult> {
   try {
     const stock = await prisma.stock.findUniqueOrThrow({ where: { symbol } })
 
-    const [quote, profile, metrics] = await Promise.all([
-      getQuote(symbol),
-      getProfile(symbol),
-      getMetrics(symbol),
-    ])
+    let quote, profile, metrics
+    try {
+      ;[quote, profile, metrics] = await Promise.all([getQuote(symbol), getProfile(symbol), getMetrics(symbol)])
+    } catch (err) {
+      // Outside Finnhub's free coverage (e.g. an ETF on Borsa Italiana) only the price comes from Yahoo: no fundamentals, news or notes.
+      const yahoo = await getYahooQuote(symbol)
+      if (!yahoo) throw err
+      await prisma.priceSnapshot.create({ data: { stockId: stock.id, price: yahoo.price, changePct: yahoo.changePct ?? 0 } })
+      try {
+        await notifyTargets(stock, yahoo.price)
+      } catch (alertErr) {
+        logFailure('Price alerts', symbol, alertErr)
+      }
+      return { symbol, ok: true }
+    }
 
     // Finnhub answers 0 for unknown or delisted symbols: do not store it as a price.
     if (!(quote.currentPrice > 0)) throw new Error(`Nessun prezzo disponibile per ${symbol}`)

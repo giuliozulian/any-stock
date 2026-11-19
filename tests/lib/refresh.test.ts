@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as notify from '@/lib/notify'
+import * as yahooQuote from '@/lib/yahoo-quote'
 import * as verdictNote from '@/lib/verdict-note'
 import * as bullBear from '@/lib/bull-bear-note'
 import { resetDb, watch } from '../helpers/db'
@@ -155,6 +156,7 @@ describe('refreshStock', () => {
   })
 
   it('returns ok:false and does not throw when Finnhub fails', async () => {
+    vi.spyOn(yahooQuote, 'getYahooQuote').mockResolvedValue(null)
     await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('Finnhub request failed: 429 /quote'))
 
@@ -163,6 +165,7 @@ describe('refreshStock', () => {
   })
 
   it('logs the failure so it is visible in server logs, per the spec', async () => {
+    vi.spyOn(yahooQuote, 'getYahooQuote').mockResolvedValue(null)
     await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
     vi.spyOn(finnhub, 'getQuote').mockRejectedValue(new Error('Finnhub request failed: 429 /quote'))
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})

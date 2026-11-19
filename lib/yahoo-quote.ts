@@ -31,3 +31,24 @@ export async function getYahooQuote(symbol: string): Promise<YahooQuote | null> 
     return null
   }
 }
+
+export interface YahooSearchResult {
+  symbol: string
+  description: string
+  type: string
+}
+
+const SEARCHABLE_TYPES = new Set(['EQUITY', 'ETF'])
+
+// Yahoo lists every venue of a security (".MI", ".L", ".DE"), where Finnhub's free plan knows only the US ones plus a few more.
+export async function searchYahoo(query: string): Promise<YahooSearchResult[]> {
+  const res = await fetch(`https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=10&newsCount=0`, {
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+    signal: AbortSignal.timeout(6000),
+  })
+  if (!res.ok) throw new Error(`Yahoo search failed: ${res.status}`)
+  const json = (await res.json()) as { quotes?: Array<{ symbol?: string; shortname?: string; longname?: string; quoteType?: string }> }
+  return (json.quotes ?? [])
+    .filter((q): q is { symbol: string; shortname?: string; longname?: string; quoteType: string } => Boolean(q.symbol && q.quoteType && SEARCHABLE_TYPES.has(q.quoteType)))
+    .map((q) => ({ symbol: q.symbol, description: q.longname ?? q.shortname ?? q.symbol, type: q.quoteType }))
+}

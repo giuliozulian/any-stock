@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { searchSymbol, getProfile } from '@/lib/finnhub'
 import { refreshStock } from '@/lib/refresh'
+import { getYahooQuote } from '@/lib/yahoo-quote'
 import { requireUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { currentUser, currentUserId, findEntry, flatten } from '@/lib/watchlist'
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
 
   let match
   let profile
+  let finnhubError: string | null = null
   try {
     const matches = await searchSymbol(symbol)
     match = matches.find((m) => m.symbol === symbol)
@@ -57,11 +59,19 @@ export async function POST(request: Request) {
       profile = await getProfile(symbol)
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    return NextResponse.json({ error: `Finnhub lookup failed: ${message}` }, { status: 502 })
+    finnhubError = err instanceof Error ? err.message : String(err)
   }
 
-  if (!match) {
+  // Finnhub's free plan has no quotes outside the US: Yahoo can still vouch for a symbol such as an ETF on Borsa Italiana.
+  let yahoo = null
+  if (!match || finnhubError) {
+    yahoo = await getYahooQuote(symbol)
+    if (!yahoo && finnhubError) {
+      return NextResponse.json({ error: `Finnhub lookup failed: ${finnhubError}` }, { status: 502 })
+    }
+  }
+
+  if (!match && !yahoo) {
     return NextResponse.json({ error: `No symbol found for "${symbol}"` }, { status: 404 })
   }
 
@@ -69,7 +79,7 @@ export async function POST(request: Request) {
     data: {
       userId: user.id,
       userEmail: user.email,
-      stock: { create: { symbol, name: profile?.name || match.description, exchange: profile?.exchange || 'UNKNOWN' } },
+      stock: { create: { symbol, name: profile?.name || yahoo?.name || match?.description || symbol, exchange: profile?.exchange || yahoo?.exchange || 'UNKNOWN' } },
     },
     include: { stock: true },
   })
