@@ -1,4 +1,5 @@
 import { cache } from 'react'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { authConfigured, authDisabled, warnAuthDisabled } from '@/lib/auth-config'
 import { safeEqual } from '@/lib/safe-equal'
@@ -9,11 +10,21 @@ export { authConfigured, authDisabled } from '@/lib/auth-config'
 export interface AuthedUser {
   id: string
   email: string
+  // Set when the admin is looking at the app as this user: the admin's own email.
+  impersonatedBy?: string
+}
+
+export const IMPERSONATE_COOKIE = 'impersonate'
+
+// ADMIN_EMAIL is the only account that can list users and enter their profiles.
+export function isAdminEmail(email: string | null | undefined): boolean {
+  const admin = process.env.ADMIN_EMAIL?.trim().toLowerCase()
+  return Boolean(admin && email && email.trim().toLowerCase() === admin)
 }
 
 export type AuthResult = { ok: true } | { ok: false; response: Response }
 
-async function fetchUser(): Promise<AuthedUser | null> {
+async function fetchRealUser(): Promise<AuthedUser | null> {
   if (authDisabled()) {
     warnAuthDisabled()
     return { id: 'dev', email: 'dev@local' }
@@ -29,6 +40,22 @@ async function fetchUser(): Promise<AuthedUser | null> {
     console.error('Auth check failed:', err instanceof Error ? err.message : String(err))
     return null
   }
+}
+
+// The person who is really logged in, whatever the admin is looking at.
+export const getRealUser = cache(fetchRealUser)
+
+// "id|email" of the user the admin entered as. Only honoured for the admin; for anyone else the cookie is ignored.
+async function fetchUser(): Promise<AuthedUser | null> {
+  const real = await getRealUser()
+  if (!real || !isAdminEmail(real.email)) return real
+  const raw = (await cookies()).get(IMPERSONATE_COOKIE)?.value
+  const sep = raw ? raw.indexOf('|') : -1
+  if (!raw || sep < 1) return real
+  const id = raw.slice(0, sep)
+  const email = raw.slice(sep + 1)
+  if (!id || !email) return real
+  return { id, email, impersonatedBy: real.email }
 }
 
 // One check per request: layout and page share the result.

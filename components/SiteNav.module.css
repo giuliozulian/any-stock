@@ -173,3 +173,26 @@
 .logout:hover {
   color: var(--bone);
 }
+
+.viewingAs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 0;
+  padding: 8px 16px;
+  background: var(--brass);
+  color: var(--surface);
+  font-size: 13px;
+}
+
+.viewingAs button {
+  font-family: var(--font-ui);
+  padding: 2px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}

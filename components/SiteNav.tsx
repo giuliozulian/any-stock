@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/app/login/actions'
+import { stopImpersonation } from '@/app/admin/actions'
 import { Logo } from './Logo'
 import styles from './SiteNav.module.css'
 
@@ -16,9 +17,19 @@ const ITEMS = [
   { href: '/scopri', label: 'Scopri titoli', short: 'Scopri', cta: true },
 ]
 
-export function SiteNav({ signedIn }: { signedIn: boolean }) {
+export function SiteNav({ signedIn, isAdmin = false, viewingAs = null }: { signedIn: boolean; isAdmin?: boolean; viewingAs?: string | null }) {
   const pathname = usePathname()
+  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'Utenti', short: 'Utenti' }] : ITEMS
   return (
+    <>
+      {viewingAs && (
+        <form action={stopImpersonation} className={styles.viewingAs}>
+          <span>
+            Stai guardando come <strong>{viewingAs}</strong>
+          </span>
+          <button type="submit">Torna al tuo account</button>
+        </form>
+      )}
     <nav className={styles.bar} aria-label="Principale">
       <div className={styles.inner}>
         <Link href="/" className={styles.brand}>
@@ -28,7 +39,7 @@ export function SiteNav({ signedIn }: { signedIn: boolean }) {
         {signedIn && (
           <>
             <ul className={styles.items}>
-              {ITEMS.map((item) => {
+              {items.map((item) => {
                 const active = item.href === '/' ? pathname === '/' || pathname.startsWith('/stock') : pathname.startsWith(item.href)
                 return (
                   <li key={item.href} className={'cta' in item && item.cta ? styles.ctaItem : undefined}>
@@ -50,5 +61,6 @@ export function SiteNav({ signedIn }: { signedIn: boolean }) {
         )}
       </div>
     </nav>
+    </>
   )
 }

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn() }))
+const cookieJar = vi.hoisted(() => ({ value: undefined as string | undefined }))
+vi.mock('next/headers', () => ({ cookies: async () => ({ get: () => (cookieJar.value ? { value: cookieJar.value } : undefined) }) }))
 vi.mock('next/navigation', () => ({
   redirect: vi.fn((url: string) => {
     throw new Error(`REDIRECT:${url}`)
@@ -159,6 +161,26 @@ describe('auth', () => {
       vi.stubEnv('AUTH_DISABLED', '1')
       vi.stubEnv('NODE_ENV', 'development')
       await expect(requireUserOrRedirect('/scanner')).resolves.toBeUndefined()
+    })
+  })
+
+  describe('impersonation', () => {
+    beforeEach(() => {
+      vi.stubEnv('ADMIN_EMAIL', 'Boss@x.com')
+      cookieJar.value = 'target-id|user@x.com'
+    })
+    afterEach(() => {
+      cookieJar.value = undefined
+    })
+
+    it('lets the admin act as the user in the cookie', async () => {
+      withUser('boss@x.com')
+      expect(await getAuthedUser()).toEqual({ id: 'target-id', email: 'user@x.com', impersonatedBy: 'boss@x.com' })
+    })
+
+    it('ignores the cookie for anyone else', async () => {
+      withUser('mallory@x.com')
+      expect(await getAuthedUser()).toEqual({ id: 'u1', email: 'mallory@x.com' })
     })
   })
 })
