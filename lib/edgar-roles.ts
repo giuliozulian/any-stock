@@ -4,12 +4,26 @@ const TTL_MS = 24 * 60 * 60 * 1000
 const roleCache = new Map<string, { at: number; roles: Record<string, string | null> }>()
 let tickerMap: { at: number; map: Map<string, number>; byCik: Map<number, string> } | null = null
 
+// The SEC allows at most 10 requests a second per address and answers 429 (blocking the address for a while) above that.
+// Every call to sec.gov waits for its slot, so the parallel workers of the insider scan share one budget of ~8 requests a second.
+const SEC_MIN_GAP_MS = process.env.NODE_ENV === 'test' ? 0 : 125
+let nextSlot = 0
+
+async function waitForSecSlot(): Promise<void> {
+  const now = Date.now()
+  const slot = Math.max(now, nextSlot)
+  nextSlot = slot + SEC_MIN_GAP_MS
+  if (slot > now) await new Promise((resolve) => setTimeout(resolve, slot - now))
+}
+
 // SEC rate-limits (429) under load — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping this symbol's whole lookup.
 export async function fetchFromSec(url: string): Promise<Response> {
+  await waitForSecSlot()
   const res = await fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
   if (res.status !== 429) return res
   const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
   await new Promise((resolve) => setTimeout(resolve, retryAfterMs))
+  await waitForSecSlot()
   return fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
 }
 
