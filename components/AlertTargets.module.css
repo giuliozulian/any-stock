@@ -8,38 +8,108 @@
   margin-top: 6px;
 }
 
-.toggle {
+/* Un solo box per gli avvisi: vuoto invita a impostarli, pieno mostra i due prezzi e permette di modificarli. */
+.box {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
-  min-height: 32px;
   align-items: center;
-  padding: 4px 10px;
-  background: transparent;
-  border: 1px dashed var(--rule);
-  border-radius: 6px;
-  color: var(--muted);
+  gap: 6px 8px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--bone);
   font-family: var(--font-ui);
   font-size: 13px;
+  text-align: left;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
-.toggle:hover {
+.box:hover {
   border-color: var(--brass-dim);
+  background: var(--ink);
+}
+
+.boxSet {
+  padding: 4px 6px 4px 12px;
+}
+
+.edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.box:hover .edit {
   color: var(--bone);
 }
 
-.toggle:focus-visible,
+.bell {
+  flex: none;
+  color: var(--muted);
+}
+
+.target {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.targetLabel {
+  color: var(--muted);
+}
+
+.targetLevel {
+  font-family: var(--font-num);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.targetNote {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--loss-bright);
+}
+
+.up {
+  color: var(--gain-bright);
+}
+
+.targetHit {
+  border-color: var(--amber-bright);
+  background: color-mix(in srgb, var(--amber-bright) 12%, transparent);
+}
+
+.targetHit .targetNote,
+.targetHit .targetLevel {
+  color: var(--amber-bright);
+}
+
+.targetHit .targetNote {
+  font-weight: 600;
+}
+
+.box:focus-visible,
 .field input:focus-visible,
 .save:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
-}
-
-.hit {
-  color: var(--amber-bright);
-  font-weight: 600;
 }
 
 .form {

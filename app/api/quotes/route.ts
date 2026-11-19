@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getQuote } from '@/lib/finnhub'
+import { getYahooQuote } from '@/lib/yahoo-quote'
 import { requireUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
 import { currentUserId } from '@/lib/watchlist'
 
-// Live quotes straight from Finnhub (no DB write), only for symbols in the watchlist.
+// Live quotes straight from Finnhub, or Yahoo for symbols its free plan does not cover (no DB write), only for symbols in the watchlist.
 export async function GET(request: Request) {
   const auth = await requireUser()
   if (!auth.ok) return auth.response
@@ -23,7 +24,13 @@ export async function GET(request: Request) {
       try {
         const q = await getQuote(symbol)
         if (q.currentPrice > 0) quotes[symbol] = { price: q.currentPrice, changePct: q.changePercent }
+        return
       } catch (err) {
+        const yahoo = await getYahooQuote(symbol)
+        if (yahoo) {
+          quotes[symbol] = { price: yahoo.price, changePct: yahoo.changePct ?? 0 }
+          return
+        }
         console.error(`Live quote failed for ${symbol}:`, err instanceof Error ? err.message : String(err))
       }
     })

@@ -396,7 +396,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           <h1 className={styles.name}>{stock.name}</h1>
           <div className={styles.starRow}>
             <WatchStar symbol={stock.symbol} watched />
-            <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} />
+            <AlertTargets symbol={stock.symbol} entryPrice={stock.entryPrice} sellPrice={stock.sellPrice} entryTriggered={stock.entryTriggeredAt !== null} sellTriggered={stock.sellTriggeredAt !== null} price={latest?.price ?? null} />
           </div>
         </div>
 

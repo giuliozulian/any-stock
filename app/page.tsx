@@ -260,6 +260,7 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
                   sellPrice={stock.sellPrice}
                   entryTriggered={stock.entryTriggeredAt !== null}
                   sellTriggered={stock.sellTriggeredAt !== null}
+                  price={latest?.price ?? null}
                 />
               </div>
               <div className={styles.trend}>
