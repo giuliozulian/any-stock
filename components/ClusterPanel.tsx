@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { InsiderCluster } from '@/lib/insiders'
 import { InfoTip } from './InfoTip'
 import styles from './ClusterPanel.module.css'
@@ -5,7 +6,7 @@ import styles from './ClusterPanel.module.css'
 const money = (v: number) => (v >= 1_000_000 ? `$${(v / 1_000_000).toFixed(2)}M` : v >= 1_000 ? `$${Math.round(v / 1_000)}k` : `$${Math.round(v)}`)
 const date = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 
-export function ClusterPanel({ cluster }: { cluster: InsiderCluster | null }) {
+export function ClusterPanel({ cluster, note = null }: { cluster: InsiderCluster | null; note?: ReactNode }) {
   return (
     <section className={styles.panel}>
       <div className={styles.head}>
@@ -35,6 +36,7 @@ export function ClusterPanel({ cluster }: { cluster: InsiderCluster | null }) {
           <p className={styles.window}>
             Dal {date(cluster.from)} al {date(cluster.to)}
           </p>
+          {note}
           <div className={styles.stats}>
             <div className={styles.stat}>
               Insider

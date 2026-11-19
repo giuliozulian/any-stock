@@ -7,5 +7,5 @@ export async function SiteNavGate() {
   await connection()
   const real = await getRealUser()
   const user = await getAuthedUser()
-  return <SiteNav signedIn={user !== null} isAdmin={isAdminEmail(real?.email)} viewingAs={user?.impersonatedBy ? user.email : null} />
+  return <SiteNav signedIn={user !== null} isAdmin={isAdminEmail(real?.email)} viewingAs={user?.impersonatedBy ? user.email : null} email={real?.email ?? null} />
 }

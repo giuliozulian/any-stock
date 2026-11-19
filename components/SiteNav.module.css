@@ -19,32 +19,55 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--brass);
+  white-space: nowrap;
 }
 
 .items {
   display: flex;
+  align-items: center;
   gap: 4px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.link {
+.link,
+.trigger {
   display: block;
   padding: 6px 14px;
+  border: 0;
   border-radius: 999px;
+  background: transparent;
+  font-family: var(--font-ui);
   font-size: 15px;
   color: var(--muted);
+  white-space: nowrap;
 }
 
-.link:hover {
-  color: inherit;
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.link:hover,
+.trigger:hover {
+  color: var(--bone);
 }
 
 .active {
   color: inherit;
   font-weight: 600;
   background: var(--surface-raised);
+}
+
+.chevron {
+  transition: transform 0.15s ease;
+}
+
+.trigger[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
 }
 
 .ctaItem {
@@ -79,8 +102,127 @@
   line-height: 1.5;
 }
 
-.short {
+.short,
+.menuItem,
+.scrim,
+.sheetLabel {
   display: none;
+}
+
+/* A group is a dropdown: a button that opens a panel of entries, each with a line saying what is behind it. */
+.group {
+  position: relative;
+}
+
+.panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 45;
+  min-width: 250px;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.4);
+}
+
+.group[data-open='true'] .panel {
+  display: block;
+}
+
+.panelLink {
+  position: relative;
+  display: block;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--bone);
+}
+
+.panelLink:hover {
+  background: var(--surface);
+}
+
+.panelActive {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.panelTitle {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.panelActive .panelTitle {
+  color: var(--brass);
+}
+
+.panelHint {
+  display: block;
+  margin-top: 1px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* The account: an avatar on the right that opens Admin (for the admin) and the way out. */
+.account {
+  position: relative;
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 50%;
+  background: var(--surface-raised);
+  color: var(--brass);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.avatar:hover,
+.avatar[aria-expanded='true'] {
+  border-color: var(--brass);
+}
+
+.accountPanel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 45;
+  min-width: 220px;
+  padding: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.4);
+}
+
+.account[data-open='true'] .accountPanel {
+  display: block;
+}
+
+.accountEmail {
+  margin: 0;
+  padding: 8px 12px 10px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.accountPanel form {
+  margin: 0;
 }
 
 @media (max-width: 820px) {
@@ -88,24 +230,106 @@
     padding: 10px 14px;
   }
 
+  /* Bottom bar: 4 equal cells (Watchlist, Minervini, Scopri, Menu). Opened, it grows upwards and lists the groups above them, each under its name. */
   .items {
     position: fixed;
     right: 0;
     bottom: 0;
     left: 0;
-    z-index: 40;
+    z-index: 41;
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 2px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
     border-top: 1px solid var(--rule);
     backdrop-filter: blur(12px);
   }
 
-  .link {
-    min-height: 44px;
+  .primary,
+  .menuItem {
+    display: block;
+    order: 100;
+  }
+
+  /* The bar's first cell always starts a new row, so the open menu's last group never shares one with it. */
+  .primaryFirst {
+    grid-column-start: 1;
+  }
+
+  .group {
+    display: none;
+    grid-column: 1 / -1;
+    order: var(--slot);
+    padding: 2px 0 6px;
+  }
+
+  .items[data-open='true'] .group {
+    display: block;
+  }
+
+  .items[data-open='true'] {
+    gap: 4px 2px;
+    padding-top: 10px;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -12px 32px rgb(0 0 0 / 0.35);
+  }
+
+  .sheetLabel {
+    display: block;
+    padding: 4px 4px 6px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .trigger {
+    display: none;
+  }
+
+  .panel {
+    display: grid;
+    position: static;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+
+  .panelLink {
+    display: flex;
+    align-items: center;
+    min-height: 48px;
+    padding: 0 14px;
+    background: var(--surface-raised);
+    border-radius: 12px;
+  }
+
+  .panelTitle {
+    font-size: 15px;
+    font-weight: 400;
+  }
+
+  .panelHint {
+    display: none;
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: block;
+    border: 0;
+    background: rgb(0 0 0 / 0.45);
+  }
+
+  .link,
+  .menuButton {
+    position: relative;
+    min-height: 48px;
     padding: 0 2px;
     display: flex;
     align-items: center;
@@ -115,12 +339,17 @@
     text-align: center;
   }
 
-  .ctaItem {
-    margin-left: 0;
+  .menuButton {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    cursor: pointer;
   }
 
-  .link {
-    position: relative;
+  .ctaItem {
+    margin-left: 0;
   }
 
   .badge {
@@ -136,7 +365,8 @@
     font-size: 0;
   }
 
-  .link.active {
+  .link.active,
+  .menuButton.active {
     color: var(--brass);
     background: color-mix(in srgb, var(--brass) 12%, transparent);
   }
@@ -155,24 +385,24 @@
   }
 }
 
-.logoutForm {
-  margin: 0;
-}
-
 .logout {
-  font-family: var(--font-ui);
-  min-height: 32px;
-  padding: 0 12px;
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 9px 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 10px;
   background: transparent;
-  color: var(--muted);
-  font-size: 13px;
+  color: var(--bone);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
   cursor: pointer;
 }
 
 .logout:hover {
-  color: var(--bone);
+  background: var(--surface);
 }
 
 .viewingAs {

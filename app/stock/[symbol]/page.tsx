@@ -34,6 +34,7 @@ import { BullBearNote } from '@/components/BullBearNote'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
 import { ClusterPanel } from '@/components/ClusterPanel'
+import { ClusterNote } from '@/components/ClusterNote'
 import { buildCluster } from '@/lib/insiders'
 import { StockTabs } from '@/components/StockTabs'
 import { StockChat } from '@/components/StockChat'
@@ -376,6 +377,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
       />
     ) : null
   const cap = marketCapStatus(latest?.marketCap ?? null)
+  const cluster = insiders ? buildCluster(insiders.trades) : null
   const range = rangeStatus(position52w)
 
   const seriesTrendClass = stock.snapshots.length > 1 ? (stock.snapshots[0].price >= stock.snapshots[stock.snapshots.length - 1].price ? styles.gain : styles.loss) : ''
@@ -590,7 +592,16 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Insider e politici',
             content: (
               <>
-                <ClusterPanel cluster={insiders ? buildCluster(insiders.trades) : null} />
+                <ClusterPanel
+                  cluster={cluster}
+                  note={
+                    cluster && (
+                      <Suspense fallback={null}>
+                        <ClusterNote symbol={stock.symbol} name={stock.name} marketCap={latest?.marketCap ? latest.marketCap * 1_000_000 : null} cluster={cluster} />
+                      </Suspense>
+                    )
+                  }
+                />
                 <InsiderPanel data={insiders} />
 
                 <CongressPanel trades={congress} />
