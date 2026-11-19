@@ -19,13 +19,13 @@ const ITEMS = [
 
 export function SiteNav({ signedIn, isAdmin = false, viewingAs = null }: { signedIn: boolean; isAdmin?: boolean; viewingAs?: string | null }) {
   const pathname = usePathname()
-  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'Utenti', short: 'Utenti' }] : ITEMS
+  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'Admin', short: 'Admin' }] : ITEMS
   return (
     <>
       {viewingAs && (
         <form action={stopImpersonation} className={styles.viewingAs}>
           <span>
-            Stai guardando come <strong>{viewingAs}</strong>
+            Stai guardando come <strong>{viewingAs}</strong>. Le modifiche valgono per questo utente.
           </span>
           <button type="submit">Torna al tuo account</button>
         </form>

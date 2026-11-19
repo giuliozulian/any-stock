@@ -95,7 +95,8 @@
     left: 0;
     z-index: 40;
     display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 2px;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     background: color-mix(in srgb, var(--surface) 92%, transparent);
@@ -175,24 +176,40 @@
 }
 
 .viewingAs {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 4px 16px;
   margin: 0;
   padding: 8px 16px;
-  background: var(--brass);
-  color: var(--surface);
+  background: var(--amber-bright);
+  color: #1a1300;
   font-size: 13px;
+  text-align: center;
 }
 
 .viewingAs button {
   font-family: var(--font-ui);
-  padding: 2px 12px;
+  min-height: 32px;
+  padding: 0 14px;
   border: 1px solid currentColor;
   border-radius: 999px;
   background: transparent;
   color: inherit;
   font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+}
+
+.viewingAs button:hover {
+  background: rgb(26 19 0 / 0.1);
+}
+
+.viewingAs button:focus-visible {
+  outline: 2px solid #1a1300;
+  outline-offset: 2px;
 }
