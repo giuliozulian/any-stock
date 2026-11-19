@@ -1,5 +1,4 @@
-import { getTickerByCik } from './edgar-roles'
-import { secUserAgent } from './sec'
+import { fetchFromSec, getTickerByCik } from './edgar-roles'
 
 
 export interface Form4FeedEntry {
@@ -8,22 +7,14 @@ export interface Form4FeedEntry {
   accessionNumber: string
 }
 
-// One <entry> of the EDGAR "getcurrent" Atom feed, e.g.:
-// <title>4 - AAA INC (0000000001) (Reporting)</title>
-// <id>urn:tag:sec.gov,2008:accession-number=0000000001-26-000001</id>
-export function parseFeedEntries(atomXml: string): Form4FeedEntry[] {
+// One Form 4 row of an EDGAR daily form index (form.YYYYMMDD.idx), fixed-width columns:
+// 4           AAA INC                                                       1         20261112    edgar/data/1/0000000001-26-000001.txt
+// A filing is listed once under its issuer and once under each insider; "4/A" amendments are not purchases of their own and are skipped.
+export function parseDailyIndex(idx: string): Form4FeedEntry[] {
   const entries: Form4FeedEntry[] = []
-  const blocks = atomXml.match(/<entry>[\s\S]*?<\/entry>/g) ?? []
-  for (const block of blocks) {
-    const title = block.match(/<title>([\s\S]*?)<\/title>/)?.[1]
-    const accessionNumber = block.match(/accession-number=([\d-]+)/)?.[1]
-    const cikMatch = title?.match(/\((\d+)\)/)
-    if (!title || !accessionNumber || !cikMatch) continue
-    const companyName = title
-      .replace(/^\d+\s*-\s*/, '')
-      .replace(/\s*\(\d+\).*$/, '')
-      .trim()
-    entries.push({ cik: Number(cikMatch[1]), companyName, accessionNumber })
+  for (const line of idx.split('\n')) {
+    const m = line.match(/^4\s+(.*?)\s+(\d+)\s+\d{8}\s+edgar\/data\/\d+\/(\d{10}-\d{2}-\d{6})\.txt\s*$/)
+    if (m) entries.push({ cik: Number(m[2]), companyName: m[1].trim(), accessionNumber: m[3] })
   }
   return entries
 }
@@ -48,15 +39,6 @@ export interface Form4ClusterSeed {
   buyerCount: number
 }
 
-// SEC rate-limits (429) under the burst this fan-out creates — one retry after the Retry-After delay (or 1s if absent) turns a transient throttle into a success instead of dropping the whole feed or a filing.
-async function fetchFromSec(url: string): Promise<Response> {
-  const res = await fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
-  if (res.status !== 429) return res
-  const retryAfterMs = (Number(res.headers.get('Retry-After')) || 1) * 1000
-  await new Promise((resolve) => setTimeout(resolve, retryAfterMs))
-  return fetch(url, { headers: { 'User-Agent': secUserAgent() }, signal: AbortSignal.timeout(10000) })
-}
-
 async function fetchText(url: string): Promise<string> {
   const res = await fetchFromSec(url)
   if (!res.ok) throw new Error(`SEC ${res.status}`)
@@ -75,47 +57,92 @@ async function runWithConcurrency<T>(items: T[], limit: number, fn: (item: T) =>
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 }
 
-// Market-wide insider-cluster seeds: symbols with at least `minBuyers` distinct insiders filing an open-market purchase (code P) among the `limit` most recent Form 4 filings on EDGAR, across every company — not just symbols already tracked elsewhere. Returns [] when the feed itself is unreachable; one bad filing is skipped without affecting the others.
-export async function getForm4ClusterSeeds(limit = 100, minBuyers = 2, overallDeadlineMs = 15000): Promise<Form4ClusterSeed[]> {
-  let atomXml: string
-  try {
-    atomXml = await fetchText(`https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=4&company=&dateb=&owner=include&count=${limit}&output=atom`)
-  } catch (err) {
-    console.error('Form4 cluster feed failed:', err instanceof Error ? err.message : String(err))
+const WINDOW_DAYS = 7
+const MAX_FILINGS = 600
+const INDEX_TTL_MS = 6 * 60 * 60 * 1000
+const indexCache = new Map<string, { at: number; entries: Form4FeedEntry[] }>()
+// A filed Form 4 never changes, so what it says about its buyer is kept for the life of the instance: later scans skip the fetch.
+const filingCache = new Map<string, Form4Transaction | null>()
+
+export function resetForm4Cache(): void {
+  indexCache.clear()
+  filingCache.clear()
+}
+
+function isoDay(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+// Daily indexes live under /daily-index/{year}/QTR{n}/. Weekends and holidays have none (404) and are simply skipped.
+async function getDayEntries(day: string): Promise<Form4FeedEntry[]> {
+  const hit = indexCache.get(day)
+  if (hit && Date.now() - hit.at < INDEX_TTL_MS) return hit.entries
+  const [year, month] = day.split('-')
+  const url = `https://www.sec.gov/Archives/edgar/daily-index/${year}/QTR${Math.ceil(Number(month) / 3)}/form.${year}${month}${day.slice(8)}.idx`
+  const res = await fetchFromSec(url)
+  if (res.status === 404) return []
+  if (!res.ok) throw new Error(`SEC ${res.status}`)
+  const entries = parseDailyIndex(await res.text())
+  indexCache.set(day, { at: Date.now(), entries })
+  return entries
+}
+
+// Market-wide insider-cluster seeds: symbols where at least `minBuyers` distinct insiders filed an open-market purchase (code P) over the last `windowDays` days, read from EDGAR's daily form indexes across every company — not just symbols already tracked elsewhere.
+// Only symbols with at least `minBuyers` Form 4 filings can qualify, so the rest are never fetched; the most-filed symbols go first within a budget of `maxFilings` fetches. Returns [] when no index is reachable; one bad filing is skipped without affecting the others.
+export async function getForm4ClusterSeeds(windowDays = WINDOW_DAYS, minBuyers = 2, overallDeadlineMs = 45000, maxFilings = MAX_FILINGS): Promise<Form4ClusterSeed[]> {
+  const now = new Date()
+  const days = Array.from({ length: windowDays }, (_, i) => isoDay(new Date(now.getTime() - i * 86_400_000)))
+  const results = await Promise.allSettled(days.map(getDayEntries))
+  const failed = results.filter((r) => r.status === 'rejected')
+  if (failed.length === results.length) {
+    console.error('Form4 daily indexes failed:', (failed[0] as PromiseRejectedResult).reason instanceof Error ? (failed[0] as PromiseRejectedResult).reason.message : String((failed[0] as PromiseRejectedResult).reason))
     return []
   }
-  // The feed lists a filing once under its issuer and once under each insider, in either order, and only the issuer's CIK maps to a ticker.
-  // Group by accession number so a filing is fetched once, and look for the ticker across all of its entries instead of trusting whichever comes last.
-  const filings = new Map<string, Form4FeedEntry[]>()
-  for (const entry of parseFeedEntries(atomXml)) filings.set(entry.accessionNumber, [...(filings.get(entry.accessionNumber) ?? []), entry])
 
-  const bySymbol = new Map<string, { name: string; buyers: Set<string> }>()
-  const fanOut = runWithConcurrency([...filings.values()], 5, async (candidates) => {
-    let entry: Form4FeedEntry | undefined
-    let symbol: string | null = null
+  // A filing is listed under its issuer and under each insider, and only the issuer's CIK maps to a ticker.
+  // Group by accession number so a filing is fetched once, and look for the ticker across all of its entries.
+  const filings = new Map<string, Form4FeedEntry[]>()
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue
+    for (const entry of r.value) filings.set(entry.accessionNumber, [...(filings.get(entry.accessionNumber) ?? []), entry])
+  }
+
+  const bySymbolFilings = new Map<string, { entry: Form4FeedEntry; accessionNumber: string }[]>()
+  await runWithConcurrency([...filings.entries()], 20, async ([accessionNumber, candidates]) => {
     for (const candidate of candidates) {
-      symbol = await getTickerByCik(candidate.cik).catch(() => null)
+      const symbol = await getTickerByCik(candidate.cik).catch(() => null)
       if (symbol) {
-        entry = candidate
-        break
+        bySymbolFilings.set(symbol, [...(bySymbolFilings.get(symbol) ?? []), { entry: candidate, accessionNumber }])
+        return
       }
     }
-    if (!entry || !symbol) return
-    // The complete-submission .txt file has a deterministic name (CIK + dashed accession number) and embeds the primary document's XML inline — no per-filing-agent document filename to guess.
-    let xml: string
-    try {
-      xml = await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${entry.accessionNumber}.txt`)
-    } catch {
-      return
+  })
+
+  const queue: { symbol: string; entry: Form4FeedEntry; accessionNumber: string }[] = []
+  for (const [symbol, list] of [...bySymbolFilings.entries()].filter(([, l]) => l.length >= minBuyers).sort((a, b) => b[1].length - a[1].length)) {
+    for (const f of list) queue.push({ symbol, ...f })
+  }
+
+  const bySymbol = new Map<string, { name: string; buyers: Set<string> }>()
+  const fanOut = runWithConcurrency(queue.slice(0, maxFilings), 5, async ({ symbol, entry, accessionNumber }) => {
+    let transaction: Form4Transaction | null
+    if (filingCache.has(accessionNumber)) transaction = filingCache.get(accessionNumber) ?? null
+    else {
+      try {
+        // The complete-submission .txt file has a deterministic name (CIK + dashed accession number) and embeds the primary document's XML inline — no per-filing-agent document filename to guess.
+        transaction = parseForm4Transaction(await fetchText(`https://www.sec.gov/Archives/edgar/data/${entry.cik}/${accessionNumber}.txt`))
+      } catch {
+        return
+      }
+      filingCache.set(accessionNumber, transaction)
     }
-    const transaction = parseForm4Transaction(xml)
     if (!transaction || transaction.code !== 'P') return
     const existing = bySymbol.get(symbol) ?? { name: entry.companyName, buyers: new Set<string>() }
     existing.buyers.add(transaction.insiderName)
     bySymbol.set(symbol, existing)
   })
 
-  // Each worker already timed out individually (fetchText's AbortSignal); this overall deadline bounds the whole batch, so a scan never blocks on SEC past it — bySymbol holds whatever finished in time, and that partial result is returned.
+  // Each worker already timed out individually (fetchText's AbortSignal); this overall deadline bounds the whole batch, so a scan never blocks on SEC past it — bySymbol holds whatever finished in time, and that partial result is returned. Filings that did finish are cached, so the next scan picks up where this one stopped.
   await Promise.race([fanOut, new Promise<void>((resolve) => setTimeout(resolve, overallDeadlineMs))])
 
   return [...bySymbol.entries()]

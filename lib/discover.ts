@@ -6,6 +6,7 @@ import { rankSignals } from './congress-signals'
 import { prisma } from './db'
 import { getQuote, getMetrics, getNextEarnings, getPeers, getIpoCalendar } from './finnhub'
 import { getInsiderData } from './insider-data'
+import { buildCluster } from './insiders'
 import { getForm4ClusterSeeds } from './edgar-form4-feed'
 import { getMarketBigMovers } from './market'
 import { getQuoteInfo, type QuoteInfo } from './quote-info'
@@ -213,6 +214,9 @@ export interface CandidateSeed {
 const MIN_EARNINGS_BEAT_PCT = 15
 const BEAT_MIN_REVENUE = 300_000_000
 const BEAT_MIN_MARKET_CAP = 1_000_000_000
+// Insider clusters are kept for mid and large caps only (from 2 billion), where a cluster of purchases is a real signal rather than noise from micro-caps.
+const clusterMoney = (v: number) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)} milioni di dollari` : `${Math.round(v / 1_000)} mila dollari`)
+const CLUSTER_MIN_MARKET_CAP = 2_000_000_000
 const IPO_LOOKBACK_DAYS = 120
 const IPO_MIN_VALUE = 200_000_000
 const PEER_SOURCES = 6
@@ -268,7 +272,13 @@ export async function sourceCandidates(watchedSymbols: Set<string> = new Set()):
       for (const m of await getMarketBigMovers(10, 'it')) seed(m.symbol, m.name, 'IT', 'movers-it', { seedPrice: m.price, seedChangePct: m.changePct, event: `oggi si muove molto (${m.changePct >= 0 ? '+' : ''}${m.changePct.toFixed(1)}%)` })
     }),
     guard('EDGAR Form 4 clusters', async () => {
-      for (const c of await getForm4ClusterSeeds()) seed(c.symbol, c.name, 'US', 'edgar-form4-cluster', { clusterBuyerCount: c.buyerCount })
+      const clusters = await getForm4ClusterSeeds()
+      if (clusters.length === 0) return
+      const infos = await getQuoteInfo(clusters.map((c) => c.symbol))
+      for (const c of clusters) {
+        if ((infos.get(c.symbol)?.marketCap ?? 0) < CLUSTER_MIN_MARKET_CAP) continue
+        seed(c.symbol, infos.get(c.symbol)?.name ?? c.name, 'US', 'edgar-form4-cluster', { clusterBuyerCount: c.buyerCount })
+      }
     }),
     guard('earnings beats', async () => {
       const events = (await getEarningsFeed(addDays(today, -3), today)).filter((e) => (e.revenueEstimate ?? 0) >= BEAT_MIN_REVENUE && e.epsEstimate !== null && e.epsEstimate > 0)
@@ -304,16 +314,15 @@ export async function sourceCandidates(watchedSymbols: Set<string> = new Set()):
     .sort((a, b) => b.source.length - a.source.length || Math.abs(b.seedChangePct ?? 0) - Math.abs(a.seedChangePct ?? 0))
 }
 
-// Each source gets a fair share of the slots, so a long list of one kind (say, politicians) cannot crowd out the rest.
+// Each source gets a fair share of the slots, so a long list of one kind (say, politicians) cannot crowd out the rest. Insider clusters sit outside that pool and are all kept.
 export function selectForEnrichment(seeds: CandidateSeed[], maxUS = 14, maxIT = 6): CandidateSeed[] {
-  const clusterReserved = Math.min(4, maxUS)
-  const generalCap = maxUS - clusterReserved
+  // Cluster-only candidates are not capped: every one that passed the market-cap filter gets a slot, on top of the general pool.
+  const generalCap = Math.max(maxUS - 4, 0)
 
   const us = seeds.filter((s) => s.market === 'US')
   const clusterOnly = us
     .filter((s) => s.source.length === 1 && s.source[0] === 'edgar-form4-cluster')
     .sort((a, b) => (b.clusterBuyerCount ?? 0) - (a.clusterBuyerCount ?? 0))
-    .slice(0, clusterReserved)
   const taken = new Set(clusterOnly.map((s) => s.symbol))
 
   const groups = new Map<string, CandidateSeed[]>()
@@ -379,6 +388,7 @@ async function enrichAndScore(seed: CandidateSeed, info: QuoteInfo | undefined, 
   let insiderBuyerCount = 0
   let insiderSellerCount = 0
   let insiderKnown = false
+  let clusterEvent: string | null = null
   let daysToEarnings: number | null = null
   if (seed.market === 'US') {
     const [insider, next] = await Promise.all([getInsiderData(seed.symbol).catch(() => null), getNextEarnings(seed.symbol).catch(() => null)])
@@ -388,6 +398,8 @@ async function enrichAndScore(seed: CandidateSeed, info: QuoteInfo | undefined, 
       const recent = insider.trades.filter((t) => new Date(t.date).getTime() >= since)
       insiderBuyerCount = new Set(recent.filter((t) => t.side === 'buy').map((t) => t.name)).size
       insiderSellerCount = new Set(recent.filter((t) => t.side === 'sell').map((t) => t.name)).size
+      const cluster = buildCluster(insider.trades)
+      if (cluster && !seed.event) clusterEvent = `${cluster.insiders} insider hanno comprato per ${clusterMoney(cluster.total)} in pochi giorni, il più grosso è ${cluster.lead.role ?? cluster.lead.name}`
     } else partial = true
     if (next) daysToEarnings = daysUntil(next.date, today)
   }
@@ -415,7 +427,7 @@ async function enrichAndScore(seed: CandidateSeed, info: QuoteInfo | undefined, 
       insiderKnown,
       daysToEarnings,
     },
-    seed.event ?? null
+    seed.event ?? clusterEvent
   )
   return { score, partial, price, changePct, marketCap: info?.marketCap ?? null, spark }
 }

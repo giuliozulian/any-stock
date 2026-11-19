@@ -33,6 +33,8 @@ import { VerdictNote } from '@/components/VerdictNote'
 import { BullBearNote } from '@/components/BullBearNote'
 import { VideoList } from '@/components/VideoList'
 import { InsiderPanel } from '@/components/InsiderPanel'
+import { ClusterPanel } from '@/components/ClusterPanel'
+import { buildCluster } from '@/lib/insiders'
 import { StockTabs } from '@/components/StockTabs'
 import { StockChat } from '@/components/StockChat'
 import { isChatConfigured } from '@/lib/gemini-chat'
@@ -588,6 +590,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             label: 'Insider e politici',
             content: (
               <>
+                <ClusterPanel cluster={insiders ? buildCluster(insiders.trades) : null} />
                 <InsiderPanel data={insiders} />
 
                 <CongressPanel trades={congress} />

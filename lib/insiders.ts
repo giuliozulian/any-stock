@@ -79,3 +79,65 @@ export function topByActivity(entries: DigestEntry[], limit = 3): DigestEntry[] 
     .sort((a, b) => b.trades.length - a.trades.length || total(b) - total(a))
     .slice(0, limit)
 }
+
+export interface InsiderCluster {
+  from: string
+  to: string
+  insiders: number
+  purchases: number
+  total: number
+  lead: { name: string; role: string | null; value: number }
+  score: number
+  trades: InsiderTrade[]
+}
+
+const CLUSTER_WINDOW_DAYS = 7
+const CLUSTER_MAX_AGE_DAYS = 30
+
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 86_400_000)
+
+function roleWeight(role: string | null | undefined): number {
+  if (!role) return 0
+  if (/\b(ceo|chief executive|cfo|chief financial|president|chair)/i.test(role)) return 20
+  if (/\b(officer|chief|coo|cto|vp|vice president|evp|svp|general counsel)/i.test(role)) return 12
+  if (/director/i.test(role)) return 8
+  return 4
+}
+
+// 0-100: how much money, how many people, how senior, how fresh. Our own heuristic, not a vendor score.
+export function clusterScore(input: { total: number; insiders: number; roles: (string | null | undefined)[]; ageDays: number }): number {
+  const money = Math.min(40, Math.max(0, (Math.log10(Math.max(input.total, 1)) - 4.5) * (40 / 2.5)))
+  const people = Math.min(25, Math.max(0, (input.insiders - 1) * 10))
+  const seniority = Math.max(0, ...input.roles.map(roleWeight))
+  const fresh = Math.max(0, 15 * (1 - input.ageDays / CLUSTER_MAX_AGE_DAYS))
+  return Math.round(money + people + seniority + fresh)
+}
+
+// The latest cluster of open-market purchases: the buys from 7 days before the most recent one up to it, when at least two different insiders bought and that last purchase is under 30 days old. Null otherwise.
+export function buildCluster(trades: InsiderTrade[], now = new Date(), windowDays = CLUSTER_WINDOW_DAYS): InsiderCluster | null {
+  const buys = trades.filter((t) => t.side === 'buy')
+  if (buys.length === 0) return null
+  const to = buys.reduce((max, t) => (t.date > max ? t.date : max), '')
+  const today = now.toISOString().slice(0, 10)
+  const ageDays = daysBetween(to, today)
+  if (ageDays > CLUSTER_MAX_AGE_DAYS) return null
+  const inWindow = buys.filter((t) => daysBetween(t.date, to) <= windowDays).sort((a, b) => b.date.localeCompare(a.date) || b.value - a.value)
+  const byPerson = new Map<string, { value: number; role: string | null }>()
+  for (const t of inWindow) {
+    const prev = byPerson.get(t.name)
+    byPerson.set(t.name, { value: (prev?.value ?? 0) + t.value, role: prev?.role ?? t.role ?? null })
+  }
+  if (byPerson.size < 2) return null
+  const [leadName, lead] = [...byPerson.entries()].sort((a, b) => b[1].value - a[1].value)[0]
+  const total = inWindow.reduce((s, t) => s + t.value, 0)
+  return {
+    from: inWindow.reduce((min, t) => (t.date < min ? t.date : min), to),
+    to,
+    insiders: byPerson.size,
+    purchases: inWindow.length,
+    total,
+    lead: { name: leadName, role: lead.role, value: lead.value },
+    score: clusterScore({ total, insiders: byPerson.size, roles: [...byPerson.values()].map((p) => p.role), ageDays }),
+    trades: inWindow,
+  }
+}

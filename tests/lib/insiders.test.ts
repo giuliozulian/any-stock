@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { summarizeTrades, toTrades, topByActivity } from '@/lib/insiders'
+import { buildCluster, clusterScore, summarizeTrades, toTrades, topByActivity } from '@/lib/insiders'
 import type { InsiderTransaction } from '@/lib/finnhub'
 
 function tx(over: Partial<InsiderTransaction>): InsiderTransaction {
@@ -83,5 +83,47 @@ describe('parseFmpTrades', () => {
       'house',
     )
     expect(out).toEqual([{ member: 'Nancy Pelosi', chamber: 'house', state: 'CA', side: 'buy', amountLow: 1000001, amountHigh: 5000000, date: '2026-07-24', disclosedAt: '2026-08-24' }])
+  })
+})
+
+describe('buildCluster', () => {
+  const buy = (name: string, date: string, value: number, role: string | null = null) => ({ name, side: 'buy' as const, shares: 100, price: value / 100, value, date, filingDate: date, role })
+  const now = new Date('2026-11-19T10:00:00Z')
+
+  it('groups the buys of the 7 days ending on the latest one, with people, total and lead insider', () => {
+    const c = buildCluster(
+      [buy('Corbett', '2026-11-17', 91_000, 'CFO'), buy('Rosenthal', '2026-11-11', 186_000, 'Chief Operating Officer'), buy('Weisenburger', '2026-11-10', 1_980_000, 'Director'), buy('Old Timer', '2026-11-02', 500_000, 'Director')],
+      now,
+    )!
+    expect(c).toMatchObject({ from: '2026-11-10', to: '2026-11-17', insiders: 3, purchases: 3, total: 2_257_000, lead: { name: 'Weisenburger', role: 'Director', value: 1_980_000 } })
+    expect(c.trades.map((t) => t.name)).toEqual(['Corbett', 'Rosenthal', 'Weisenburger'])
+  })
+
+  it('adds up several purchases of the same person when picking the lead', () => {
+    const c = buildCluster([buy('A', '2026-11-17', 100_000), buy('A', '2026-11-16', 100_000), buy('A', '2026-11-15', 100_000), buy('B', '2026-11-17', 250_000)], now)!
+    expect(c.lead.name).toBe('A')
+    expect(c.insiders).toBe(2)
+    expect(c.purchases).toBe(4)
+  })
+
+  it('is not a cluster with a single buyer, sales only, or a last purchase older than 30 days', () => {
+    expect(buildCluster([buy('A', '2026-11-17', 1), buy('A', '2026-11-16', 1)], now)).toBeNull()
+    expect(buildCluster([{ ...buy('A', '2026-11-17', 1), side: 'sell' }, { ...buy('B', '2026-11-17', 1), side: 'sell' }], now)).toBeNull()
+    expect(buildCluster([buy('A', '2026-09-01', 1), buy('B', '2026-09-02', 1)], now)).toBeNull()
+    expect(buildCluster([], now)).toBeNull()
+  })
+})
+
+describe('clusterScore', () => {
+  it('rises with money, people, seniority and freshness, and stays within 0-100', () => {
+    const base = { total: 200_000, insiders: 2, roles: ['Director'], ageDays: 10 }
+    const s = clusterScore(base)
+    expect(clusterScore({ ...base, total: 3_000_000 })).toBeGreaterThan(s)
+    expect(clusterScore({ ...base, insiders: 4 })).toBeGreaterThan(s)
+    expect(clusterScore({ ...base, roles: ['CEO'] })).toBeGreaterThan(s)
+    expect(clusterScore({ ...base, ageDays: 1 })).toBeGreaterThan(s)
+    const max = clusterScore({ total: 1e9, insiders: 20, roles: ['CEO'], ageDays: 0 })
+    expect(max).toBeLessThanOrEqual(100)
+    expect(clusterScore({ total: 0, insiders: 0, roles: [], ageDays: 99 })).toBe(0)
   })
 })

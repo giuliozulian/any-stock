@@ -1,0 +1,125 @@
+.panel {
+  min-width: 0;
+  margin-top: 56px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.score strong {
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gain-bright);
+}
+
+.window {
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.stat strong {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--bone);
+}
+
+.stat small {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-inner);
+  background: var(--surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 10px 14px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.table thead th {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface-raised);
+}
+
+.table tbody tr + tr > * {
+  border-top: 1px solid var(--rule);
+}
+
+.num {
+  text-align: right !important;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.who {
+  font-weight: 500;
+  color: var(--bone);
+}
+
+.empty {
+  font-size: 14px;
+  color: var(--muted);
+}

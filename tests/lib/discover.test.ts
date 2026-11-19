@@ -137,6 +137,7 @@ describe('sourceCandidates', () => {
 
   it('adds a cluster-only seed from EDGAR Form 4 and merges it onto a symbol found elsewhere', async () => {
     vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([{ symbol: 'ACME', name: 'Acme Corp', buyerCount: 3 }, { symbol: 'IPOX', name: 'Ipo X', buyerCount: 2 }])
+    vi.spyOn(quoteInfo, 'getQuoteInfo').mockResolvedValue(new Map([['ACME', { name: 'Acme Corp', marketCap: 5e9, price: 10, changePct: 1, time: null }], ['IPOX', { name: 'Ipo X', marketCap: 3e9, price: 20, changePct: 1, time: null }]]))
     vi.spyOn(finnhub, 'getIpoCalendar').mockResolvedValue([{ date: '2026-10-20', name: 'Ipo X', symbol: 'IPOX', exchange: 'NASDAQ Global', price: '20', shares: 1, totalValue: 500_000_000, status: 'priced' }])
 
     const seeds = await sourceCandidates()
@@ -145,6 +146,18 @@ describe('sourceCandidates', () => {
     const ipo = seeds.find((s) => s.symbol === 'IPOX')!
     expect(ipo.source.sort()).toEqual(['edgar-form4-cluster', 'ipo'])
     expect(ipo.event).toContain('IPO')
+  })
+
+  it('drops insider clusters of small caps: only mid and large caps (from 2 billion) are kept', async () => {
+    vi.spyOn(edgarForm4Feed, 'getForm4ClusterSeeds').mockResolvedValue([{ symbol: 'BIG', name: 'Big', buyerCount: 2 }, { symbol: 'MID', name: 'Mid', buyerCount: 2 }, { symbol: 'TINY', name: 'Tiny', buyerCount: 5 }, { symbol: 'NOCAP', name: 'No cap', buyerCount: 5 }])
+    vi.spyOn(quoteInfo, 'getQuoteInfo').mockResolvedValue(
+      new Map([
+        ['BIG', { name: 'Big', marketCap: 5e10, price: 1, changePct: 0, time: null }],
+        ['MID', { name: 'Mid', marketCap: 2e9, price: 1, changePct: 0, time: null }],
+        ['TINY', { name: 'Tiny', marketCap: 3e8, price: 1, changePct: 0, time: null }],
+      ])
+    )
+    expect((await sourceCandidates()).map((s) => s.symbol).sort()).toEqual(['BIG', 'MID'])
   })
 
   it('keeps recent IPOs only when priced, large and listed on a US exchange', async () => {
@@ -200,11 +213,12 @@ describe('selectForEnrichment', () => {
     expect(symbols).toHaveLength(10)
   })
 
-  it('reserves up to 4 slots for cluster-only candidates, best buyer count first', () => {
+  it('keeps every cluster-only candidate, best buyer count first, on top of the general pool', () => {
     const seeds = [...Array(20)].map((_, i) => seed(`P${i}`, 'US')).concat([cluster('LOW', 2), cluster('H1', 9), cluster('H2', 8), cluster('H3', 7), cluster('H4', 6)])
     const out = selectForEnrichment(seeds)
-    expect(out.map((s) => s.symbol)).toEqual(expect.arrayContaining(['H1', 'H2', 'H3', 'H4']))
-    expect(out.filter((s) => s.market === 'US')).toHaveLength(14)
+    expect(out.map((s) => s.symbol)).toEqual(expect.arrayContaining(['LOW', 'H1', 'H2', 'H3', 'H4']))
+    expect(out.filter((s) => s.market === 'US')).toHaveLength(15)
+    expect(out.filter((s) => s.source[0] === 'edgar-form4-cluster').map((s) => s.symbol)).toEqual(['H1', 'H2', 'H3', 'H4', 'LOW'])
   })
 
   it('does not hand unused reserved slots to the other sources', () => {
