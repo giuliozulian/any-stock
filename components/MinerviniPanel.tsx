@@ -160,6 +160,14 @@ function Ladder({ levels }: { levels: Level[] }) {
   )
 }
 
+// Chip and tone of the third question, shared by the summary strip and the entry card.
+function entryState(template: TrendTemplate, vcp: Vcp): { chip: string; tone: Tone | 'na' } {
+  if (!template.stage2) return { chip: 'Non ancora', tone: 'na' }
+  if (vcp.pivot === null || vcp.suggestedStop === null) return { chip: 'Nessuna base', tone: 'loss' }
+  const tone: Tone = vcp.status === 'failed' ? 'loss' : vcp.status === 'forming' || vcp.status === 'breakout' ? 'gain' : 'warn'
+  return { chip: VCP_STATUS_LABEL[vcp.status!], tone }
+}
+
 function StepHead({ n, title, why, chip, tone }: { n: number; title: string; why: string; chip: string | null; tone: Tone | 'na' }) {
   return (
     <header className={styles.stepHead}>
@@ -172,7 +180,10 @@ function StepHead({ n, title, why, chip, tone }: { n: number; title: string; why
           {chip}
         </span>
       )}
-      <p className={styles.why}>{why}</p>
+      <details className={styles.why}>
+        <summary>Perché conta</summary>
+        <p>{why}</p>
+      </details>
     </header>
   )
 }
@@ -184,7 +195,7 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
   if (!template.stage2) {
     return (
       <section className={styles.card} aria-label="È il momento di entrare?">
-        <StepHead n={3} title="È il momento di entrare?" why={why} chip="Non ancora" tone="na" />
+        <StepHead n={3} title="È il momento di entrare?" why={why} chip={entryState(template, vcp).chip} tone="na" />
         <p className={styles.hint}>Il punto d’ingresso si cerca solo se la risposta alla prima domanda è sì. Prima il trend, poi il momento.</p>
       </section>
     )
@@ -192,8 +203,7 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
 
   const last = vcp.contractions[vcp.contractions.length - 1]
   const maxDepth = Math.max(...vcp.contractions, 0.01)
-  const tone: Tone = !hasBase || vcp.status === 'failed' ? 'loss' : vcp.status === 'forming' || vcp.status === 'breakout' ? 'gain' : 'warn'
-  const chip = !hasBase ? 'Nessuna base' : VCP_STATUS_LABEL[vcp.status!]
+  const { chip, tone } = entryState(template, vcp)
 
   return (
     <section className={styles.card} aria-label="È il momento di entrare?">
@@ -252,6 +262,14 @@ export function MinerviniPanel({ analysis, symbol = '', alert }: { analysis: Min
   const v = verdict(template)
   const next = action(template, vcp)
   const byId = new Map(template.criteria.map((c) => [c.id, c]))
+  const summary = [
+    ...STEPS.map((s) => {
+      const rated = s.ids.map((id) => byId.get(id)).filter((c): c is Criterion => Boolean(c) && !isUnreliable(c!))
+      const ok = rated.filter((c) => c.ok).length
+      return { title: s.title, chip: rated.length ? `${ok}/${rated.length}` : '–', tone: toneOf(ok, rated.length) }
+    }),
+    { title: 'È il momento di entrare?', ...entryState(template, vcp) },
+  ]
   const buyNow = tradePlan({ passedCount: template.passedCount, vcpStatus: vcp.status, pivot: vcp.pivot, volumeRatio: vcp.volumeRatio, volumeDryUp: vcp.volumeDryUp, price: template.levels.find((l) => l.key === 'price')?.value ?? 0 }).verdict === 'buy'
 
   return (
@@ -273,6 +291,19 @@ export function MinerviniPanel({ analysis, symbol = '', alert }: { analysis: Min
           ))}
         </div>
         <p className={styles.verdictText}>{v.text}</p>
+        <ol className={styles.summary} aria-label="Le tre domande del metodo">
+          {summary.map((q, i) => (
+            <li key={q.title}>
+              <span className={styles.stepNum} aria-hidden="true">
+                {i + 1}
+              </span>
+              <span className={styles.summaryTitle}>{q.title}</span>
+              <span className={styles.chip} data-tone={q.tone}>
+                {q.chip}
+              </span>
+            </li>
+          ))}
+        </ol>
         {template.passedCount >= template.total ? <Decision template={template} vcp={vcp} symbol={symbol} /> : next && <p className={styles.next}>{next}</p>}
         {alert && symbol && !buyNow && (
           <div className={styles.alertRow}>
@@ -282,13 +313,34 @@ export function MinerviniPanel({ analysis, symbol = '', alert }: { analysis: Min
         )}
       </section>
 
+      {STEPS.map((s, i) => {
+        const items = s.ids.map((id) => byId.get(id)).filter((c): c is Criterion => Boolean(c))
+        const rated = items.filter((c) => !isUnreliable(c))
+        const ok = rated.filter((c) => c.ok).length
+        return (
+          <section key={s.title} className={styles.card} aria-label={s.title}>
+            <StepHead n={i + 1} title={s.title} why={s.why} chip={rated.length ? `${ok}/${rated.length}` : null} tone={toneOf(ok, rated.length)} />
+            <div className={i === 0 ? styles.split : undefined}>
+              {i === 0 && <Ladder levels={template.levels} />}
+              <ul className={styles.list}>
+                {items.map((c) => (
+                  <CriterionRow key={c.id} c={c} />
+                ))}
+              </ul>
+            </div>
+          </section>
+        )
+      })}
+
+      <EntryStep template={template} vcp={vcp} />
+
       <section className={styles.intro} aria-label="Come funziona il metodo">
-        <p>
-          Mark Minervini è un trader americano che ha vinto il campionato USA di investimento con rendimenti a tre cifre. Il suo metodo cerca titoli già in forte salita e dice quando comprarli
-          rischiando poco. Fa tre domande, in ordine: se una risposta è no, ci si ferma lì.
-        </p>
         <details className={styles.glossary}>
-          <summary>Le parole del metodo</summary>
+          <summary>Come funziona il metodo e le sue parole</summary>
+          <p className={styles.method}>
+            Mark Minervini è un trader americano che ha vinto il campionato USA di investimento con rendimenti a tre cifre. Il suo metodo cerca titoli già in forte salita e dice quando comprarli
+            rischiando poco. Fa tre domande, in ordine: se una risposta è no, ci si ferma lì.
+          </p>
           <dl>
             {GLOSSARY.map(([term, text]) => (
               <div key={term}>
@@ -302,25 +354,6 @@ export function MinerviniPanel({ analysis, symbol = '', alert }: { analysis: Min
           </p>
         </details>
       </section>
-
-      {STEPS.map((s, i) => {
-        const items = s.ids.map((id) => byId.get(id)).filter((c): c is Criterion => Boolean(c))
-        const rated = items.filter((c) => !isUnreliable(c))
-        const ok = rated.filter((c) => c.ok).length
-        return (
-          <section key={s.title} className={styles.card} aria-label={s.title}>
-            <StepHead n={i + 1} title={s.title} why={s.why} chip={rated.length ? `${ok}/${rated.length}` : null} tone={toneOf(ok, rated.length)} />
-            {i === 0 && <Ladder levels={template.levels} />}
-            <ul className={styles.list}>
-              {items.map((c) => (
-                <CriterionRow key={c.id} c={c} />
-              ))}
-            </ul>
-          </section>
-        )
-      })}
-
-      <EntryStep template={template} vcp={vcp} />
 
       <p className={styles.note}>
         {peerCount >= 5
