@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { prisma } from '@/lib/db'
 import * as finnhub from '@/lib/finnhub'
 import * as history from '@/lib/history'
-import { recordVerdicts } from '@/lib/verdict-log'
+import { recordVerdicts, evaluateMatureVerdicts, BENCHMARK } from '@/lib/verdict-log'
 import { RULES_VERSION } from '@/lib/evaluate'
 import { resetDb, watch } from '../helpers/db'
 import { weekdayBars } from '../helpers/bars'
@@ -91,5 +91,79 @@ describe('recordVerdicts', () => {
     })
 
     expect(await recordVerdicts(NOW)).toEqual({ recorded: 1, skipped: 0, failed: 1 })
+  })
+})
+
+describe('evaluateMatureVerdicts', () => {
+  // Stock +1 per day from 100 (+10% after 10 days); benchmark +4 per day from 4000 (+1% after 10 days).
+  const STOCK_BARS = weekdayBars('2026-11-02', Array.from({ length: 40 }, (_, i) => 100 + i))
+  const BENCH_BARS = weekdayBars('2026-11-02', Array.from({ length: 40 }, (_, i) => 4000 + i * 4))
+
+  async function logVerdict(stockId: string, refDate = '2026-11-02', day = '2026-11-02') {
+    return prisma.verdictLog.create({
+      data: {
+        stockId, day, refDate, refPrice: 100, overall: 'positive', score: 3,
+        shortTerm: 'positive', shortTermLabel: 'Positivo', mediumTerm: 'unknown', mediumTermLabel: 'Nessun dato disponibile',
+        longTerm: 'positive', longTermLabel: 'Fondamentali solidi', fairValue: 'unknown', fairValueNote: '', news: 'unknown', newsNote: '',
+        rulesVersion: RULES_VERSION,
+      },
+    })
+  }
+
+  beforeEach(async () => {
+    await resetDb()
+    vi.restoreAllMocks()
+    vi.spyOn(history, 'getDailyBars').mockImplementation(async (symbol: string) => (symbol === BENCHMARK ? BENCH_BARS : STOCK_BARS))
+  })
+
+  it('writes the 10-day outcome once its horizon has matured and leaves the longer ones pending', async () => {
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const log = await logVerdict(apple.id)
+
+    expect(await evaluateMatureVerdicts(new Date('2026-11-20T08:30:00Z'))).toEqual({ evaluated: 1, failed: 0 })
+
+    const outcomes = await prisma.verdictOutcome.findMany({ where: { verdictId: log.id } })
+    expect(outcomes).toHaveLength(1)
+    expect(outcomes[0].horizon).toBe(10)
+    expect(outcomes[0].evalDate).toBe('2026-11-16')
+    expect(outcomes[0].stockReturnPct).toBeCloseTo(10, 6)
+    expect(outcomes[0].excessPct).toBeCloseTo(9, 6)
+  })
+
+  it('does not duplicate an outcome when run again', async () => {
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await logVerdict(apple.id)
+    await evaluateMatureVerdicts(new Date('2026-11-20T08:30:00Z'))
+
+    expect(await evaluateMatureVerdicts(new Date('2026-11-21T08:30:00Z'))).toEqual({ evaluated: 0, failed: 0 })
+    expect(await prisma.verdictOutcome.count()).toBe(1)
+  })
+
+  it('does not download any bars while no horizon can have matured', async () => {
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await logVerdict(apple.id, '2026-11-16', '2026-11-16')
+    const spy = vi.spyOn(history, 'getDailyBars')
+
+    expect(await evaluateMatureVerdicts(new Date('2026-11-20T08:30:00Z'))).toEqual({ evaluated: 0, failed: 0 })
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('writes nothing and counts a failure when the benchmark bars are missing', async () => {
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    await logVerdict(apple.id)
+    vi.spyOn(history, 'getDailyBars').mockImplementation(async (symbol: string) => (symbol === BENCHMARK ? [] : STOCK_BARS))
+
+    expect(await evaluateMatureVerdicts(new Date('2026-11-20T08:30:00Z'))).toEqual({ evaluated: 0, failed: 1 })
+    expect(await prisma.verdictOutcome.count()).toBe(0)
+  })
+
+  it('writes nothing for a stock whose bars are missing and still evaluates the others', async () => {
+    const apple = await watch({ data: { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' } })
+    const msft = await watch({ data: { symbol: 'MSFT', name: 'Microsoft', exchange: 'NASDAQ' } })
+    await logVerdict(apple.id)
+    await logVerdict(msft.id)
+    vi.spyOn(history, 'getDailyBars').mockImplementation(async (symbol: string) => (symbol === BENCHMARK ? BENCH_BARS : symbol === 'AAPL' ? [] : STOCK_BARS))
+
+    expect(await evaluateMatureVerdicts(new Date('2026-11-20T08:30:00Z'))).toEqual({ evaluated: 1, failed: 1 })
   })
 })

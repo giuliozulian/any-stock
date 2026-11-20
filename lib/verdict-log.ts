@@ -4,7 +4,7 @@ import { getDailyBars } from './history'
 import { getMetrics } from './finnhub'
 import { buildFairValueInput, fairValue } from './fair-value'
 import { evaluateStock, verdictTones, RULES_VERSION, type EvaluateInput } from './evaluate'
-import { barDay } from './verdict-backtest'
+import { barDay, dueHorizons, measureReturns } from './verdict-backtest'
 
 export interface RecordResult {
   recorded: number
@@ -97,4 +97,53 @@ export async function recordVerdicts(now = new Date()): Promise<RecordResult> {
     }
   }
   return result
+}
+
+export const BENCHMARK = '^GSPC'
+
+export interface EvaluateResult {
+  evaluated: number
+  failed: number
+}
+
+// Yahoo's daily series covers two years: older verdicts cannot be measured any more.
+const LOOKBACK_DAYS = 600
+
+// Writes the outcome of every verdict whose horizon has matured. Failures (no bars, stale benchmark) leave it pending for the next run.
+export async function evaluateMatureVerdicts(now = new Date()): Promise<EvaluateResult> {
+  const today = now.toISOString().slice(0, 10)
+  const since = new Date(now.getTime() - LOOKBACK_DAYS * 86_400_000).toISOString().slice(0, 10)
+  const logs = await prisma.verdictLog.findMany({
+    where: { refDate: { gte: since } },
+    select: { id: true, refDate: true, refPrice: true, stock: { select: { symbol: true } }, outcomes: { select: { horizon: true } } },
+  })
+
+  const due = logs.flatMap((log) => dueHorizons(log.refDate, log.outcomes.map((o) => o.horizon), today).map((horizon) => ({ log, horizon })))
+  if (due.length === 0) return { evaluated: 0, failed: 0 }
+
+  const bench = await getDailyBars(BENCHMARK)
+  if (bench.length === 0) return { evaluated: 0, failed: 1 }
+
+  const symbols = [...new Set(due.map((d) => d.log.stock.symbol))]
+  const rows: Array<{ verdictId: string; horizon: number; evalDate: string; stockReturnPct: number; benchReturnPct: number; excessPct: number }> = []
+  let failed = 0
+  for (const symbol of symbols) {
+    let bars: Awaited<ReturnType<typeof getDailyBars>>
+    try {
+      bars = await getDailyBars(symbol)
+    } catch {
+      bars = []
+    }
+    if (bars.length === 0) {
+      failed++
+      continue
+    }
+    for (const { log, horizon } of due.filter((d) => d.log.stock.symbol === symbol)) {
+      const r = measureReturns({ refDate: log.refDate, refPrice: log.refPrice }, horizon, bars, bench)
+      if (r) rows.push({ verdictId: log.id, horizon, ...r })
+    }
+  }
+
+  const created = rows.length > 0 ? await prisma.verdictOutcome.createMany({ data: rows, skipDuplicates: true }) : { count: 0 }
+  return { evaluated: created.count, failed }
 }
