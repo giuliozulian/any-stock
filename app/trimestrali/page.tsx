@@ -18,7 +18,7 @@ type View = 'watch' | 'big' | 'all'
 type Period = 'prossime' | 'uscite'
 
 const DAYS = [7, 14, 30]
-const REPORTED_DAYS = 7
+const REPORTED_DAYS = 30
 const VIEWS: Array<{ key: View; label: string }> = [
   { key: 'watch', label: 'Solo watchlist' },
   { key: 'big', label: 'Watchlist e grandi aziende' },
@@ -26,7 +26,7 @@ const VIEWS: Array<{ key: View; label: string }> = [
 ]
 const PERIODS: Array<{ key: Period; label: string }> = [
   { key: 'prossime', label: 'In arrivo' },
-  { key: 'uscite', label: 'Appena uscite' },
+  { key: 'uscite', label: 'Uscite (ultimo mese)' },
 ]
 const SLOTS: Array<{ key: Slot; label: string }> = [
   { key: 'bmo', label: 'Prima dell’apertura' },
@@ -84,6 +84,15 @@ function Metrics({ row, reported }: { row: Row; reported: boolean }) {
             <dd className={s.verdict === 'beat' ? styles.gain : s.verdict === 'miss' ? styles.loss : undefined}>
               {VERDICT_LABEL[s.verdict]}
               {s.pct !== null && s.verdict !== 'inline' && ` ${signed(s.pct, 0)}`}
+            </dd>
+          </div>
+        )}
+        {e.revenueActual !== null && (
+          <div>
+            <dt>Ricavi</dt>
+            <dd>
+              {money(e.revenueActual)}
+              {e.revenueEstimate !== null && <span className={local.sub}> attesi {money(e.revenueEstimate)}</span>}
             </dd>
           </div>
         )}
@@ -232,9 +241,9 @@ async function EarningsCalendar({ searchParams }: { searchParams: Promise<Search
       const watch = r.tier === 'watch'
       const [typical, reaction] = await Promise.all([
         watch && !reported ? getTypicalMove(r.e.symbol, today).catch(() => null) : null,
-        reported ? (watch ? reactionFromBars(r.e.symbol, r.e).catch(() => null) : quoteReaction(r.e, r.info)) : null,
+        reported ? (r.tier !== 'minor' ? reactionFromBars(r.e.symbol, r.e).catch(() => null) : quoteReaction(r.e, r.info)) : null,
       ])
-      return { ...r, typical, reaction: reaction ?? (reported && watch ? quoteReaction(r.e, r.info) : null) }
+      return { ...r, typical, reaction: reaction ?? (reported ? quoteReaction(r.e, r.info) : null) }
     })
   )
 
@@ -296,7 +305,7 @@ async function EarningsCalendar({ searchParams }: { searchParams: Promise<Search
       </div>
       <p className={local.hint}>
         {reported
-          ? 'Risultati degli ultimi 7 giorni: utile per azione reale contro la stima degli analisti. La reazione è la variazione della prima seduta dopo i risultati; per i titoli fuori watchlist si vede solo se è l’ultima seduta.'
+          ? 'Risultati dell’ultimo mese: utile per azione reale contro la stima degli analisti. La reazione è la variazione della prima seduta dopo i risultati; per i titoli piccoli si vede solo se è l’ultima seduta.'
           : 'Grandi aziende: capitalizzazione di almeno 10 mld $. Il movimento tipico, per i titoli che segui, è la media di quanto si è mosso il titolo dopo le ultime 4 trimestrali.'}
         {calendarHref ? ' Il pulsante del calendario scarica un file .ics con le trimestrali della watchlist.' : ''}
       </p>
@@ -326,7 +335,7 @@ async function EarningsCalendar({ searchParams }: { searchParams: Promise<Search
         <p className={styles.empty}>Non riesco a scaricare il calendario in questo momento. Riprova tra qualche minuto.</p>
       ) : dayKeys.length === 0 ? (
         <p className={styles.empty}>
-          {reported ? 'Nessun risultato negli ultimi 7 giorni con questo filtro. Prova «Tutte».' : 'Nessuna trimestrale in questo periodo con questo filtro. Prova ad allargare il periodo o a scegliere «Tutte».'}
+          {reported ? 'Nessun risultato nell’ultimo mese con questo filtro. Prova «Tutte».' : 'Nessuna trimestrale in questo periodo con questo filtro. Prova ad allargare il periodo o a scegliere «Tutte».'}
         </p>
       ) : (
         dayKeys.map((day) => <DaySection key={day} day={day} rows={byDay.get(day)!} today={today} reported={reported} />)
