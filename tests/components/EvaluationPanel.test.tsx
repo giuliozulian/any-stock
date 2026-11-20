@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import { EvaluationPanel, overallTone } from '@/components/EvaluationPanel'
-import type { Evaluation } from '@/lib/evaluate'
+import { EvaluationPanel } from '@/components/EvaluationPanel'
+import { overallTone, type Evaluation } from '@/lib/evaluate'
 
 function fullEvaluation(): Evaluation {
   return {
