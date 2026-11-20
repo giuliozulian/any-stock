@@ -1,4 +1,4 @@
-import { getEarningsCalendar, getReportedEarnings, type EarningsEvent } from './finnhub'
+import { getEarningsCalendar, getEarningsHistory, getReportedEarnings, type EarningsEvent, type EarningsHistoryRow } from './finnhub'
 import { getDailyBars, type Bar } from './history'
 import type { QuoteInfo } from './quote-info'
 import { sharedCache } from './shared-cache'
@@ -112,5 +112,23 @@ export async function getTypicalMove(symbol: string, today: string): Promise<num
     return move
   } catch {
     return hit?.move ?? null
+  }
+}
+
+const HISTORY_TTL_MS = 6 * 60 * 60 * 1000
+const historyCache = sharedCache<{ at: number; rows: EarningsHistoryRow[] }>('earnings-history')
+
+// Three years of reports plus the next two quarters, newest first. Null when the provider fails and nothing is cached.
+export async function getEarningsTable(symbol: string, today: string): Promise<EarningsHistoryRow[] | null> {
+  const key = symbol.toUpperCase()
+  const hit = await historyCache.get(key, HISTORY_TTL_MS)
+  if (hit && Date.now() - hit.at < HISTORY_TTL_MS) return hit.rows
+  try {
+    const day = (n: number) => new Date(Date.parse(`${today}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+    const rows = await getEarningsHistory(key, day(-3 * 365), day(200))
+    await historyCache.set(key, { at: Date.now(), rows })
+    return rows
+  } catch {
+    return hit?.rows ?? null
   }
 }

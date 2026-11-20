@@ -1,0 +1,84 @@
+.panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+  min-width: 0;
+}
+
+.card {
+  min-width: 0;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+
+.title {
+  margin-bottom: 12px;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  text-align: right;
+  border-bottom: 1px solid var(--rule);
+}
+
+.table thead th {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.table th[scope='row'],
+.table th[rowspan] {
+  text-align: left;
+}
+
+.table th[scope='row'] {
+  font-weight: 500;
+}
+
+.table td[data-tone='gain'] {
+  color: var(--gain);
+}
+
+.table td[data-tone='loss'] {
+  color: var(--loss);
+}
+
+.table tr[data-upcoming] {
+  background: color-mix(in srgb, var(--muted) 8%, transparent);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.note,
+.empty {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 75ch;
+}
+
+.empty {
+  margin-top: 24px;
+  font-size: 15px;
+}

@@ -16,6 +16,9 @@ import { MinerviniSection } from '@/components/MinerviniSection'
 import { SeasonalityPanel } from '@/components/SeasonalityPanel'
 import { DividendsPanel } from '@/components/DividendsPanel'
 import { getDividendHistory } from '@/lib/dividends'
+import { EarningsHistoryPanel } from '@/components/EarningsHistoryPanel'
+import { getEarningsTable } from '@/lib/earnings'
+import { tradingDay } from '@/lib/move-explanation'
 import { downsample } from '@/lib/performance'
 import { NewsList } from '@/components/NewsList'
 import { CompanyOverview } from '@/components/CompanyOverview'
@@ -313,7 +316,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   })
   const earliestSnapshot = firstSinceAdded && firstSinceAdded.id !== latest?.id ? firstSinceAdded : null
 
-  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory, dividends] = await Promise.all([
+  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory, dividends, earningsRows] = await Promise.all([
     getPriceHistory(stock.symbol),
     getIntradayHistory(stock.symbol),
     getRecentVideos(stock.symbol, stock.name),
@@ -323,6 +326,7 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
     getMetrics(stock.symbol).catch(() => null),
     getFullPriceHistory(stock.symbol),
     getDividendHistory(stock.symbol),
+    getEarningsTable(stock.symbol, tradingDay()),
   ])
   const now = new Date()
   const longHistory = downsample(fullHistory.points, now)
@@ -576,6 +580,11 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             id: 'dividendi',
             label: 'Dividendi',
             content: <DividendsPanel history={dividends} price={latest?.price ?? null} now={now} />,
+          },
+          {
+            id: 'trimestrali',
+            label: 'Trimestrali',
+            content: <EarningsHistoryPanel rows={earningsRows} today={tradingDay()} />,
           },
           {
             id: 'bilanci',

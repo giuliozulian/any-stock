@@ -127,7 +127,7 @@ function RowItem({ row, reported }: { row: Row; reported: boolean }) {
   return (
     <li className={local.row} data-tier={row.tier}>
       <div className={local.who}>
-        <Link href={`/stock/${encodeURIComponent(row.e.symbol)}`} className={table.symbol}>
+        <Link href={`/stock/${encodeURIComponent(row.e.symbol)}#trimestrali`} className={table.symbol}>
           {row.e.symbol}
         </Link>
         {row.info?.name && <span className={local.name}>{row.info.name}</span>}

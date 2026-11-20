@@ -241,6 +241,55 @@ export async function getEarningsCalendar(from: string, to: string): Promise<Ear
   }))
 }
 
+export interface EarningsHistoryRow {
+  // Day of the report; null for old quarters the calendar no longer lists.
+  date: string | null
+  hour: string | null
+  // Fiscal period the report refers to, with its closing day.
+  quarter: number | null
+  year: number | null
+  period: string | null
+  epsEstimate: number | null
+  epsActual: number | null
+  revenueEstimate: number | null
+  revenueActual: number | null
+}
+
+// Per-quarter history of one company. The EPS series (last quarters, with period) comes from the earnings endpoint; the calendar
+// adds report day, hour and the revenue figures, and brings in the quarters still to come. The two are joined on fiscal year and quarter.
+export async function getEarningsHistory(symbol: string, from: string, to: string): Promise<EarningsHistoryRow[]> {
+  const [past, calendar] = await Promise.all([
+    finnhubFetch<Array<{ period: string; year?: number; quarter?: number; actual?: number | null; estimate?: number | null }>>('/stock/earnings', { symbol }).catch(() => []),
+    finnhubFetch<{
+      earningsCalendar?: Array<{ date: string; hour?: string; quarter?: number; year?: number; epsEstimate?: number | null; revenueEstimate?: number | null; epsActual?: number | null; revenueActual?: number | null }>
+    }>('/calendar/earnings', { symbol, from, to }).then((d) => d.earningsCalendar ?? []),
+  ])
+  const key = (year: number | null | undefined, quarter: number | null | undefined) => (year && quarter ? `${year}-${quarter}` : null)
+  const rows = new Map<string, EarningsHistoryRow>()
+  const blank = (): EarningsHistoryRow => ({ date: null, hour: null, quarter: null, year: null, period: null, epsEstimate: null, epsActual: null, revenueEstimate: null, revenueActual: null })
+  for (const e of Array.isArray(past) ? past : []) {
+    const k = key(e.year, e.quarter) ?? `p-${e.period}`
+    rows.set(k, { ...blank(), quarter: e.quarter ?? null, year: e.year ?? null, period: e.period, epsActual: e.actual ?? null, epsEstimate: e.estimate ?? null })
+  }
+  for (const e of calendar) {
+    const k = key(e.year, e.quarter) ?? `d-${e.date}`
+    const prev = rows.get(k) ?? blank()
+    rows.set(k, {
+      ...prev,
+      date: e.date,
+      hour: e.hour || null,
+      quarter: e.quarter ?? prev.quarter,
+      year: e.year ?? prev.year,
+      epsActual: e.epsActual ?? prev.epsActual,
+      epsEstimate: e.epsEstimate ?? prev.epsEstimate,
+      revenueActual: e.revenueActual ?? null,
+      revenueEstimate: e.revenueEstimate ?? null,
+    })
+  }
+  const order = (r: EarningsHistoryRow) => r.date ?? r.period ?? ''
+  return [...rows.values()].sort((a, b) => order(b).localeCompare(order(a)))
+}
+
 export interface IpoEvent {
   date: string
   name: string
