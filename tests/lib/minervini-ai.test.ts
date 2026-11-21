@@ -71,6 +71,24 @@ const raw = (over: Record<string, unknown> = {}) => ({
   ...over,
 })
 
+describe('buildInput fundamentals and VWAP', () => {
+  it('sends the fundamentals and the rounded VWAP, null when unknown', () => {
+    const eg = { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 }
+    const input = buildInput('EG', { ...analysis(), fundamentals: eg, avwap: 98.123456789 })
+    expect(input.fundamentals).toEqual(eg)
+    expect(input.avwap).toBeCloseTo(98.1235, 4)
+    const bare = buildInput('EG', analysis())
+    expect(bare.fundamentals).toBeNull()
+    expect(bare.avwap).toBeNull()
+  })
+
+  it('changes the hash when the fundamentals change', () => {
+    const a = buildInput('EG', { ...analysis(), fundamentals: { epsGrowthQoq: 40, salesGrowthQoq: 30, roe: 20 } })
+    const b = buildInput('EG', { ...analysis(), fundamentals: { epsGrowthQoq: 1, salesGrowthQoq: 30, roe: 20 } })
+    expect(computeHash(a)).not.toBe(computeHash(b))
+  })
+})
+
 describe('computeHash versions', () => {
   it('changes with the rulebook version and with the prompt version', () => {
     const input = buildInput('AAPL', analysis())
@@ -86,6 +104,12 @@ describe('prompts', () => {
     expect(p).toContain('TT1 [calcolo, confermata]')
     expect(p).toContain('not_assessable')
     expect(p).toMatch(/non dare consigli di acquisto o vendita/i)
+  })
+
+  it('tells the model that ready needs the fundamentals and the VWAP', () => {
+    const p = buildSystemPrompt()
+    expect(p).toMatch(/oltre il 25%/)
+    expect(p).toMatch(/avwap/i)
   })
 
   it('sends the input as JSON in the user prompt', () => {
@@ -129,6 +153,30 @@ describe('parseAiResult', () => {
     expect(parseAiResult(raw(), input, 'm')?.verdict).toBe('wait')
     input.vcp.status = null
     expect(parseAiResult(raw(), input, 'm')?.adjusted).toBe(true)
+  })
+
+  it('lowers ready to wait when the fundamentals fall short, and says so', () => {
+    const input = passing()
+    input.fundamentals = { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 }
+    const r = parseAiResult(raw(), input, 'm')
+    expect(r?.verdict).toBe('wait')
+    expect(r?.adjusted).toBe(true)
+  })
+
+  it('does not hold unknown or passing fundamentals against a ready verdict', () => {
+    const input = passing()
+    input.fundamentals = null
+    expect(parseAiResult(raw(), input, 'm')?.verdict).toBe('ready')
+    input.fundamentals = { epsGrowthQoq: 40, salesGrowthQoq: null, roe: null }
+    expect(parseAiResult(raw(), input, 'm')?.verdict).toBe('ready')
+  })
+
+  it('lowers ready to wait when the price is under the VWAP of the base', () => {
+    const input = passing()
+    input.avwap = input.price + 1
+    expect(parseAiResult(raw(), input, 'm')).toMatchObject({ verdict: 'wait', adjusted: true })
+    input.avwap = input.price
+    expect(parseAiResult(raw(), input, 'm')?.verdict).toBe('ready')
   })
 
   it('does not touch wait or no', () => {

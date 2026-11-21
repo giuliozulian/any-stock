@@ -102,12 +102,16 @@ Note
 | Id | Regola | Soglia | Tipo | Stato |
 |----|--------|--------|------|-------|
 | F1 | Accelerazione di utili e ricavi | esempio W p. 101: ricavi 11→16→19%, utili 36→38→58% | esterno | confermata come criterio, **senza soglia minima fissa** |
-| F2 | EPS q/q ≥ 25%, ricavi q/q ≥ 25%, ROE ≥ 17% | CAN SLIM (R) | esterno | fuori fonte / **non verificata** per Minervini |
+| F2 | EPS q/q > 25%, ricavi q/q > 25%, ROE > 15% (il report dice 17%, come soglia alternativa Finviz) | CAN SLIM (R); come lo screener Finviz | calcolo | fuori fonte / **non verificata** per Minervini, adottata perché è la regola del notebook |
 | F3 | Filtri liquidità: prezzo ≥ 10 $, volume ≥ 500k, controvalore ≥ 20 M$ | R li dichiara "house rules" | calcolo | **non verificata**, scelta nostra |
 
 ## 7. Moduli fuori dal metodo Minervini
 
-- **Anchored VWAP** (Shannon): R lo integra come filtro di conferma. Nessun libro Minervini lo usa. **Decisione:** modulo opzionale, spento di default, separato dal punteggio Minervini. L'AI lo menziona solo se attivato.
+- **Anchored VWAP** (Shannon): R lo integra come filtro di conferma. Nessun libro Minervini lo usa. **Decisione (aggiornata):** per allinearsi al notebook è attivo nel verdetto. Ancorato al minimo della base; con prezzo sotto l'AVWAP un "si può comprare" diventa "aspetta conferma". Regola AV1 nel modulo AI. L'ancora sugli utili non c'è.
+
+| Id | Regola | Soglia | Tipo | Stato |
+|----|--------|--------|------|-------|
+| AV1 | Prezzo sopra il VWAP ancorato al minimo della base | prezzo ≥ AVWAP | calcolo | fuori fonte (Shannon, report del notebook) / **non verificata** per Minervini |
 - **Ciclo di vita IPO** (*Lifecycle Trade*): non spogliato.
 - **Darvas, Oliver Kell, Mindset**: nel notebook ci sono solo riassunti AI, non i libri.
 
@@ -128,7 +132,9 @@ Note
 | S2 | `STOP_BELOW_PIVOT = 8%`, scelta nostra tenuta: coerente con R e O'Neil, più prudente del massimo 10% di Minervini |
 | S4 | Parziale: `riskReward(entry, stop, target)` calcola il rapporto, ma non è ancora collegata a un obiettivo di prezzo |
 | S5, X1-X5, S6-S8 | Non coperte |
-| RS1, M1, M2, F1-F3 | Non coperte |
+| F2 | Coperta dal verdetto: `lib/fundamentals-gate.ts` (soglie 25/25/15), dati Finnhub salvati su `ScanResult` e letti dalla tab. Con soglie non verificate sui libri |
+| AV1 | Coperta: `anchoredVwap` in `lib/minervini.ts`, ancora al minimo della base |
+| RS1, M1, M2, F1, F3 | Non coperte |
 
 ## Cosa resta da fare prima di usarlo
 

@@ -11,7 +11,7 @@ export interface Rule {
 }
 
 // Bump on every change to RULES, so cached analyses made with an older rulebook are not reused.
-export const RULEBOOK_VERSION = 2
+export const RULEBOOK_VERSION = 3
 
 // Differences from docs/minervini-rulebook.md, on purpose (tests/lib/minervini-rulebook.test.ts checks the rest):
 // - RS1, M1, M2, F3 are 'esterno' here: the app has no data for them, so the model must mark them not assessable.
@@ -63,6 +63,8 @@ export const RULES: Rule[] = [
   { id: 'M1', rule: 'Il mercato generale deve assecondare', kind: 'esterno', source: `${W} p. 165`, verified: true },
   { id: 'M2', rule: 'Tre stati del mercato e conteggio dei distribution day', kind: 'esterno', source: 'riassunti AI (IBD)', verified: false },
   { id: 'F1', rule: 'Utili e ricavi in accelerazione (nessuna soglia minima fissa nei libri)', kind: 'esterno', source: `${W} p. 101`, verified: true },
+  { id: 'F2', rule: 'Utili per azione e ricavi dell\'ultimo trimestre in crescita oltre il 25% sullo stesso trimestre dell\'anno prima, ROE oltre il 15% (dati nel campo fundamentals)', kind: 'calcolo', source: 'CAN SLIM e report del notebook; soglie nostre', verified: false },
+  { id: 'AV1', rule: 'Il prezzo sta sopra il VWAP ancorato al minimo della base (campo avwap)', kind: 'calcolo', source: 'Anchored VWAP (Shannon) nel report del notebook', verified: false },
   { id: 'F3', rule: 'Filtri di liquidità: prezzo almeno 10 $, volume 500k, controvalore 20 M$', kind: 'esterno', source: 'scelta nostra', verified: false },
 ]
 
