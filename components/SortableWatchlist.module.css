@@ -1,5 +1,7 @@
 .handle {
   position: absolute;
+  /* Above the stretched link of the row (.symbol::after in page.module.css), which would swallow the pointer. */
+  z-index: 1;
   left: 4px;
   top: 50%;
   transform: translateY(-50%);
