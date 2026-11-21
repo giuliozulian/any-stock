@@ -39,6 +39,9 @@ export interface FinnhubMetrics {
   bookValuePerShare?: number | null
   cashFlowPerShare?: number | null
   priceToFcf?: number | null
+  // Percent change of the latest quarter over the same quarter a year before (Finnhub sends 12.5 for +12.5%).
+  epsGrowthQuarterlyYoy?: number | null
+  revenueGrowthQuarterlyYoy?: number | null
 }
 
 export interface FinnhubRecommendation {
@@ -137,6 +140,8 @@ export async function getMetrics(symbol: string): Promise<FinnhubMetrics> {
     bookValuePerShare: data.metric.bookValuePerShareAnnual ?? null,
     cashFlowPerShare: data.metric.cashFlowPerShareTTM ?? null,
     priceToFcf: data.metric.pfcfShareTTM ?? null,
+    epsGrowthQuarterlyYoy: data.metric.epsGrowthQuarterlyYoy ?? null,
+    revenueGrowthQuarterlyYoy: data.metric.revenueGrowthQuarterlyYoy ?? null,
   }
 }
 

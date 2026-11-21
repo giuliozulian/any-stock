@@ -70,7 +70,16 @@ describe('finnhub client', () => {
       bookValuePerShare: null,
       cashFlowPerShare: null,
       priceToFcf: null,
+      epsGrowthQuarterlyYoy: null,
+      revenueGrowthQuarterlyYoy: null,
     })
+  })
+
+  it('getMetrics reads the quarterly year-over-year growth in percent', async () => {
+    mockFetchOnce({ metric: { epsGrowthQuarterlyYoy: 0.18, revenueGrowthQuarterlyYoy: -13.85 } })
+    const metrics = await getMetrics('EG')
+    expect(metrics.epsGrowthQuarterlyYoy).toBeCloseTo(0.18, 2)
+    expect(metrics.revenueGrowthQuarterlyYoy).toBeCloseTo(-13.85, 2)
   })
 
   it('getMetrics reads the price to free cash flow ratio from pfcfShareTTM', async () => {
