@@ -321,6 +321,8 @@ model WatchlistEntry {
   stockId          String
   stock            Stock     @relation(fields: [stockId], references: [id], onDelete: Cascade)
   addedAt          DateTime  @default(now())
+  // The user's own order, set by dragging. Empty until the first reorder: such entries come last, by addedAt.
+  position         Int?
   entryPrice       Float?
   sellPrice        Float?
   entryTriggeredAt DateTime?

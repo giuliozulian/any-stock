@@ -238,6 +238,10 @@
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
+.row[data-sortable] {
+  padding-left: 36px;
+}
+
 .row:has(input[type='checkbox']:checked) {
   border-color: var(--brass);
 }

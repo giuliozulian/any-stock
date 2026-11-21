@@ -44,3 +44,16 @@ export function feedOwner(): Prisma.WatchlistEntryWhereInput {
 
 // Every stock somebody watches, for the jobs and pages that work on the shared data.
 export const watchedBy = (where: Prisma.WatchlistEntryWhereInput): Prisma.StockWhereInput => ({ watchers: { some: where } })
+
+// The user's own order first (set by dragging), then the order of addition for entries that were never placed.
+export const WATCHLIST_ORDER: Prisma.WatchlistEntryOrderByWithRelationInput[] = [{ position: { sort: 'asc', nulls: 'last' } }, { addedAt: 'asc' }]
+
+// Stores the order of the user's whole list. The symbols must be exactly the ones the user watches, each once:
+// a stale page that missed an addition or a removal is refused instead of silently dropping or inventing a stock.
+export async function reorderWatchlist(userId: string, symbols: string[]): Promise<'ok' | 'mismatch'> {
+  const entries = await prisma.watchlistEntry.findMany({ where: { userId }, select: { id: true, stock: { select: { symbol: true } } } })
+  const bySymbol = new Map(entries.map((e) => [e.stock.symbol, e.id]))
+  if (symbols.length !== entries.length || new Set(symbols).size !== symbols.length || symbols.some((s) => !bySymbol.has(s))) return 'mismatch'
+  await prisma.$transaction(symbols.map((symbol, position) => prisma.watchlistEntry.update({ where: { id: bySymbol.get(symbol)! }, data: { position } })))
+  return 'ok'
+}
