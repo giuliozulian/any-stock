@@ -105,7 +105,7 @@ describe('isEntrySetup', () => {
 
   it('is true for a stock passing all 8 criteria that is breaking out on strong volume', () => {
     expect(isEntrySetup(ok)).toBe(true)
-    expect(isEntrySetup({ ...ok, volumeRatio: 1.4 })).toBe(true)
+    expect(isEntrySetup({ ...ok, volumeRatio: 1.5 })).toBe(true)
     expect(isEntrySetup({ ...ok, volumeDryUp: false })).toBe(false)
   })
 

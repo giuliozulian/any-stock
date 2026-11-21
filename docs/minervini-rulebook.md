@@ -63,7 +63,7 @@ Note
 | Id | Regola | Soglia | Tipo | Stato |
 |----|--------|--------|------|-------|
 | E1 | Trigger | comprare quando il prezzo rompe il pivot su volume in aumento (W pp. 227-229) | calcolo | confermata |
-| E2 | Volume al breakout | "più forte del solito", esempio a metà del volume medio già a metà giornata (W p. 229); C chiede follow-through e breakout non a basso volume. Nessun numero. Il codice usa 1,4× e lo attribuisce a Minervini | calcolo | confermata, soglia numerica **non verificata** (40-50% è di O'Neil) |
+| E2 | Volume al breakout | "più forte del solito", esempio a metà del volume medio già a metà giornata (W p. 229); C chiede follow-through e breakout non a basso volume. Nessun numero. Il codice usa 1,5× (soglia del report ChatGPT/notebook) | calcolo | confermata, soglia numerica **non verificata** (40-50% è di O'Neil) |
 | E3 | Zona d'acquisto sopra il pivot | R dice 0-5%, preferibile 0-2%. Il codice usa 5% (`MAX_CHASE`). C: comprare vicino al punto di stop ("danger point"), lo stop fa parte della selezione | calcolo | **non verificata** come numero; il principio è confermato (C) |
 | E4 | Titolo esteso | C: "esteso" = oltre il 10% sopra l'ultimo consolidamento (definizione di David Ryan citata da Minervini); non comprare, aspettare pullback o nuova base | calcolo | **diversa** da R (10% sopra la media 50) e dal codice (5% sopra il pivot) |
 | E6 | Dopo il breakout | più giorni di follow-through, più giorni e settimane in rialzo che in calo, volume forte nei giorni in rialzo, chiusure vicine al massimo (C) | giudizio | confermata |
@@ -123,7 +123,7 @@ Note
 | V6 | Coperta: pivot = massimo prima dell'ultimo pullback, corretto dai tentativi falliti |
 | B1, B2 | Coperte come misura: `base.weeks` (5-26 sett.) e `base.depth` (tetto 50%), con `weeksOk` e `depthOk`. Non bloccano il VCP, vanno all'AI |
 | B3 | Non coperta: la base piatta (≤10-15%) non è distinta dal VCP |
-| E2 | `BREAKOUT_VOLUME = 1,4`: soglia di O'Neil, commento che la attribuisce a Minervini da correggere |
+| E2 | `BREAKOUT_VOLUME = 1,5`: soglia del report ChatGPT/notebook, non dei libri di Minervini |
 | E3, E4 | `MAX_CHASE = 5%`, scelta nostra tenuta: zona d'acquisto 0-5% e "Troppo tardi" oltre. Più prudente del libro, dove "esteso" è oltre il 10% |
 | S2 | `STOP_BELOW_PIVOT = 8%`, scelta nostra tenuta: coerente con R e O'Neil, più prudente del massimo 10% di Minervini |
 | S4 | Parziale: `riskReward(entry, stop, target)` calcola il rapporto, ma non è ancora collegata a un obiettivo di prezzo |

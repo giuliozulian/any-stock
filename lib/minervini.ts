@@ -5,8 +5,9 @@ const SLOPE_BARS = 22
 const QUARTER = 63
 
 export const RS_MIN = 70
-// Minervini wants breakout volume at least 40% above average.
-export const BREAKOUT_VOLUME = 1.4
+// Breakout volume at least 50% above the 50-day average: the threshold of the 2026 operating system report in the notebook.
+// The books give no number (docs/minervini-rulebook.md, E2).
+export const BREAKOUT_VOLUME = 1.5
 // weightedReturn needs four full quarters plus the starting close.
 export const RS_MIN_BARS = QUARTER * 4 + 1
 
@@ -255,7 +256,7 @@ export interface Vcp {
   suggestedStop: number | null
   lastLow: number | null
   status: VcpStatus | null
-  // Today's volume over its 50-day average; a valid breakout wants at least 1.4.
+  // Today's volume over its 50-day average; a valid breakout wants at least BREAKOUT_VOLUME.
   volumeRatio: number | null
   base: BaseMetrics | null
   // Anchored VWAP from the lowest low of the base: below it, buyers of the base are underwater.
