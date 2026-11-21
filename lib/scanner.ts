@@ -28,6 +28,7 @@ export interface ScanSymbolResult {
   contractions: number[]
   volumeDryUp: boolean
   volumeRatio: number | null
+  avwap: number | null
 }
 
 // Everything that does not depend on the other stocks. Null when the history is too short to rank.
@@ -50,6 +51,7 @@ export function scanSymbol(bars: Bar[]): ScanSymbolResult | null {
     contractions: vcp.contractions,
     volumeDryUp: vcp.volumeDryUp,
     volumeRatio: vcp.volumeRatio,
+    avwap: vcp.avwap,
   }
 }
 

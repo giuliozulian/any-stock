@@ -11,7 +11,7 @@ const levels: Level[] = [
   { key: 'sma150', label: 'Media 150 giorni', value: 90 },
   { key: 'sma200', label: 'Media 200 giorni', value: 85 },
 ]
-const vcp: Vcp = { contractions: [0.25, 0.12, 0.06], pivot: 94, volumeDryUp: true, suggestedStop: 86.48, lastLow: 88.36, status: 'forming', volumeRatio: 0.8, base: null }
+const vcp: Vcp = { contractions: [0.25, 0.12, 0.06], pivot: 94, volumeDryUp: true, suggestedStop: 86.48, lastLow: 88.36, status: 'forming', volumeRatio: 0.8, base: null, avwap: null }
 const analysis: MinerviniAnalysis = {
   template: { criteria, passedCount: 7, total: 8, passed: false, stage2: true, levels },
   vcp,

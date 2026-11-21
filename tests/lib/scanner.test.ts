@@ -36,6 +36,12 @@ describe('scanSymbol', () => {
     expect(scanSymbol(loud)!.volumeRatio).toBeGreaterThan(1.4)
   })
 
+  it('carries the anchored VWAP of the base, null without one', () => {
+    const r = scanSymbol(series(300, (i) => 100 + i * 0.5))!
+    if (r.pivot === null) expect(r.avwap).toBeNull()
+    else expect(r.avwap).toBeGreaterThan(0)
+  })
+
   it('reports the distance from the pivot when a base exists', () => {
     const r = scanSymbol(series(300, (i) => 100 + i * 0.5))!
     if (r.pivot !== null) expect(r.pivotDistancePct).toBeCloseTo((r.price / r.pivot - 1) * 100, 6)

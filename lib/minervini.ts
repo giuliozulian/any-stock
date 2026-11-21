@@ -258,6 +258,8 @@ export interface Vcp {
   // Today's volume over its 50-day average; a valid breakout wants at least 1.4.
   volumeRatio: number | null
   base: BaseMetrics | null
+  // Anchored VWAP from the lowest low of the base: below it, buyers of the base are underwater.
+  avwap: number | null
 }
 
 // A base is only a VCP if its last pullback is tight. Minervini's examples end at 2-5%; swings are confirmed at 5%, so 7% leaves a little room.
@@ -272,6 +274,18 @@ const VCP_WINDOW = 150
 const VCP_REVERSAL = 0.05
 export const STOP_BELOW_PIVOT = 0.08
 export const MAX_CHASE = 0.05
+
+// Volume-weighted average price from an anchor bar to the last bar, on the typical price (high + low + close) / 3.
+export function anchoredVwap(bars: Bar[], fromIndex: number): number | null {
+  let weighted = 0
+  let volume = 0
+  for (let i = Math.max(0, fromIndex); i < bars.length; i++) {
+    const b = bars[i]
+    weighted += ((b.high + b.low + b.close) / 3) * b.volume
+    volume += b.volume
+  }
+  return volume > 0 ? weighted / volume : null
+}
 
 const avg = (values: number[]) => values.reduce((s, v) => s + v, 0) / values.length
 
@@ -290,7 +304,7 @@ export function detectVcp(bars: Bar[]): Vcp {
   // Clean base volume: recent sessions quieter than the 50-day average and few heavy selling days.
   const volumeDryUp = quiet && distribution <= MAX_DISTRIBUTION_DAYS
   const volumeRatio = avg50 > 0 ? volumes[volumes.length - 1] / avg50 : null
-  const none: Vcp = { contractions: [], pivot: null, volumeDryUp, suggestedStop: null, lastLow: null, status: null, volumeRatio, base: null }
+  const none: Vcp = { contractions: [], pivot: null, volumeDryUp, suggestedStop: null, lastLow: null, status: null, volumeRatio, base: null, avwap: null }
 
   const points = swings(recent.map((b) => b.close), VCP_REVERSAL)
   const depths: number[] = []
@@ -325,9 +339,13 @@ export function detectVcp(bars: Bar[]): Vcp {
   const window = closes.slice(Math.max(0, last - TIGHTNESS_WINDOW), last)
   const tightness = window.length === TIGHTNESS_WINDOW ? (Math.max(...window) - Math.min(...window)) / Math.max(...window) : null
   const base = describeBase(contractions, last - highs[start].index, tightness)
+  // The anchor is the lowest low from the start of the base to today.
+  let anchor = highs[start].index
+  for (let i = anchor; i <= last; i++) if (recent[i].low < recent[anchor].low) anchor = i
+  const avwap = anchoredVwap(recent, anchor)
   const price = recent[recent.length - 1].close
   const status: VcpStatus = price < lastLow ? 'failed' : price <= pivot ? 'forming' : price <= pivot * (1 + MAX_CHASE) ? 'breakout' : 'extended'
   // The stop is 8% below the price actually paid: the pivot while the price is still below it, the current price once it breaks out.
   const entry = status === 'breakout' ? price : pivot
-  return { contractions, pivot, volumeDryUp, suggestedStop: entry * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio, base }
+  return { contractions, pivot, volumeDryUp, suggestedStop: entry * (1 - STOP_BELOW_PIVOT), lastLow, status, volumeRatio, base, avwap }
 }
