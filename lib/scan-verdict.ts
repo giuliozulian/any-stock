@@ -1,5 +1,6 @@
 import { fundamentalsMisses, type Fundamentals } from '@/lib/fundamentals-gate'
 import type { Criterion, VcpStatus } from '@/lib/minervini'
+import type { MinerviniAnalysis } from '@/lib/minervini-data'
 import {
   isUsSession,
   missingCriterion,
@@ -129,4 +130,31 @@ export function toScanRow(r: ResultLike): ScanRow {
 // Daily volume is only final once the US market has closed: a scan that touched the session has partial volume.
 export function duringSession(startedAt: Date, finishedAt: Date | null): boolean {
   return isUsSession(startedAt) || (finishedAt !== null && isUsSession(finishedAt))
+}
+
+// The row the scanner would store for the stock, built from the analysis of the stock page: the tab and the scanner share one verdict.
+export function rowFromAnalysis(symbol: string, a: MinerviniAnalysis): ScanRow {
+  const price = a.template.levels.find((l) => l.key === 'price')?.value ?? 0
+  const { pivot } = a.vcp
+  return {
+    symbol,
+    name: symbol,
+    sector: null,
+    price,
+    rs: null,
+    passedCount: a.template.passedCount,
+    vcpStatus: a.vcp.status,
+    pivot,
+    pivotDistancePct: pivot === null ? null : (price / pivot - 1) * 100,
+    volumeRatio: a.vcp.volumeRatio,
+    volumeDryUp: a.vcp.volumeDryUp,
+    missing: null,
+    fundamentals: a.fundamentals ?? null,
+    avwap: a.avwap ?? a.vcp.avwap ?? null,
+  }
+}
+
+export function planForAnalysis(symbol: string, a: MinerviniAnalysis, ctx: PlanContext = { caution: null, market: null }): { row: ScanRow; plan: TradePlan; note: PlanNote } {
+  const row = rowFromAnalysis(symbol, a)
+  return { row, ...planFor(row, ctx) }
 }

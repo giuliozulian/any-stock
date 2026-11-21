@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { MARKET_TEXT, VERDICT, duringSession, fmtNum, fmtPrice, planFor, sentence, toScanRow, type ScanRow } from '@/lib/scan-verdict'
+import type { Bar } from '@/lib/history'
+import { detectVcp, evaluateTrendTemplate } from '@/lib/minervini'
+import type { MinerviniAnalysis } from '@/lib/minervini-data'
+import { MARKET_TEXT, VERDICT, duringSession, fmtNum, fmtPrice, planFor, planForAnalysis, rowFromAnalysis, sentence, toScanRow, type ScanRow } from '@/lib/scan-verdict'
 import { tradePlan } from '@/lib/scanner'
 
 const row = (over: Partial<ScanRow> = {}): ScanRow => ({
@@ -136,5 +139,44 @@ describe('duringSession', () => {
   it('is false for a scan entirely outside the session or a missing end', () => {
     expect(duringSession(new Date('2026-11-16T22:00:00Z'), new Date('2026-11-16T22:03:00Z'))).toBe(false)
     expect(duringSession(new Date('2026-11-14T15:00:00Z'), null)).toBe(false)
+  })
+})
+
+describe('planForAnalysis', () => {
+  const DAY = 86_400_000
+  const bars: Bar[] = Array.from({ length: 300 }, (_, i) => {
+    const close = 100 + i * 0.5
+    return { t: i * DAY, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 }
+  })
+  const analysis = (over: Partial<MinerviniAnalysis> = {}): MinerviniAnalysis => ({ template: evaluateTrendTemplate(bars, 90)!, vcp: detectVcp(bars), peerCount: 12, ...over })
+  // A breakout the way the scanner sees it: 8 criteria, strong volume, a base.
+  const breakout = (over: Partial<MinerviniAnalysis> = {}): MinerviniAnalysis => {
+    const a = analysis(over)
+    return { ...a, vcp: { ...a.vcp, status: 'breakout', pivot: 98, volumeRatio: 1.8, volumeDryUp: true, base: null, avwap: null }, ...over }
+  }
+
+  it('builds the same row the scanner would store, from the analysis of the stock page', () => {
+    const a = breakout()
+    const row = rowFromAnalysis('AAA', a)
+    expect(row).toMatchObject({ symbol: 'AAA', passedCount: a.template.passedCount, vcpStatus: 'breakout', pivot: 98, volumeRatio: 1.8, fundamentals: null, avwap: null })
+    expect(row.price).toBeGreaterThan(0)
+  })
+
+  it('gives the same plan as the scanner for the same numbers', () => {
+    const a = breakout({ fundamentals: { epsGrowthQoq: 40, salesGrowthQoq: 30, roe: 20 }, avwap: 90 })
+    const out = planForAnalysis('AAA', a)
+    expect(out.plan).toEqual(planFor(rowFromAnalysis('AAA', a), { caution: null, market: null }).plan)
+  })
+
+  it('says weak fundamentals for Everest Group numbers', () => {
+    const out = planForAnalysis('EG', breakout({ fundamentals: { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 } }))
+    expect(out.row.passedCount).toBe(8)
+    expect(out.plan.verdict).toBe('weak-fundamentals')
+  })
+
+  it('prefers the VWAP of the analysis and falls back to the one of the base', () => {
+    expect(rowFromAnalysis('A', breakout({ avwap: 77 })).avwap).toBe(77)
+    const a = breakout()
+    expect(rowFromAnalysis('A', { ...a, vcp: { ...a.vcp, avwap: 66 } }).avwap).toBe(66)
   })
 })
