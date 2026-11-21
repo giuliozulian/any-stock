@@ -7,8 +7,15 @@ import {
   type Vcp,
 } from "@/lib/minervini";
 import type { MinerviniAnalysis } from "@/lib/minervini-data";
-import { VERDICT, sentence } from "@/lib/scan-verdict";
-import { tradePlan } from "@/lib/scanner";
+import {
+  EPS_GROWTH_MIN,
+  ROE_MIN,
+  SALES_GROWTH_MIN,
+  fundamentalsState,
+  type Fundamentals,
+} from "@/lib/fundamentals-gate";
+import { VERDICT, planForAnalysis, sentence, type ScanRow } from "@/lib/scan-verdict";
+import type { PlanNote, TradePlan } from "@/lib/scanner";
 import { AlertBell } from "@/components/AlertBell";
 import styles from "./MinerviniPanel.module.css";
 
@@ -133,32 +140,16 @@ function action(t: TrendTemplate, vcp: Vcp): string | null {
   }
 }
 
-// All eight criteria met: say plainly whether to buy or wait and why, with the same rules the scanner applies.
+// All eight criteria met: say plainly whether to buy or wait and why, with the same plan the scanner computes.
 function Decision({
-  template,
-  vcp,
-  symbol,
+  row,
+  plan,
+  note,
 }: {
-  template: TrendTemplate;
-  vcp: Vcp;
-  symbol: string;
+  row: ScanRow;
+  plan: TradePlan;
+  note: PlanNote;
 }) {
-  const last = template.levels.find((l) => l.key === "price")?.value ?? 0;
-  const row = {
-    symbol,
-    name: symbol,
-    sector: null,
-    price: last,
-    rs: null,
-    passedCount: template.passedCount,
-    vcpStatus: vcp.status,
-    pivot: vcp.pivot,
-    pivotDistancePct: vcp.pivot === null ? null : (last / vcp.pivot - 1) * 100,
-    volumeRatio: vcp.volumeRatio,
-    volumeDryUp: vcp.volumeDryUp,
-    missing: null,
-  };
-  const plan = tradePlan(row);
   const v = VERDICT[plan.verdict];
   const hasPrices =
     plan.buyFrom !== null &&
@@ -176,7 +167,7 @@ function Decision({
           {v.label}
         </span>
       </p>
-      <p>{sentence(row, plan, null)}</p>
+      <p>{sentence(row, plan, note)}</p>
       {hasPrices && (
         <p className={styles.decisionPlan}>
           {`Acquisto tra ${price(plan.buyFrom!)} e ${price(plan.buyTo!)} · stop ${price(plan.stop!)} (−${Math.round(plan.riskPct ?? 0)}%) · obiettivo ${price(plan.profitFrom!)}–${price(plan.profitTo!)}`}
@@ -255,8 +246,16 @@ function Ladder({ levels }: { levels: Level[] }) {
 function entryState(
   template: TrendTemplate,
   vcp: Vcp,
+  plan?: TradePlan,
 ): { chip: string; tone: Tone | "na" } {
   if (!template.stage2) return { chip: "Non ancora", tone: "na" };
+  // With all the criteria the answer is the plan's: the same one as the scanner.
+  if (plan && template.passedCount >= template.total) {
+    if (plan.verdict === "weak-fundamentals")
+      return { chip: "Fondamentali deboli", tone: "warn" };
+    if (plan.reason === "below-avwap")
+      return { chip: "Sotto il VWAP", tone: "warn" };
+  }
   if (vcp.pivot === null || vcp.suggestedStop === null)
     return { chip: "Nessuna base", tone: "loss" };
   const tone: Tone =
@@ -300,7 +299,15 @@ function StepHead({
   );
 }
 
-function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
+function EntryStep({
+  template,
+  vcp,
+  plan,
+}: {
+  template: TrendTemplate;
+  vcp: Vcp;
+  plan: TradePlan;
+}) {
   const hasBase = vcp.pivot !== null && vcp.suggestedStop !== null;
   const why =
     "Dopo la salita il prezzo si riposa, oscillando sempre meno. Si compra quando supera il massimo dell’ultima oscillazione (il pivot) con molti scambi, e si fissa subito uno stop poco sotto.";
@@ -325,7 +332,7 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
 
   const last = vcp.contractions[vcp.contractions.length - 1];
   const maxDepth = Math.max(...vcp.contractions, 0.01);
-  const { chip, tone } = entryState(template, vcp);
+  const { chip, tone } = entryState(template, vcp, plan);
 
   return (
     <section className={styles.card} aria-label="È il momento di entrare?">
@@ -404,6 +411,67 @@ function EntryStep({ template, vcp }: { template: TrendTemplate; vcp: Vcp }) {
   );
 }
 
+const FUNDAMENTAL_ROWS = [
+  { key: "epsGrowthQoq", label: "Utili per azione, ultimo trimestre su un anno prima", min: EPS_GROWTH_MIN, signed: true },
+  { key: "salesGrowthQoq", label: "Ricavi, ultimo trimestre su un anno prima", min: SALES_GROWTH_MIN, signed: true },
+  { key: "roe", label: "Rendimento del capitale (ROE)", min: ROE_MIN, signed: false },
+] as const;
+
+const signedPct = (v: number, signed: boolean) =>
+  `${v < 0 ? "−" : signed && v > 0 ? "+" : ""}${Math.abs(Math.round(v))}%`;
+
+// Minervini wants earnings and sales growing fast; the thresholds are the ones of the Finviz search.
+function FundamentalsCard({
+  fundamentals,
+}: {
+  fundamentals: Fundamentals | null | undefined;
+}) {
+  const state = fundamentalsState(fundamentals);
+  return (
+    <section className={styles.card} aria-label="Utili e ricavi">
+      <StepHead
+        n={4}
+        title="Utili e ricavi"
+        why="Minervini cerca aziende i cui utili e ricavi crescono in modo netto: un breakout senza questa spinta spesso si ferma. Soglie come nello screener Finviz: utili e ricavi oltre il 25% sull’anno prima, ROE oltre il 15%."
+        chip={state === "unknown" ? null : state === "pass" ? "Sì" : "No"}
+        tone={state === "pass" ? "gain" : state === "fail" ? "loss" : "na"}
+      />
+      {fundamentals && state !== "unknown" ? (
+        <ul className={styles.list}>
+          {FUNDAMENTAL_ROWS.map((r) => {
+            const v = fundamentals[r.key];
+            const st: State = v === null ? "na" : v > r.min ? "ok" : "ko";
+            const value =
+              v === null
+                ? "non disponibile"
+                : `${signedPct(v, r.signed)} (oltre ${r.min}%)`;
+            return (
+              <li
+                key={r.key}
+                className={styles.row}
+                data-state={st}
+                aria-label={`${r.label}: ${STATUS[st]}, ${value}`}
+              >
+                <span className={styles.mark} aria-hidden="true">
+                  {MARK[st]}
+                </span>
+                <span className={styles.rowLabel} aria-hidden="true">
+                  {r.label}
+                </span>
+                <span className={styles.rowValue} aria-hidden="true">
+                  {value}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className={styles.hint}>Utili e ricavi non disponibili.</p>
+      )}
+    </section>
+  );
+}
+
 export function MinerviniPanel({
   analysis,
   symbol = "",
@@ -422,6 +490,7 @@ export function MinerviniPanel({
     );
 
   const { template, vcp, peerCount } = analysis;
+  const { row, plan, note } = planForAnalysis(symbol, analysis);
   const v = verdict(template);
   const next = action(template, vcp);
   const byId = new Map(template.criteria.map((c) => [c.id, c]));
@@ -437,17 +506,9 @@ export function MinerviniPanel({
         tone: toneOf(ok, rated.length),
       };
     }),
-    { title: "È il momento di entrare?", ...entryState(template, vcp) },
+    { title: "È il momento di entrare?", ...entryState(template, vcp, plan) },
   ];
-  const buyNow =
-    tradePlan({
-      passedCount: template.passedCount,
-      vcpStatus: vcp.status,
-      pivot: vcp.pivot,
-      volumeRatio: vcp.volumeRatio,
-      volumeDryUp: vcp.volumeDryUp,
-      price: template.levels.find((l) => l.key === "price")?.value ?? 0,
-    }).verdict === "buy";
+  const buyNow = plan.verdict === "buy";
 
   return (
     <div className={styles.panel}>
@@ -494,7 +555,7 @@ export function MinerviniPanel({
           ))}
         </ol>
         {template.passedCount >= template.total ? (
-          <Decision template={template} vcp={vcp} symbol={symbol} />
+          <Decision row={row} plan={plan} note={note} />
         ) : (
           next && <p className={styles.next}>{next}</p>
         )}
@@ -541,7 +602,9 @@ export function MinerviniPanel({
         );
       })}
 
-      <EntryStep template={template} vcp={vcp} />
+      <EntryStep template={template} vcp={vcp} plan={plan} />
+
+      <FundamentalsCard fundamentals={analysis.fundamentals} />
 
       <section className={styles.intro} aria-label="Come funziona il metodo">
         <details className={styles.glossary}>
@@ -561,8 +624,10 @@ export function MinerviniPanel({
             ))}
           </dl>
           <p className={styles.scope}>
-            Questa scheda guarda solo il prezzo. Minervini chiede anche utili e
-            fatturato in forte crescita: li trovi nelle schede Valutazione e
+            Oltre al prezzo, la scheda controlla utili e ricavi dell’ultimo
+            trimestre rispetto allo stesso trimestre dell’anno prima (sopra il
+            25%, come nello screener Finviz) e il VWAP ancorato al minimo della
+            base. Per i bilanci completi ci sono le schede Valutazione e
             Bilanci.
           </p>
         </details>

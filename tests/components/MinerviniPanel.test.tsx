@@ -26,11 +26,12 @@ describe('MinerviniPanel', () => {
     expect(screen.getByText(/su 8 controlli/)).toBeInTheDocument()
     expect(screen.getByText('Stage 2', { selector: 'span' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: '7 controlli superati su 8' })).toBeInTheDocument()
-    expect(screen.getAllByRole('listitem')).toHaveLength(8)
+    // 8 criteria and the 3 questions of the summary strip.
+    expect(screen.getAllByRole('listitem')).toHaveLength(11)
     expect(screen.getByLabelText('Criterio 8: non soddisfatto, v8')).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Discese della base: 25%, 12%, 6%' })).toBeInTheDocument()
     expect(screen.getByText(/si entra solo se il prezzo supera 94,00 .*stop a 86,48/)).toBeInTheDocument()
-    expect(screen.getByText('Base pronta')).toBeInTheDocument()
+    expect(screen.getAllByText('Base pronta')).toHaveLength(2)
     expect(screen.getByText('Pivot, prezzo d’ingresso')).toBeInTheDocument()
   })
 
@@ -47,6 +48,50 @@ describe('MinerviniPanel', () => {
 
     rerender(<MinerviniPanel analysis={{ ...base, vcp: { ...vcp, status: 'breakout', volumeRatio: 0.9 } }} symbol="RCEL" />)
     expect(screen.getByText('Aspetta conferma')).toBeInTheDocument()
+  })
+
+  describe('fundamentals and VWAP', () => {
+    const all = criteria.map((c) => ({ ...c, ok: true }))
+    const ready = { ...analysis, template: { ...analysis.template, criteria: all, passedCount: 8, passed: true }, vcp: { ...vcp, status: 'breakout' as const, volumeRatio: 2 } }
+    const eg = { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 }
+
+    it('does not say buy when the setup is technical only: weak fundamentals', () => {
+      render(<MinerviniPanel analysis={{ ...ready, fundamentals: eg }} symbol="EG" />)
+      expect(screen.getByText('Tecnico ok, fondamentali deboli')).toBeInTheDocument()
+      expect(screen.getByText(/i fondamentali non reggono/)).toBeInTheDocument()
+      expect(screen.queryByText('Si può comprare')).not.toBeInTheDocument()
+      // The chip shows in the summary strip and again in the entry card.
+      expect(screen.getAllByText('Fondamentali deboli', { selector: 'span' })).toHaveLength(2)
+    })
+
+    it('keeps the alert on offer until the stock can really be bought', () => {
+      render(<MinerviniPanel analysis={{ ...ready, fundamentals: eg }} symbol="EG" alert={{ armed: false, emailReady: true }} />)
+      expect(screen.getByRole('button', { name: /Avvisami per email quando EG si può comprare/ })).toBeEnabled()
+    })
+
+    it('says buy when the fundamentals pass', () => {
+      render(<MinerviniPanel analysis={{ ...ready, fundamentals: { epsGrowthQoq: 40, salesGrowthQoq: 30, roe: 20 } }} symbol="EG" />)
+      expect(screen.getByText('Si può comprare')).toBeInTheDocument()
+    })
+
+    it('asks for confirmation when the price is under the VWAP of the base', () => {
+      render(<MinerviniPanel analysis={{ ...ready, avwap: 120 }} symbol="EG" />)
+      expect(screen.getByText('Aspetta conferma')).toBeInTheDocument()
+      expect(screen.getByText(/sotto il VWAP ancorato al minimo della base \(120,00\)/)).toBeInTheDocument()
+      expect(screen.getAllByText('Sotto il VWAP', { selector: 'span' })).toHaveLength(2)
+    })
+
+    it('lists the three measures against their thresholds, or says they are not available', () => {
+      const { rerender } = render(<MinerviniPanel analysis={{ ...ready, fundamentals: eg }} symbol="EG" />)
+      expect(screen.getByRole('region', { name: 'Utili e ricavi' })).toBeInTheDocument()
+      expect(screen.getByLabelText(/Ricavi, ultimo trimestre.*non soddisfatto, −14%/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Rendimento del capitale.*non soddisfatto, 13%/)).toBeInTheDocument()
+      rerender(<MinerviniPanel analysis={{ ...ready, fundamentals: { epsGrowthQoq: 40, salesGrowthQoq: null, roe: 20 } }} symbol="EG" />)
+      expect(screen.getByLabelText(/Utili per azione.*soddisfatto, \+40%/)).toBeInTheDocument()
+      expect(screen.getByLabelText(/Ricavi, ultimo trimestre.*non disponibile/)).toBeInTheDocument()
+      rerender(<MinerviniPanel analysis={{ ...ready, fundamentals: null }} symbol="EG" />)
+      expect(screen.getByText(/Utili e ricavi non disponibili/)).toBeInTheDocument()
+    })
   })
 
   it('offers the email alert until the stock is ready to buy', () => {
@@ -76,7 +121,7 @@ describe('MinerviniPanel', () => {
 
   it('does not look for an entry until the stock is in Stage 2', () => {
     render(<MinerviniPanel analysis={{ ...analysis, template: { ...analysis.template, stage2: false } }} />)
-    expect(screen.getByText('Non ancora')).toBeInTheDocument()
+    expect(screen.getAllByText('Non ancora')).toHaveLength(2)
     expect(screen.queryByText('Pivot, prezzo d’ingresso')).not.toBeInTheDocument()
   })
 
