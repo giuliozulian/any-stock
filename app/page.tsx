@@ -12,6 +12,7 @@ import { AlertTargets } from '@/components/AlertTargets'
 import { CompareSelectionProvider, CompareCheckbox, CompareBar } from '@/components/CompareSelection'
 import { LiveChange, LivePrice, LiveSince } from '@/components/live-quotes'
 import { WatchlistSummary } from '@/components/WatchlistSummary'
+import { SortableWatchlist } from '@/components/SortableWatchlist'
 import { getIntradayHistory } from '@/lib/history'
 import { getSector, sectorHue } from '@/lib/sector'
 import { DropdownMenu } from '@/components/DropdownMenu'
@@ -94,6 +95,7 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
     hasAlert: r.stock.entryPrice !== null || r.stock.sellPrice !== null,
   }))
   const rows = applyView(viewRows, view)
+  const canReorder = view.sortKey === null && !isFiltered(view)
   const activeFilters = Number(view.trend !== 'tutti') + Number(view.onlyAlerts) + Number(view.sector !== null)
   const tone = (n: number | null) => (n === null || n === 0 ? styles.dash : n > 0 ? styles.gain : styles.loss)
   const tones = { gain: styles.gain, loss: styles.loss, flat: styles.dash }
@@ -185,7 +187,7 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
             {view.sortKey && (
               <li>
                 <Link href={viewHref(view, { ordina: '', dir: '' })} className={styles.menuItem}>
-                  Ordine in cui li hai aggiunti
+                  Il mio ordine
                 </Link>
               </li>
             )}
@@ -234,58 +236,65 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
       )}
       <CompareSelectionProvider>
       {rows.length === 0 && <p className={styles.emptyText}>Nessun titolo corrisponde ai filtri scelti.</p>}
-      <ul className={styles.list}>
-        {rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
+      {!canReorder && rows.length > 1 && <p className={styles.filterNote}>Togli ordinamento e filtri per riordinare la lista.</p>}
+      <SortableWatchlist
+        listClassName={styles.list}
+        rowClassName={styles.row}
+        canReorder={canReorder}
+        rows={rows.map(({ stock, latest, ext, extPct, entryPrice, sector }) => {
           const changeTone = latest ? tone(latest.changePct) : styles.dash
-          return (
-            <li key={stock.id} className={styles.row}>
-              <div className={styles.id}>
-                <CompareCheckbox symbol={stock.symbol} />
-                <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
-                  {stock.symbol}
-                </Link>
-                <span className={styles.name}>{stock.name}</span>
-              </div>
-              <div className={styles.meta}>
-                {sector && <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span>}
-                {ext && extPct !== null && (
-                  <span className={styles.extCell}>
-                    {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)}{' '}
-                    <span className={tone(extPct)}>{signed(extPct)}</span>
+          return {
+            symbol: stock.symbol,
+            node: (
+              <>
+                <div className={styles.id}>
+                  <CompareCheckbox symbol={stock.symbol} />
+                  <Link href={`/stock/${stock.symbol}`} className={styles.symbol}>
+                    {stock.symbol}
+                  </Link>
+                  <span className={styles.name}>{stock.name}</span>
+                </div>
+                <div className={styles.meta}>
+                  {sector && <span className={styles.sectorTag} style={{ '--hue': sectorHue(sector) } as React.CSSProperties}>{sector}</span>}
+                  {ext && extPct !== null && (
+                    <span className={styles.extCell}>
+                      {ext.session === 'pre' ? 'Pre-market' : 'After-hours'} ${ext.close.toFixed(2)}{' '}
+                      <span className={tone(extPct)}>{signed(extPct)}</span>
+                    </span>
+                  )}
+                  <AlertTargets
+                    symbol={stock.symbol}
+                    entryPrice={stock.entryPrice}
+                    sellPrice={stock.sellPrice}
+                    entryTriggered={stock.entryTriggeredAt !== null}
+                    sellTriggered={stock.sellTriggeredAt !== null}
+                    price={latest?.price ?? null}
+                  />
+                </div>
+                <div className={styles.trend}>
+                  <PriceChart snapshots={stock.snapshots} width={132} height={40} strokeWidth={1.5} compact />
+                </div>
+                <div className={styles.priceCell}>
+                  {latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}
+                </div>
+                <div className={styles.figures}>
+                  <span className={styles.figure} title={`dal ${stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}`}>
+                    <span className={styles.figureLabel}>da quando lo segui</span>
+                    <LiveSince symbol={stock.symbol} entryPrice={entryPrice} initialPrice={latest?.price ?? null} tones={tones} />
                   </span>
-                )}
-                <AlertTargets
-                  symbol={stock.symbol}
-                  entryPrice={stock.entryPrice}
-                  sellPrice={stock.sellPrice}
-                  entryTriggered={stock.entryTriggeredAt !== null}
-                  sellTriggered={stock.sellTriggeredAt !== null}
-                  price={latest?.price ?? null}
-                />
-              </div>
-              <div className={styles.trend}>
-                <PriceChart snapshots={stock.snapshots} width={132} height={40} strokeWidth={1.5} compact />
-              </div>
-              <div className={styles.priceCell}>
-                {latest ? <LivePrice symbol={stock.symbol} initial={latest.price} /> : <span className={styles.dash}>—</span>}
-              </div>
-              <div className={styles.figures}>
-                <span className={styles.figure} title={`dal ${stock.addedAt.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' })}`}>
-                  <span className={styles.figureLabel}>da quando lo segui</span>
-                  <LiveSince symbol={stock.symbol} entryPrice={entryPrice} initialPrice={latest?.price ?? null} tones={tones} />
-                </span>
-                <span className={styles.figure}>
-                  {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : <span className={changeTone}>—</span>}
-                  <span className={styles.figureLabel}>oggi</span>
-                </span>
-              </div>
-              <div className={styles.actions}>
-                <RemoveStockButton symbol={stock.symbol} />
-              </div>
-            </li>
-          )
+                  <span className={styles.figure}>
+                    {latest ? <LiveChange symbol={stock.symbol} initial={latest.changePct} tones={tones} /> : <span className={changeTone}>—</span>}
+                    <span className={styles.figureLabel}>oggi</span>
+                  </span>
+                </div>
+                <div className={styles.actions}>
+                  <RemoveStockButton symbol={stock.symbol} />
+                </div>
+              </>
+            ),
+          }
         })}
-      </ul>
+      />
       <CompareBar maxCount={4} />
       </CompareSelectionProvider>
       </section>

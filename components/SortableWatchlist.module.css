@@ -1,0 +1,40 @@
+.handle {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 36px;
+  padding: 0;
+  color: var(--muted, currentColor);
+  background: none;
+  border: 0;
+  border-radius: 8px;
+  cursor: grab;
+  opacity: 0.55;
+  /* The page must not scroll while a finger drags the handle. */
+  touch-action: none;
+}
+
+.handle:hover,
+.handle:focus-visible {
+  opacity: 1;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.dragging {
+  z-index: 2;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 0.28);
+  opacity: 0.95;
+}
+
+.error {
+  margin: 0 0 8px;
+  color: var(--loss, #c0392b);
+  font-size: 13px;
+}
