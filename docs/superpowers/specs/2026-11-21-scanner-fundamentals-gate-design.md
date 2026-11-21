@@ -34,7 +34,7 @@ Successo: un titolo con segnale tecnico `buy` ma fondamentali sotto soglia non e
 
 ### Rischio: budget di tempo
 
-`closeRun` (`lib/scanner-run.ts`) gira nell'ultimo step della route, che ha 60 s. Le chiamate Finnhub (limite 60/min) possono non starci. Soluzione: il recupero fondamentali è un passo separato dopo la chiusura della scansione, con tempo massimo; allo scadere i dati restano `null`. Il piano deve fissare dove vive questo passo.
+`closeRun` (`lib/scanner-run.ts`) gira nell'ultimo step della route, che ha 60 s. Le chiamate Finnhub (limite 60/min) possono non starci. Soluzione adottata (vedi il piano): il recupero gira dentro `closeRun`, prima di chiudere il run e di mandare le email, con un budget di tempo (il resto dei 50 s dello step, al massimo 15 s); allo scadere i dati restano `null`. Un passo separato avrebbe obbligato a cambiare il polling di `/api/scanner/step` e le email sarebbero partite prima dei dati.
 
 ## Tab Minervini della scheda titolo
 
