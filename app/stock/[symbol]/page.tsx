@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { connection } from 'next/server'
+import { after, connection } from 'next/server'
 import { prisma } from '@/lib/db'
 import { currentUserId, flatten } from '@/lib/watchlist'
 import { PriceChart } from '@/components/PriceChart'
@@ -274,12 +274,72 @@ async function StockPreview({ symbol }: { symbol: string }) {
   )
 }
 
+async function FairValueWithAltman({ embedded, input, financialsPromise, marketCapMillions }: { embedded: boolean; input: ReturnType<typeof buildFairValueInput>; financialsPromise: Promise<Awaited<ReturnType<typeof getAnnualFinancials>>>; marketCapMillions: number | null }) {
+  const financials = await financialsPromise
+  return <FairValueCard embedded={embedded} input={input} altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], marketCapMillions === null ? null : marketCapMillions * 1e6) : null} />
+}
+
+async function DividendsTab({ promise, price, now }: { promise: ReturnType<typeof getDividendHistory>; price: number | null; now: Date }) {
+  return <DividendsPanel history={await promise} price={price} now={now} />
+}
+
+async function EarningsTab({ promise }: { promise: ReturnType<typeof getEarningsTable> }) {
+  return <EarningsHistoryPanel rows={await promise} today={tradingDay()} />
+}
+
+async function FinancialsTab({ promise, marketCapMillions }: { promise: ReturnType<typeof getAnnualFinancials>; marketCapMillions: number | null }) {
+  return <FinancialAnalysis years={await promise} marketCapMillions={marketCapMillions} />
+}
+
+async function InsiderTab({ symbol, name, marketCap, insidersPromise, congressPromise }: { symbol: string; name: string; marketCap: number | null; insidersPromise: ReturnType<typeof getInsiderData>; congressPromise: ReturnType<typeof getCongressTrades> }) {
+  const [insiders, congress] = await Promise.all([insidersPromise, congressPromise])
+  const cluster = insiders ? buildCluster(insiders.trades) : null
+  return (
+    <>
+      <ClusterPanel
+        cluster={cluster}
+        note={
+          cluster && (
+            <Suspense fallback={null}>
+              <ClusterNote symbol={symbol} name={name} marketCap={marketCap ? marketCap * 1_000_000 : null} cluster={cluster} />
+            </Suspense>
+          )
+        }
+      />
+      <InsiderPanel data={insiders} />
+      <CongressPanel trades={congress} />
+    </>
+  )
+}
+
+async function VideosSection({ promise }: { promise: ReturnType<typeof getRecentVideos> }) {
+  const videos = await promise
+  return (
+    <section className={styles.news}>
+        <h2 className={styles.sectionTitle}>
+          Video recenti
+          <InfoTip
+            label="Come leggere i video"
+            source="YouTube Data API v3 (search.list), ricerca “nome azienda + ticker + stock”, solo video pubblicati negli ultimi 7 giorni, ordinati per rilevanza; prima i risultati di una ricerca in italiano (relevanceLanguage=it), poi quelli generici"
+            formula="filtro: publishedAfter = adesso − 7 giorni; massimo 6 risultati, italiani per primi; cache di 6 ore per titolo"
+          >
+            <strong>Video degli ultimi 7 giorni</strong>
+            <span>Analisi e commenti pubblicati su YouTube negli ultimi giorni su questo titolo. Sono opinioni di terzi: non sono verificati e non entrano nel giudizio.</span>
+            <span>Serve a farti un’idea del dibattito in corso e a trovare approfondimenti da guardare.</span>
+          </InfoTip>
+        </h2>
+      <VideoList videos={videos} />
+    </section>
+  )
+}
+
 async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol: string }> }) {
   await connection()
   const { symbol: rawSymbol } = await paramsPromise
   const symbol = rawSymbol.toUpperCase()
 
-  await refreshStockIfStale(symbol).catch(() => undefined)
+  // The refresh (news, AI notes) runs after the response is sent: the page never waits on it.
+  after(() => refreshStockIfStale(symbol, { waitForCompletion: true }).catch(() => undefined))
 
   const watched = await prisma.watchlistEntry.findFirst({
     where: { userId: await currentUserId(), stock: { symbol } },
@@ -309,25 +369,27 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
 
   const latest = stock.snapshots[0]
 
-  // Snapshots belong to the stock, shared by everyone who watches it: the baseline is the first one taken since this user added it.
-  const firstSinceAdded = await prisma.priceSnapshot.findFirst({
-    where: { stockId: stock.id, timestamp: { gte: stock.addedAt } },
-    orderBy: { timestamp: 'asc' },
-  })
-  const earliestSnapshot = firstSinceAdded && firstSinceAdded.id !== latest?.id ? firstSinceAdded : null
+  // Only what the hero needs is awaited; the tab data starts now but streams in behind its own Suspense boundary.
+  const videosPromise = getRecentVideos(stock.symbol, stock.name)
+  const insidersPromise = getInsiderData(stock.symbol)
+  const congressPromise = getCongressTrades(stock.symbol)
+  const financialsPromise = getAnnualFinancials(stock.symbol)
+  const dividendsPromise = getDividendHistory(stock.symbol)
+  const earningsPromise = getEarningsTable(stock.symbol, tradingDay())
+  for (const p of [videosPromise, insidersPromise, congressPromise, financialsPromise, dividendsPromise, earningsPromise]) p.catch(() => undefined)
 
-  const [history, intraday, videos, insiders, congress, financials, metrics, fullHistory, dividends, earningsRows] = await Promise.all([
+  const [firstSinceAdded, history, intraday, metrics, fullHistory] = await Promise.all([
+    // Snapshots belong to the stock, shared by everyone who watches it: the baseline is the first one taken since this user added it.
+    prisma.priceSnapshot.findFirst({
+      where: { stockId: stock.id, timestamp: { gte: stock.addedAt } },
+      orderBy: { timestamp: 'asc' },
+    }),
     getPriceHistory(stock.symbol),
     getIntradayHistory(stock.symbol),
-    getRecentVideos(stock.symbol, stock.name),
-    getInsiderData(stock.symbol),
-    getCongressTrades(stock.symbol),
-    getAnnualFinancials(stock.symbol),
     getMetrics(stock.symbol).catch(() => null),
     getFullPriceHistory(stock.symbol),
-    getDividendHistory(stock.symbol),
-    getEarningsTable(stock.symbol, tradingDay()),
   ])
+  const earliestSnapshot = firstSinceAdded && firstSinceAdded.id !== latest?.id ? firstSinceAdded : null
   const now = new Date()
   const longHistory = downsample(fullHistory.points, now)
 
@@ -374,14 +436,11 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
   const pe = peStatus(latest?.peRatio ?? null)
   const fairValueCard = (embedded: boolean) =>
     latest && metrics ? (
-      <FairValueCard
-        embedded={embedded}
-        input={buildFairValueInput(latest.price, metrics)}
-        altman={financials.length > 0 ? altmanZ(financials[financials.length - 1], latest.marketCap === null ? null : latest.marketCap * 1e6) : null}
-      />
+      <Suspense fallback={<FairValueCard embedded={embedded} input={buildFairValueInput(latest.price, metrics)} altman={null} />}>
+        <FairValueWithAltman embedded={embedded} input={buildFairValueInput(latest.price, metrics)} financialsPromise={financialsPromise} marketCapMillions={latest.marketCap} />
+      </Suspense>
     ) : null
   const cap = marketCapStatus(latest?.marketCap ?? null)
-  const cluster = insiders ? buildCluster(insiders.trades) : null
   const range = rangeStatus(position52w)
 
   const seriesTrendClass = stock.snapshots.length > 1 ? (stock.snapshots[0].price >= stock.snapshots[stock.snapshots.length - 1].price ? styles.gain : styles.loss) : ''
@@ -579,12 +638,20 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
           {
             id: 'dividendi',
             label: 'Dividendi',
-            content: <DividendsPanel history={dividends} price={latest?.price ?? null} now={now} />,
+            content: (
+              <Suspense fallback={<p className={styles.stale}>Carico i dividendi…</p>}>
+                <DividendsTab promise={dividendsPromise} price={latest?.price ?? null} now={now} />
+              </Suspense>
+            ),
           },
           {
             id: 'trimestrali',
             label: 'Trimestrali',
-            content: <EarningsHistoryPanel rows={earningsRows} today={tradingDay()} />,
+            content: (
+              <Suspense fallback={<p className={styles.stale}>Carico le trimestrali…</p>}>
+                <EarningsTab promise={earningsPromise} />
+              </Suspense>
+            ),
           },
           {
             id: 'bilanci',
@@ -592,7 +659,9 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             content: (
               <>
                 {stock.earningsNote && <VerdictNote label="Come vanno i conti" note={stock.earningsNote} />}
-                <FinancialAnalysis years={financials} marketCapMillions={latest?.marketCap ?? null} />
+                <Suspense fallback={<p className={styles.stale}>Carico i bilanci…</p>}>
+                  <FinancialsTab promise={financialsPromise} marketCapMillions={latest?.marketCap ?? null} />
+                </Suspense>
               </>
             ),
           },
@@ -600,21 +669,9 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
             id: 'insider',
             label: 'Insider e politici',
             content: (
-              <>
-                <ClusterPanel
-                  cluster={cluster}
-                  note={
-                    cluster && (
-                      <Suspense fallback={null}>
-                        <ClusterNote symbol={stock.symbol} name={stock.name} marketCap={latest?.marketCap ? latest.marketCap * 1_000_000 : null} cluster={cluster} />
-                      </Suspense>
-                    )
-                  }
-                />
-                <InsiderPanel data={insiders} />
-
-                <CongressPanel trades={congress} />
-              </>
+              <Suspense fallback={<p className={styles.stale}>Carico insider e politici…</p>}>
+                <InsiderTab symbol={stock.symbol} name={stock.name} marketCap={latest?.marketCap ?? null} insidersPromise={insidersPromise} congressPromise={congressPromise} />
+              </Suspense>
             ),
           },
           {
@@ -641,21 +698,9 @@ async function StockDetail({ paramsPromise }: { paramsPromise: Promise<{ symbol:
                 </section>
 
                 {isYoutubeConfigured() && (
-                  <section className={styles.news}>
-                    <h2 className={styles.sectionTitle}>
-                      Video recenti
-                      <InfoTip
-                        label="Come leggere i video"
-                        source="YouTube Data API v3 (search.list), ricerca “nome azienda + ticker + stock”, solo video pubblicati negli ultimi 7 giorni, ordinati per rilevanza; prima i risultati di una ricerca in italiano (relevanceLanguage=it), poi quelli generici"
-                        formula="filtro: publishedAfter = adesso − 7 giorni; massimo 6 risultati, italiani per primi; cache di 6 ore per titolo"
-                      >
-                        <strong>Video degli ultimi 7 giorni</strong>
-                        <span>Analisi e commenti pubblicati su YouTube negli ultimi giorni su questo titolo. Sono opinioni di terzi: non sono verificati e non entrano nel giudizio.</span>
-                        <span>Serve a farti un’idea del dibattito in corso e a trovare approfondimenti da guardare.</span>
-                      </InfoTip>
-                    </h2>
-                    <VideoList videos={videos} />
-                  </section>
+                  <Suspense fallback={<p className={styles.stale}>Carico i video…</p>}>
+                    <VideosSection promise={videosPromise} />
+                  </Suspense>
                 )}
               </>
             ),

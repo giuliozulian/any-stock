@@ -196,7 +196,7 @@ const inFlight = new Map<string, Promise<RefreshResult>>()
 const MAX_WAIT_MS = 4000
 
 // Aggiorna notizie, riassunto e prezzi quando si apre la scheda, al massimo una volta all'ora per titolo.
-export async function refreshStockIfStale(symbol: string): Promise<void> {
+export async function refreshStockIfStale(symbol: string, { waitForCompletion = false }: { waitForCompletion?: boolean } = {}): Promise<void> {
   const watched = await prisma.stock.findUnique({ where: { symbol }, select: { id: true } })
   if (!watched) return
   const last = await prisma.priceSnapshot.findFirst({
@@ -213,5 +213,9 @@ export async function refreshStockIfStale(symbol: string): Promise<void> {
     inFlight.set(symbol, run)
   }
   // Non blocchiamo la pagina su notizie e IA: dopo il tempo massimo il refresh continua in background.
+  if (waitForCompletion) {
+    await run
+    return
+  }
   await Promise.race([run, new Promise<void>((resolve) => setTimeout(resolve, MAX_WAIT_MS))])
 }
