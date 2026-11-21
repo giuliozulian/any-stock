@@ -20,9 +20,11 @@ describe('formatting', () => {
 describe('VERDICT', () => {
   it('has a label and a unique rank for every verdict', () => {
     const ranks = Object.values(VERDICT).map((v) => v.rank)
-    expect(new Set(ranks).size).toBe(8)
+    expect(new Set(ranks).size).toBe(9)
     expect(VERDICT.buy.label).toBe('Si può comprare')
     expect(VERDICT.confirm.label).toBe('Aspetta conferma')
+    expect(VERDICT['weak-fundamentals'].label).toBe('Tecnico ok, fondamentali deboli')
+    expect(VERDICT['weak-fundamentals'].rank).toBe(VERDICT.buy.rank + 1)
   })
 })
 
@@ -44,6 +46,22 @@ describe('sentence', () => {
     expect(sentence(r, { ...tradePlan(r), verdict: 'confirm' }, 'weak-market')).toMatch(/il mercato è debole/i)
   })
 
+  it('explains weak fundamentals with what falls short', () => {
+    const r = row({ fundamentals: { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 } })
+    const text = sentence(r, tradePlan(r), null)
+    expect(text).toContain('98,00')
+    expect(text).toContain('ricavi −14% (ne servono oltre 25%)')
+    expect(text).toMatch(/meglio non comprare/i)
+  })
+
+  it('explains a buy held back by the VWAP of the base', () => {
+    const r = row({ avwap: 110 })
+    const out = planFor(r, { caution: null, market: null })
+    expect(out.plan.verdict).toBe('confirm')
+    expect(sentence(r, out.plan, out.note)).toMatch(/VWAP/)
+    expect(sentence(r, out.plan, out.note)).toContain('110,00')
+  })
+
   it('says what is missing for a 7-of-8 stock', () => {
     const r = row({ passedCount: 7, missing: 'Forza relativa almeno 70' })
     expect(sentence(r, tradePlan(r), null)).toContain('Manca un criterio: Forza relativa almeno 70')
@@ -56,6 +74,11 @@ describe('sentence', () => {
 })
 
 describe('planFor', () => {
+  it('does not call weak fundamentals a buy, so no alert email goes out for them', () => {
+    const out = planFor(row({ fundamentals: { epsGrowthQoq: 0, salesGrowthQoq: -14, roe: 12 } }), { caution: null, market: 'healthy' })
+    expect(out.plan.verdict).toBe('weak-fundamentals')
+  })
+
   it('turns a buy into "wait for confirmation" with the market open and keeps the note', () => {
     const out = planFor(row(), { caution: 'session', market: 'healthy' })
     expect(out.plan.verdict).toBe('confirm')
@@ -81,7 +104,14 @@ describe('toScanRow', () => {
   }
 
   it('maps a stored result and leaves "missing" empty for an 8-of-8 stock', () => {
-    expect(toScanRow(result)).toEqual({ ...row(), missing: null })
+    expect(toScanRow(result)).toEqual({ ...row(), missing: null, fundamentals: null, avwap: null })
+  })
+
+  it('carries the stored fundamentals and VWAP, and drops them when none was stored', () => {
+    const r = toScanRow({ ...result, epsGrowthQoq: 40, salesGrowthQoq: null, roe: 18, avwap: 99.5 })
+    expect(r.fundamentals).toEqual({ epsGrowthQoq: 40, salesGrowthQoq: null, roe: 18 })
+    expect(r.avwap).toBe(99.5)
+    expect(toScanRow({ ...result, epsGrowthQoq: null, salesGrowthQoq: null, roe: null }).fundamentals).toBeNull()
   })
 
   it('names the failed criterion of a 7-of-8 stock', () => {

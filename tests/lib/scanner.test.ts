@@ -142,6 +142,58 @@ describe('tradePlan', () => {
     expect(tradePlan({ ...base, volumeRatio: 1.1 }).stop).toBeCloseTo(102 * 0.92, 6)
   })
 
+  it('wants 1.5x the average volume: 1.45 is not enough', () => {
+    expect(tradePlan({ ...base, volumeRatio: 1.45 }).verdict).toBe('confirm')
+    expect(tradePlan({ ...base, volumeRatio: 1.5 }).verdict).toBe('buy')
+  })
+
+  describe('fundamentals', () => {
+    const eg = { epsGrowthQoq: 0.18, salesGrowthQoq: -13.85, roe: 12.51 }
+    const strong = { epsGrowthQoq: 40, salesGrowthQoq: 30, roe: 20 }
+
+    it('turns a buy into "technical ok, weak fundamentals" and keeps the prices of the setup', () => {
+      const p = tradePlan({ ...base, fundamentals: eg })
+      expect(p.verdict).toBe('weak-fundamentals')
+      expect(p.buyFrom).toBeCloseTo(100, 6)
+      expect(p.stop).toBeCloseTo(102 * 0.92, 6)
+    })
+
+    it('keeps the buy when the fundamentals pass, are partly unknown or are not known at all', () => {
+      expect(tradePlan({ ...base, fundamentals: strong }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, fundamentals: { epsGrowthQoq: 40, salesGrowthQoq: null, roe: null } }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, fundamentals: { epsGrowthQoq: null, salesGrowthQoq: null, roe: null } }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, fundamentals: null }).verdict).toBe('buy')
+      expect(tradePlan(base).verdict).toBe('buy')
+    })
+
+    it('only touches a buy: the other verdicts stay as they are', () => {
+      expect(tradePlan({ ...base, fundamentals: eg, volumeRatio: 1.1 }).verdict).toBe('confirm')
+      expect(tradePlan({ ...base, fundamentals: eg, vcpStatus: 'forming', price: 96 }).verdict).toBe('watch')
+      expect(tradePlan({ ...base, fundamentals: eg, vcpStatus: 'extended', price: 120 }).verdict).toBe('late')
+      expect(tradePlan({ ...base, fundamentals: eg, volumeDryUp: false }).verdict).toBe('noisy')
+    })
+  })
+
+  describe('anchored VWAP', () => {
+    it('asks for confirmation when the price is under the VWAP of the base', () => {
+      const p = tradePlan({ ...base, avwap: 103 })
+      expect(p.verdict).toBe('confirm')
+      expect(p.reason).toBe('below-avwap')
+      expect(p.stop).toBeCloseTo(102 * 0.92, 6)
+    })
+
+    it('keeps the buy at or above the VWAP, or without one', () => {
+      expect(tradePlan({ ...base, avwap: 102 }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, avwap: 95 }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, avwap: null }).verdict).toBe('buy')
+      expect(tradePlan({ ...base, avwap: 95 }).reason).toBeNull()
+    })
+
+    it('names the weak fundamentals first when both apply', () => {
+      expect(tradePlan({ ...base, avwap: 103, fundamentals: { epsGrowthQoq: 1, salesGrowthQoq: 1, roe: 1 } }).verdict).toBe('weak-fundamentals')
+    })
+  })
+
   it('says watch while the price is still below the pivot, measuring risk from the pivot', () => {
     const p = tradePlan({ ...base, vcpStatus: 'forming', price: 96 })
     expect(p.verdict).toBe('watch')
@@ -239,6 +291,18 @@ describe('withContext', () => {
 
   it('names the open-market reason first when both apply', () => {
     expect(withContext(buy, { caution: 'session', market: 'weak' }).note).toBe('session')
+  })
+
+  it('explains a downgrade for a price under the VWAP with its own note', () => {
+    const under = tradePlan({ passedCount: 8, vcpStatus: 'breakout', volumeRatio: 1.8, price: 102, pivot: 100, avwap: 104 })
+    expect(withContext(under, none)).toEqual({ plan: under, note: 'below-avwap' })
+    expect(withContext(under, { caution: 'session', market: 'weak' }).note).toBe('below-avwap')
+  })
+
+  it('treats weak fundamentals as a verdict with prices, so old results are flagged', () => {
+    const weak = tradePlan({ passedCount: 8, vcpStatus: 'breakout', volumeRatio: 1.8, price: 102, pivot: 100, fundamentals: { epsGrowthQoq: 0, salesGrowthQoq: -14, roe: 12 } })
+    expect(withContext(weak, { caution: 'stale', market: null })).toEqual({ plan: weak, note: 'stale' })
+    expect(withContext(weak, { caution: 'session', market: 'weak' })).toEqual({ plan: weak, note: null })
   })
 
   it('flags old results without changing the verdict', () => {
