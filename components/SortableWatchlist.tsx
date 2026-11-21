@@ -90,7 +90,7 @@ export function SortableWatchlist({ rows, canReorder, listClassName, rowClassNam
           {error}
         </p>
       )}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+      <DndContext id="watchlist-order" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={order} strategy={verticalListSortingStrategy}>
           <ul className={listClassName}>
             {shown.map((r) => (
