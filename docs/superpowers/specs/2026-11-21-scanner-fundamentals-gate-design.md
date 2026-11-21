@@ -29,12 +29,29 @@ Successo: un titolo con segnale tecnico `buy` ma fondamentali sotto soglia non e
 - Nuovo modulo `lib/scan-fundamentals.ts`: dato un elenco di simboli, li scarica con concorrenza limitata e un budget di tempo, restituisce una mappa `symbol -> { epsGrowthQoq, salesGrowthQoq, roe }`. Errore o timeout per un simbolo = `null`.
 - Si scaricano solo i titoli con `passedCount >= 8` e `vcpStatus` `forming` o `breakout`.
 - `ScanResult` guadagna colonne nullable `epsGrowthQoq`, `salesGrowthQoq`, `roe` (Float) e `avwap` (Float), con migrazione Prisma.
-- Il pannello del singolo titolo (`MinerviniPanel`, `/api/minervini-ai/[symbol]`) legge i fondamentali in diretta da Finnhub.
+- Il pannello del singolo titolo e l'analisi AI leggono i fondamentali in diretta da Finnhub (vedi la sezione sulla tab Minervini).
 - Il Finviz screen (`lib/finviz-screen.ts`) non cambia: la query contiene già i filtri EPS, ricavi e ROE.
 
 ### Rischio: budget di tempo
 
 `closeRun` (`lib/scanner-run.ts`) gira nell'ultimo step della route, che ha 60 s. Le chiamate Finnhub (limite 60/min) possono non starci. Soluzione: il recupero fondamentali è un passo separato dopo la chiusura della scansione, con tempo massimo; allo scadere i dati restano `null`. Il piano deve fissare dove vive questo passo.
+
+## Tab Minervini della scheda titolo
+
+La tab deve dare sempre lo stesso verdetto dello scanner e del notebook. Oggi la logica è duplicata in `components/MinerviniPanel.tsx` e nell'analisi AI, e i due punti divergono già dallo scanner.
+
+**Una sola fonte di verità**
+- `MinerviniAnalysis` (`lib/minervini-data.ts`) guadagna `fundamentals` e `avwap`. `getMinerviniAnalysis` scarica i fondamentali da Finnhub (una chiamata, errore = `null`) e calcola l'AVWAP dalle barre già lette.
+- Un solo helper (in `lib/scan-verdict.ts`) costruisce la `ScanRow`/`PlanInput` da una `MinerviniAnalysis` e chiama `planFor`. Lo usano `Decision`, `buyNow`, `action()` ed `entryState()`: oggi `Decision` e `buyNow` costruiscono l'input ciascuno a mano.
+- `action()` in `MinerviniPanel` ha un testo suo ("è il momento d'ingresso del metodo", `BREAKOUT_VOLUME` diretto). Va sostituita con `sentence(row, plan, note)`, così il testo cambia con il verdetto: stessa frase di scanner ed email.
+- `entryState()` ("È il momento di entrare?") deve mostrare il chip del nuovo verdetto (`weak-fundamentals`, `confirm` per AVWAP), non solo lo stato della base.
+
+**Nuovo passo "Utili e ricavi" nella tab**: chip con EPS q/q, ricavi q/q e ROE contro le soglie, "non disponibili" se `null`. Si aggiunge accanto ai passi esistenti in `summary`.
+
+**Analisi AI (`lib/minervini-ai.ts`, `lib/minervini-rulebook.ts`)**
+- `AiInput` guadagna `fundamentals` e `avwap` (arrotondati con `round`).
+- Prompt: `verdict: "ready"` solo se anche i fondamentali superano le soglie e il prezzo è sopra l'AVWAP; le regole F1/F2 passano da `esterno` a valutabili. Bump di `PROMPT_VERSION` (2 → 3) e di `RULEBOOK_VERSION`, così le analisi in cache si rigenerano.
+- `parseAiResult` abbassa `ready` a `wait` anche quando i fondamentali falliscono o il prezzo è sotto l'AVWAP, come già fa per Trend Template e base. Il verdetto AI non può essere più ottimista di quello del codice.
 
 ## Anchored VWAP (`lib/minervini.ts`)
 
@@ -51,6 +68,7 @@ Successo: un titolo con segnale tecnico `buy` ma fondamentali sotto soglia non e
 - `tradePlan`: gate fondamentali (sotto soglia, sopra soglia, parziale, tutti `null`), AVWAP (sotto e sopra), ordine dei due gate, nessun effetto su verdetti diversi da `buy`.
 - `anchoredVwap`: calcolo su barre di esempio, ancora al minimo.
 - `scan-fundamentals`: mappatura, timeout e errore per simbolo con `fetch` iniettato.
+- Tab Minervini: l'helper condiviso dà lo stesso verdetto di `planFor`; `parseAiResult` abbassa `ready` con fondamentali deboli o prezzo sotto AVWAP; il hash cambia con `PROMPT_VERSION`.
 - Aggiornare i test esistenti che assumono 1,4× (`tests/lib/scanner.test.ts`, `tests/lib/scan-verdict.test.ts`, `tests/lib/scan-alerts*.test.ts`, `tests/components/MinerviniPanel.test.tsx`, `tests/components/ScannerTable.test.tsx`).
 
 ## Documenti
