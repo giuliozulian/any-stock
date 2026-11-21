@@ -3,7 +3,7 @@ import { WatchlistSkeleton } from './WatchlistSkeleton'
 import { connection } from 'next/server'
 import Link from 'next/link'
 import { prisma } from '@/lib/db'
-import { currentUserId, flatten } from '@/lib/watchlist'
+import { WATCHLIST_ORDER, currentUserId, flatten } from '@/lib/watchlist'
 import { QuickAdd } from '@/components/QuickAdd'
 import { AddStockForm } from '@/components/AddStockForm'
 import { RemoveStockButton } from '@/components/RemoveStockButton'
@@ -39,7 +39,7 @@ async function WatchlistTable({ searchParams }: { searchParams: Promise<Search> 
   const params = await searchParams
   const entries = await prisma.watchlistEntry.findMany({
     where: { userId: await currentUserId() },
-    orderBy: { addedAt: 'asc' },
+    orderBy: WATCHLIST_ORDER,
     include: { stock: { include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 20 } } } },
   })
   const stocks = entries.map(flatten)

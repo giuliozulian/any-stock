@@ -5,14 +5,14 @@ import { refreshStock } from '@/lib/refresh'
 import { getYahooQuote } from '@/lib/yahoo-quote'
 import { requireUser } from '@/lib/auth'
 import { rateLimit } from '@/lib/rate-limit'
-import { currentUser, currentUserId, findEntry, flatten } from '@/lib/watchlist'
+import { WATCHLIST_ORDER, currentUser, currentUserId, findEntry, flatten } from '@/lib/watchlist'
 
 export async function GET() {
   const auth = await requireUser()
   if (!auth.ok) return auth.response
   const entries = await prisma.watchlistEntry.findMany({
     where: { userId: await currentUserId() },
-    orderBy: { addedAt: 'asc' },
+    orderBy: WATCHLIST_ORDER,
     include: { stock: { include: { snapshots: { orderBy: { timestamp: 'desc' }, take: 1 } } } },
   })
   const stocks = entries.map(flatten)
