@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { prisma } from '@/lib/db'
 import type { Bar } from '@/lib/history'
-import { BLOCK_SIZE, MIN_INTERVAL_MS, latestCompleteRun, loadExtras, runTiming, startRun, stepRun } from '@/lib/scanner-run'
+import type { FinnhubMetrics } from '@/lib/finnhub'
+import { BLOCK_SIZE, MIN_INTERVAL_MS, fillFundamentals, latestCompleteRun, loadExtras, runTiming, startRun, stepRun } from '@/lib/scanner-run'
 import { loadUniverse } from '@/lib/universe'
 import type { UniverseEntry } from '@/lib/universe'
 import { resetDb } from '../helpers/db'
@@ -272,5 +273,62 @@ describe('runTiming', () => {
 
   it('handles a missing scan', () => {
     expect(runTiming(null, new Date())).toEqual({ lockedUntil: null, ageDays: 0 })
+  })
+})
+
+describe('fillFundamentals', () => {
+  beforeEach(async () => {
+    await resetDb()
+  })
+
+  const metrics = (over: Partial<FinnhubMetrics> = {}) => ({ roe: 20, epsGrowthQuarterlyYoy: 40, revenueGrowthQuarterlyYoy: 30, ...over }) as FinnhubMetrics
+
+  async function seed() {
+    const run = await prisma.scanRun.create({ data: { status: 'running', total: 5 } })
+    const row = (symbol: string, over: Record<string, unknown>) => ({ runId: run.id, symbol, name: symbol, status: 'ok', passedCount: 8, vcpStatus: 'breakout', ...over })
+    await prisma.scanResult.createMany({
+      data: [
+        row('BRK', {}),
+        row('FRM', { vcpStatus: 'forming' }),
+        row('SEV', { passedCount: 7 }),
+        row('EXT', { vcpStatus: 'extended' }),
+        row('UNR', { status: 'unread', passedCount: null, vcpStatus: null }),
+      ],
+    })
+    return run.id
+  }
+
+  it('reads only stocks with 8 criteria and a base that is forming or breaking out, and stores the numbers', async () => {
+    const runId = await seed()
+    const fetchMetrics = vi.fn(async (symbol: string) => metrics({ roe: symbol === 'BRK' ? 12.5 : 21, revenueGrowthQuarterlyYoy: symbol === 'BRK' ? -13.85 : 30 }))
+    await fillFundamentals(runId, 10_000, fetchMetrics)
+
+    expect(fetchMetrics.mock.calls.map((c) => c[0]).sort()).toEqual(['BRK', 'FRM'])
+    const rows = new Map((await prisma.scanResult.findMany({ where: { runId } })).map((r) => [r.symbol, r]))
+    expect(rows.get('BRK')).toMatchObject({ epsGrowthQoq: 40, salesGrowthQoq: -13.85, roe: 12.5 })
+    expect(rows.get('FRM')).toMatchObject({ epsGrowthQoq: 40, salesGrowthQoq: 30, roe: 21 })
+    for (const symbol of ['SEV', 'EXT', 'UNR']) expect(rows.get(symbol)).toMatchObject({ epsGrowthQoq: null, salesGrowthQoq: null, roe: null })
+  })
+
+  it('leaves a stock without numbers when its fetch fails or the budget is gone, and never throws', async () => {
+    const runId = await seed()
+    const fetchMetrics = vi.fn(async (symbol: string) => {
+      if (symbol === 'BRK') throw new Error('429')
+      return metrics()
+    })
+    await expect(fillFundamentals(runId, 10_000, fetchMetrics)).resolves.toBeUndefined()
+    const brk = await prisma.scanResult.findFirstOrThrow({ where: { runId, symbol: 'BRK' } })
+    expect(brk.epsGrowthQoq).toBeNull()
+
+    const none = vi.fn(async () => metrics())
+    await fillFundamentals(runId, 0, none)
+    expect(none).not.toHaveBeenCalled()
+  })
+
+  it('does not break the run when the database write fails', async () => {
+    const runId = await seed()
+    const spy = vi.spyOn(prisma, '$executeRaw').mockRejectedValueOnce(new Error('db down'))
+    await expect(fillFundamentals(runId, 10_000, async () => metrics())).resolves.toBeUndefined()
+    spy.mockRestore()
   })
 })

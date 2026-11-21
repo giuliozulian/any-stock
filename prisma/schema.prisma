@@ -264,6 +264,11 @@ model ScanResult {
   contractions     Json?
   volumeDryUp      Boolean?
   volumeRatio      Float?
+  // Anchored VWAP from the base low; and, only for stocks that reached a base with 8 criteria, the latest quarter's growth and ROE from Finnhub.
+  avwap            Float?
+  epsGrowthQoq     Float?
+  salesGrowthQoq   Float?
+  roe              Float?
 
   @@unique([runId, symbol])
   @@index([runId, passedCount])
