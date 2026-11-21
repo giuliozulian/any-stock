@@ -128,7 +128,7 @@ export async function runFinvizScreen(deps: ScreenDeps = {}): Promise<FinvizScre
     const trend = scan.criteria.filter((c) => c.ok).length
     const passedCount = trend + (rs !== null && rs >= RS_MIN ? 1 : 0)
     found.push({ symbol: row.symbol, scan, rs, passedCount })
-    const scanRow: ScanRow = { ...toScanRow({ symbol: row.symbol, name: row.symbol, sector: null, price: scan.price, rs, passedCount, vcpStatus: scan.vcpStatus, pivot: scan.pivot, pivotDistancePct: scan.pivotDistancePct, volumeRatio: scan.volumeRatio, volumeDryUp: scan.volumeDryUp, criteria: scan.criteria }), missing: passedCount === 7 ? missingCriterion(scan.criteria, rs) : null }
+    const scanRow: ScanRow = { ...toScanRow({ symbol: row.symbol, name: row.symbol, sector: null, price: scan.price, rs, passedCount, vcpStatus: scan.vcpStatus, pivot: scan.pivot, pivotDistancePct: scan.pivotDistancePct, volumeRatio: scan.volumeRatio, volumeDryUp: scan.volumeDryUp, avwap: scan.avwap, criteria: scan.criteria }), missing: passedCount === 7 ? missingCriterion(scan.criteria, rs) : null }
     const { plan, note } = planFor(scanRow, ctx)
     picks.push({ symbol: row.symbol, price: scan.price, passedCount, rs, verdict: plan.verdict, label: VERDICT[plan.verdict].label, plan, text: sentence(scanRow, plan, note) })
   }

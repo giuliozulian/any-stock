@@ -1,7 +1,6 @@
 import styles from './EvaluationPanel.module.css'
 import { InfoTip } from './InfoTip'
-import type { Evaluation } from '@/lib/evaluate'
-import type { FairValuePosition } from '@/lib/fair-value'
+import { toneOf, verdictTones, type Evaluation, type Tone } from '@/lib/evaluate'
 
 const SIGNAL_INFO: Record<string, { what: string; how: string; source: string; formula: string }> = {
   short: {
@@ -24,32 +23,11 @@ const SIGNAL_INFO: Record<string, { what: string; how: string; source: string; f
   },
 }
 
-type Tone = 'positive' | 'neutral' | 'negative' | 'unknown'
-
-function toneOf(label: string): Tone {
-  const l = label.toLowerCase()
-  if (l.includes('non disponibil') || l.includes('nessun dato')) return 'unknown'
-  if (l.includes('negativ') || l.includes('deboli')) return 'negative'
-  if (l.includes('positiv') || l.includes('solidi')) return 'positive'
-  return 'neutral'
-}
-
 const VERDICTS: Record<Tone, { title: string; text: string }> = {
   positive: { title: 'Segnali favorevoli', text: 'La maggior parte degli indicatori è a favore del titolo.' },
   neutral: { title: 'Segnali contrastanti', text: 'Alcuni indicatori sono positivi, altri no: meglio osservare ancora.' },
   negative: { title: 'Serve prudenza', text: 'La maggior parte degli indicatori è sfavorevole in questo momento.' },
   unknown: { title: 'Dati insufficienti', text: 'Non ci sono abbastanza dati per un giudizio complessivo.' },
-}
-
-export function overallTone(tones: Tone[], position: FairValuePosition | null, newsAdjustment = 0): Tone {
-  const known = tones.filter((t) => t !== 'unknown')
-  if (known.length === 0) return 'unknown'
-  let score = known.reduce((acc, t) => acc + (t === 'positive' ? 1 : t === 'negative' ? -1 : 0), 0)
-  // Only a reliable range moves the verdict: "unclear" and a missing fair value count for nothing.
-  if (position === 'below') score += 1
-  else if (position === 'above') score -= 1
-  score += newsAdjustment
-  return score >= 2 ? 'positive' : score <= -2 ? 'negative' : 'neutral'
 }
 
 function AnalystBar({ m }: { m: { strongBuy: number; buy: number; hold: number; sell: number; strongSell: number } }) {
@@ -70,14 +48,15 @@ function AnalystBar({ m }: { m: { strongBuy: number; buy: number; hold: number; 
 }
 
 function buildView(evaluation: Evaluation) {
-  const { shortTerm, mediumTerm, longTerm, fairValue } = evaluation
+  const { shortTerm, mediumTerm, longTerm } = evaluation
   const signals = [
     { key: 'short', title: 'Breve termine', horizon: 'settimane', result: shortTerm },
     { key: 'medium', title: 'Medio termine', horizon: 'alcuni mesi', result: mediumTerm },
     { key: 'long', title: 'Lungo termine', horizon: 'anni', result: longTerm },
   ]
-  const tones = signals.map((x) => toneOf(x.result.label))
-  const overall = overallTone(tones, fairValue.position, evaluation.newsImpact.adjustment)
+  const t = verdictTones(evaluation)
+  const tones = [t.shortTerm, t.mediumTerm, t.longTerm]
+  const overall = t.overall
   return { signals, tones, overall, verdict: VERDICTS[overall] }
 }
 

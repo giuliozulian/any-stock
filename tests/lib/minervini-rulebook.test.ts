@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { RULES, RULE_IDS, RULEBOOK_VERSION, rulebookPrompt } from '@/lib/minervini-rulebook'
 
 // Rules in the document that are deliberately not sent to the model: they come from other authors (O'Neil, CAN SLIM).
-const LEFT_OUT = ['B4', 'S3', 'X2', 'X3', 'F2']
+const LEFT_OUT = ['B4', 'S3', 'X2', 'X3']
 
 // Where the model-facing kind differs from the document on purpose: there is no data for these, so the model must not judge them.
 const KIND_DIFFERS_ON_PURPOSE = ['RS1', 'M1', 'M2', 'F3']

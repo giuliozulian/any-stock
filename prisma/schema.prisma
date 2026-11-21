@@ -24,6 +24,7 @@ model Stock {
   verdictNote     StockVerdictNote?
   earningsNote    StockEarningsNote?
   bullBearNote    StockBullBearNote?
+  verdicts        VerdictLog[]
 }
 
 model PriceSnapshot {
@@ -263,6 +264,11 @@ model ScanResult {
   contractions     Json?
   volumeDryUp      Boolean?
   volumeRatio      Float?
+  // Anchored VWAP from the base low; and, only for stocks that reached a base with 8 criteria, the latest quarter's growth and ROE from Finnhub.
+  avwap            Float?
+  epsGrowthQoq     Float?
+  salesGrowthQoq   Float?
+  roe              Float?
 
   @@unique([runId, symbol])
   @@index([runId, passedCount])
@@ -336,4 +342,48 @@ model MinerviniAiNote {
   generatedAt   DateTime @default(now())
 
   @@unique([symbol, day])
+}
+
+// One row per stock and UTC day: the verdict as the app showed it, normalized to tones, so it can be checked against what the price did later.
+model VerdictLog {
+  id             String           @id @default(cuid())
+  stockId        String
+  stock          Stock            @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  day            String
+  // Last daily bar available when the verdict was logged: returns are measured from it.
+  refDate        String
+  refPrice       Float
+  overall        String
+  score          Int?
+  shortTerm      String
+  shortTermLabel String
+  mediumTerm     String
+  mediumTermLabel String
+  longTerm       String
+  longTermLabel  String
+  fairValue      String
+  fairValueNote  String
+  news           String
+  newsNote       String
+  rulesVersion   Int
+  createdAt      DateTime         @default(now())
+  outcomes       VerdictOutcome[]
+
+  @@unique([stockId, day])
+  @@index([rulesVersion])
+}
+
+// Returns of one verdict over one horizon (trading days), written once the horizon has matured and never recomputed.
+model VerdictOutcome {
+  id             String     @id @default(cuid())
+  verdictId      String
+  verdict        VerdictLog @relation(fields: [verdictId], references: [id], onDelete: Cascade)
+  horizon        Int
+  evalDate       String
+  stockReturnPct Float
+  benchReturnPct Float
+  excessPct      Float
+  createdAt      DateTime   @default(now())
+
+  @@unique([verdictId, horizon])
 }

@@ -37,9 +37,9 @@ One row per stock and day, `@@unique([stockId, day])`.
 - `refDate`, `refPrice`: date and close of the last daily bar available when
   logging. The job runs before the US open, so this is the previous close.
   Returns start here.
-- `overall`, `score`: overall tone and its numeric score.
+- `overall`, `score`: overall tone and its numeric score (null when no signal has data).
 - `shortTerm`, `mediumTerm`, `longTerm`, `fairValue`, `news`: normalized tone
-  each (`positive` | `neutral` | `negative` | `none`; `none` when the data is
+  each (`positive` | `neutral` | `negative` | `unknown`; `unknown` when the data is
   missing). Next to each, the original Italian label (`shortTermLabel`, ...).
 - `rulesVersion` (int): bumped by hand when the rules of `evaluateStock`
   change, so statistics never mix versions.
@@ -52,8 +52,6 @@ One row per verdict and horizon, created only when the horizon has matured,
 
 - `verdictId` (cascade), `horizon` (10 | 30 | 90), `evalDate`.
 - `stockReturnPct`, `benchReturnPct`, `excessPct` (`stock − bench`).
-- `absResult`, `relResult`: `win` | `loss` | `neutral`, or null for a neutral
-  verdict (its returns are kept as a comparison group).
 
 Outcomes are never recomputed. A change of rules means a new `rulesVersion`.
 
@@ -75,7 +73,7 @@ Outcomes are never recomputed. A change of rules means a new `rulesVersion`.
   `createMany({ skipDuplicates: true })`, so a second run the same day is
   harmless.
 - No latest snapshot: stock skipped, counted in `skipped`. Finnhub metrics
-  failure: `fairValue` is `none` and the verdict is still recorded.
+  failure: `fairValue` is `unknown` and the verdict is still recorded.
 - `overallTone` and the label-to-tone map move from
   `components/EvaluationPanel.tsx` into `lib/evaluate.ts`; the component imports
   them. The page and the log then use the same code. The other three callers of
@@ -84,12 +82,14 @@ Outcomes are never recomputed. A change of rules means a new `rulesVersion`.
 
 ## Evaluation (`lib/verdict-backtest.ts`, pure functions)
 
+Per-signal results are derived at read time from the stored returns and the stored tone of that signal, with the 2% band; no result is stored.
+
 - Outcome of a return `r` (absolute) or `excess` (relative) for a verdict tone,
   band `B = 2`:
   - positive: `win` if `r ≥ +B`, `loss` if `r ≤ −B`, else `neutral`;
   - negative: mirrored (`win` if `r ≤ −B`);
   - neutral verdict: no result, returns stored.
-  - A signal with tone `none` is left out of that signal's statistics.
+  - A signal with tone `unknown` is left out of that signal's statistics.
 - Trading days: find the bar of `refDate` in the daily bars, take the close of
   the bar `N` positions later. Holidays are skipped because they have no bar.
   Stock return is the close against `refPrice`; benchmark return uses the same
@@ -127,7 +127,7 @@ Outcomes are never recomputed. A change of rules means a new `rulesVersion`.
   tone, a row with zero matured verdicts.
 - `tests/lib/verdict-log.test.ts` on the test database
   (`tests/helpers/db.ts`): second run the same day does not duplicate, stock
-  without snapshot is skipped, `fairValue` is `none` when Finnhub fails.
+  without snapshot is skipped, `fairValue` is `unknown` when Finnhub fails.
 - `tests/api/verdicts-cron.test.ts`: 401 without a valid secret. Check
   `tests/api/auth-coverage.test.ts` for the new route.
 - The existing tests of `overallTone` move with the function.

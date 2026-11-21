@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
+import { fundamentalsState, type Fundamentals } from '@/lib/fundamentals-gate'
 import { requestLlmJson } from '@/lib/llm-news'
 import type { BaseMetrics, VcpStatus } from '@/lib/minervini'
 import type { MinerviniAnalysis } from '@/lib/minervini-data'
 import { RULEBOOK_VERSION, RULE_IDS, rulebookPrompt } from '@/lib/minervini-rulebook'
 
 // Bump on every change to the prompt or the output format, so cached analyses are regenerated.
-export const PROMPT_VERSION = 2
+export const PROMPT_VERSION = 3
 
 export interface AiInput {
   symbol: string
@@ -26,6 +27,10 @@ export interface AiInput {
     volumeRatio: number | null
   }
   base: BaseMetrics | null
+  // Latest-quarter growth and ROE in percent, null when Finnhub did not answer.
+  fundamentals?: Fundamentals | null
+  // Anchored VWAP from the lowest low of the base.
+  avwap?: number | null
 }
 
 const round = (v: number | null): number | null => (v === null ? null : Math.round(v * 10_000) / 10_000)
@@ -57,6 +62,8 @@ export function buildInput(symbol: string, analysis: MinerviniAnalysis): AiInput
       volumeRatio: round(vcp.volumeRatio),
     },
     base: roundBase(vcp.base),
+    fundamentals: analysis.fundamentals ?? null,
+    avwap: round(analysis.avwap ?? vcp.avwap ?? null),
   }
 }
 
@@ -99,7 +106,7 @@ Come ragionare:
 - Le regole "non verificata" vanno trattate come indicazioni, non come fatti: se ti appoggi a una, dillo nella nota.
 - Se peerCount è basso (meno di 15) il percentile di forza relativa è poco affidabile: segnalalo nei rischi.
 - La tenuta finale (base.tightness) è una misura, non una soglia: descrivila senza dire che passa o non passa.
-- verdict: "ready" solo se il Trend Template è soddisfatto e c'è una base pronta o in rottura; "wait" se manca qualcosa che può ancora arrivare; "no" se il setup non c'è.
+- verdict: "ready" solo se il Trend Template è soddisfatto, c'è una base pronta o in rottura, utili e ricavi dell'ultimo trimestre superano le soglie (fundamentals: epsGrowthQoq e salesGrowthQoq oltre il 25%, roe oltre il 15%) e il prezzo non è sotto avwap; se fundamentals è null o una misura è null non sono valutabili e non bloccano; "wait" se manca qualcosa che può ancora arrivare; "no" se il setup non c'è.
 
 Rispondi SOLO con un oggetto JSON con questi campi:
 - verdict: "ready" | "wait" | "no"
@@ -157,7 +164,10 @@ export function parseAiResult(raw: unknown, input: AiInput, model: string): AiRe
   const templateMet = input.trendTemplate.passedCount >= input.trendTemplate.total && input.trendTemplate.criteria.every((c) => c.ok)
   // A base the code itself flags as too deep, too short or too long is not a base ready to buy.
   const hasBase = (input.vcp.status === 'forming' || input.vcp.status === 'breakout') && input.base !== null && input.base.weeksOk && input.base.depthOk
-  const lowered = r.verdict === 'ready' && !(templateMet && hasBase)
+  // The same two gates as the scanner verdict: utili and ricavi growing, price not under the VWAP of the base.
+  const fundamentalsOk = fundamentalsState(input.fundamentals) !== 'fail'
+  const aboveAvwap = input.avwap == null || input.price >= input.avwap
+  const lowered = r.verdict === 'ready' && !(templateMet && hasBase && fundamentalsOk && aboveAvwap)
   return {
     verdict: lowered ? 'wait' : (r.verdict as Verdict),
     summary: r.summary.trim().slice(0, MAX_SUMMARY),

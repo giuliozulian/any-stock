@@ -1,8 +1,10 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { getMetrics, type FinnhubMetrics } from '@/lib/finnhub'
 import { getDailyBars, type Bar } from '@/lib/history'
 import type { Criterion } from '@/lib/minervini'
 import { notifyScanAlerts } from '@/lib/scan-alerts-db'
+import { fetchFundamentals } from '@/lib/scan-fundamentals'
 import { finalize, scanSymbol, type FinalizeInput, type ScanSymbolResult } from '@/lib/scanner'
 import { loadUniverse, toYahooSymbol, type UniverseEntry } from '@/lib/universe'
 
@@ -11,6 +13,9 @@ export const CONCURRENCY = 5
 // Block budget: 25 stocks at 5 in parallel with a 10 s timeout each is at most ~50 s without retries,
 // so the retry pass only starts early in the block to stay under the route's 60 s.
 export const RETRY_DEADLINE_MS = 30_000
+// Closing the run also reads the fundamentals of the few stocks with a base. It gets what is left of the 60 s route, at most this much.
+export const STEP_BUDGET_MS = 50_000
+export const FUNDAMENTALS_BUDGET_MS = 15_000
 export const MIN_INTERVAL_MS = 60 * 60 * 1000
 export const KEEP_RUNS = 2
 export const PARTIAL_UNREAD_SHARE = 0.1
@@ -97,6 +102,7 @@ export interface StepDeps {
   universe?: UniverseEntry[]
   fetchBars?: (yahooSymbol: string) => Promise<Bar[]>
   now?: () => number
+  fetchMetrics?: (symbol: string) => Promise<FinnhubMetrics>
 }
 
 export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepResult> {
@@ -132,7 +138,7 @@ export async function stepRun(runId: string, deps: StepDeps = {}): Promise<StepR
     const current = await prisma.scanRun.findUniqueOrThrow({ where: { id: runId } })
     return { kind: 'stale', run: state(current) }
   }
-  if (to >= run.total) await closeRun(runId)
+  if (to >= run.total) await closeRun(runId, Math.max(0, Math.min(FUNDAMENTALS_BUDGET_MS, STEP_BUDGET_MS - (now() - startedAt))), deps.fetchMetrics ?? getMetrics)
   const current = await prisma.scanRun.findUniqueOrThrow({ where: { id: runId } })
   return { kind: 'advanced', run: state(current) }
 }
@@ -154,10 +160,33 @@ export function toRow(runId: string, entry: UniverseEntry, r: ScanSymbolResult |
     contractions: r.contractions,
     volumeDryUp: r.volumeDryUp,
     volumeRatio: r.volumeRatio,
+    avwap: r.avwap,
   }
 }
 
-async function closeRun(runId: string): Promise<void> {
+// Growth and ROE only for stocks that could be a buy: 8 criteria and a base that is forming or breaking out.
+// Never throws: without these numbers the verdict simply does not use them.
+export async function fillFundamentals(runId: string, budgetMs: number, fetchMetrics: (symbol: string) => Promise<FinnhubMetrics> = getMetrics): Promise<void> {
+  try {
+    if (budgetMs <= 0) return
+    const candidates = await prisma.scanResult.findMany({
+      where: { runId, status: 'ok', passedCount: { gte: 8 }, vcpStatus: { in: ['forming', 'breakout'] } },
+      select: { id: true, symbol: true },
+    })
+    if (candidates.length === 0) return
+    const found = await fetchFundamentals(candidates.map((c) => c.symbol), budgetMs, { fetchMetrics })
+    const values = candidates.flatMap((c) => {
+      const f = found.get(c.symbol)
+      return f ? [Prisma.sql`(${c.id}, ${f.epsGrowthQoq}::float8, ${f.salesGrowthQoq}::float8, ${f.roe}::float8)`] : []
+    })
+    if (values.length === 0) return
+    await prisma.$executeRaw`UPDATE "ScanResult" AS t SET "epsGrowthQoq" = v.eps, "salesGrowthQoq" = v.sales, "roe" = v.roe FROM (VALUES ${Prisma.join(values)}) AS v(id, eps, sales, roe) WHERE t."id" = v.id`
+  } catch (err) {
+    console.error('Scanner: reading the fundamentals failed:', err instanceof Error ? err.message : String(err))
+  }
+}
+
+async function closeRun(runId: string, fundamentalsBudgetMs: number, fetchMetrics: (symbol: string) => Promise<FinnhubMetrics>): Promise<void> {
   const rows = await prisma.scanResult.findMany({ where: { runId } })
   const readable = rows.filter((r) => r.status === 'ok' && r.weightedReturn !== null && r.criteria !== null)
   const inputs: FinalizeInput[] = readable.map((r) => ({ symbol: r.symbol, weightedReturn: r.weightedReturn!, criteria: r.criteria as unknown as Criterion[] }))
@@ -167,6 +196,9 @@ async function closeRun(runId: string): Promise<void> {
     const values = readable.map((r) => Prisma.sql`(${r.id}, ${out.get(r.symbol)!.rs}::float8, ${out.get(r.symbol)!.passedCount}::int)`)
     await prisma.$executeRaw`UPDATE "ScanResult" AS t SET "rs" = v.rs, "passedCount" = v.pc FROM (VALUES ${Prisma.join(values)}) AS v(id, rs, pc) WHERE t."id" = v.id`
   }
+
+  // Before the run closes and the alerts go out, so a stock with weak fundamentals is never announced as a buy.
+  await fillFundamentals(runId, fundamentalsBudgetMs, fetchMetrics)
 
   const closed = await prisma.scanRun.updateMany({
     where: { id: runId, status: 'running' },

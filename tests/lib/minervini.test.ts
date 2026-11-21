@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Bar } from '@/lib/history'
-import { RS_MIN, RS_MIN_BARS, TREND_TEMPLATE_LABELS, VCP_STATUS_LABEL, describeBase, detectVcp, evaluateTrendTemplate, percentileRank, riskReward, sma, weightedReturn } from '@/lib/minervini'
+import { RS_MIN, RS_MIN_BARS, TREND_TEMPLATE_LABELS, VCP_STATUS_LABEL, anchoredVwap, describeBase, detectVcp, evaluateTrendTemplate, percentileRank, riskReward, sma, weightedReturn } from '@/lib/minervini'
 
 const bar = (i: number, close: number): Bar => ({ t: i * 86_400_000, high: close * 1.01, low: close * 0.99, close, volume: 1_000_000 })
 const series = (n: number, f: (i: number) => number): Bar[] => Array.from({ length: n }, (_, i) => bar(i, f(i)))
@@ -257,5 +257,40 @@ describe('riskReward', () => {
   it('returns null when the stop is not below the entry or the target not above it', () => {
     expect(riskReward(100, 100, 120)).toBeNull()
     expect(riskReward(100, 92, 100)).toBeNull()
+  })
+})
+
+describe('anchoredVwap', () => {
+  const flat = (close: number, volume: number): Bar => ({ t: 0, high: close, low: close, close, volume })
+
+  it('weights the typical price by volume from the anchor to the last bar', () => {
+    const bars = [flat(10, 1), flat(20, 1), flat(30, 2)]
+    expect(anchoredVwap(bars, 1)).toBeCloseTo((20 * 1 + 30 * 2) / 3, 6)
+    expect(anchoredVwap(bars, 0)).toBeCloseTo((10 + 20 + 60) / 4, 6)
+  })
+
+  it('uses (high + low + close) / 3', () => {
+    expect(anchoredVwap([{ t: 0, high: 12, low: 6, close: 9, volume: 5 }], 0)).toBeCloseTo(9, 6)
+    expect(anchoredVwap([{ t: 0, high: 12, low: 6, close: 12, volume: 5 }], 0)).toBeCloseTo(10, 6)
+  })
+
+  it('starts from the first bar when the anchor is before it, and is null without volume', () => {
+    expect(anchoredVwap([flat(10, 1), flat(20, 1)], -3)).toBeCloseTo(15, 6)
+    expect(anchoredVwap([flat(10, 0)], 0)).toBeNull()
+    expect(anchoredVwap([], 0)).toBeNull()
+  })
+})
+
+describe('detectVcp avwap', () => {
+  it('anchors at the lowest low of the base and stays between the base low and the price', () => {
+    const v = detectVcp(path([80, 100, 75, 95, 83.6, 94, 88.36, 96]))
+    expect(v.status).toBe('breakout')
+    expect(v.avwap).not.toBeNull()
+    expect(v.avwap!).toBeGreaterThan(75 * 0.99)
+    expect(v.avwap!).toBeLessThan(96 * 1.01)
+  })
+
+  it('is null when there is no base', () => {
+    expect(detectVcp(series(300, (i) => 100 + i * 0.5)).avwap).toBeNull()
   })
 })

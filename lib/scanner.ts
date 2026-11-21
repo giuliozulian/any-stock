@@ -1,3 +1,4 @@
+import { fundamentalsState, type Fundamentals } from '@/lib/fundamentals-gate'
 import type { Bar } from '@/lib/history'
 import {
   BREAKOUT_VOLUME,
@@ -28,6 +29,7 @@ export interface ScanSymbolResult {
   contractions: number[]
   volumeDryUp: boolean
   volumeRatio: number | null
+  avwap: number | null
 }
 
 // Everything that does not depend on the other stocks. Null when the history is too short to rank.
@@ -50,6 +52,7 @@ export function scanSymbol(bars: Bar[]): ScanSymbolResult | null {
     contractions: vcp.contractions,
     volumeDryUp: vcp.volumeDryUp,
     volumeRatio: vcp.volumeRatio,
+    avwap: vcp.avwap,
   }
 }
 
@@ -91,7 +94,7 @@ export function isEntrySetup(r: { passedCount: number; vcpStatus: VcpStatus | nu
 export const PROFIT_TARGET_MIN = 0.2
 export const PROFIT_TARGET_MAX = 0.25
 
-export type Verdict = 'buy' | 'noisy' | 'confirm' | 'watch' | 'late' | 'broken' | 'no-base' | 'almost'
+export type Verdict = 'buy' | 'weak-fundamentals' | 'noisy' | 'confirm' | 'watch' | 'late' | 'broken' | 'no-base' | 'almost'
 
 export interface PlanInput {
   passedCount: number
@@ -101,10 +104,16 @@ export interface PlanInput {
   volumeDryUp?: boolean | null
   price: number
   pivot: number | null
+  // Latest quarter growth and ROE. Missing measures are not held against the stock.
+  fundamentals?: Fundamentals | null
+  // Anchored VWAP of the base: a buy needs the price at or above it.
+  avwap?: number | null
 }
 
 export interface TradePlan {
   verdict: Verdict
+  // Why a would-be buy was downgraded by the plan itself rather than by the scan context.
+  reason: 'below-avwap' | null
   buyFrom: number | null
   buyTo: number | null
   stop: number | null
@@ -113,7 +122,7 @@ export interface TradePlan {
   profitTo: number | null
 }
 
-const NO_PRICES = { buyFrom: null, buyTo: null, stop: null, riskPct: null, profitFrom: null, profitTo: null }
+const NO_PRICES = { reason: null, buyFrom: null, buyTo: null, stop: null, riskPct: null, profitFrom: null, profitTo: null }
 
 // What to do with a stock, in the method's own terms: where to buy, where to get out, where to take profit.
 export function tradePlan(r: PlanInput): TradePlan {
@@ -123,13 +132,23 @@ export function tradePlan(r: PlanInput): TradePlan {
   if (r.vcpStatus === 'extended') return { verdict: 'late', ...NO_PRICES }
 
   const strongVolume = r.volumeRatio !== null && r.volumeRatio >= BREAKOUT_VOLUME
-  const verdict: Verdict = r.vcpStatus === 'forming' ? 'watch' : !strongVolume ? 'confirm' : r.volumeDryUp === false ? 'noisy' : 'buy'
+  let verdict: Verdict = r.vcpStatus === 'forming' ? 'watch' : !strongVolume ? 'confirm' : r.volumeDryUp === false ? 'noisy' : 'buy'
+  let reason: TradePlan['reason'] = null
+  // The method also wants utili and ricavi growing and the price above the VWAP of the base: only a buy is held back for them.
+  if (verdict === 'buy') {
+    if (fundamentalsState(r.fundamentals) === 'fail') verdict = 'weak-fundamentals'
+    else if (r.avwap != null && r.price < r.avwap) {
+      verdict = 'confirm'
+      reason = 'below-avwap'
+    }
+  }
   // Already breaking out: measure from what it costs now. Still below the pivot: from the pivot, the price it would be bought at.
   const reference = verdict === 'watch' ? r.pivot : r.price
   // The stop follows the price paid (8% below it), so the loss is capped at 8% wherever in the buy range the order fills.
   const stop = reference * (1 - STOP_BELOW_PIVOT)
   return {
     verdict,
+    reason,
     buyFrom: r.pivot,
     buyTo: r.pivot * (1 + MAX_CHASE),
     stop,
@@ -166,7 +185,7 @@ export function marketHealth(criteriaSets: Criterion[][]): { abovePct: number; l
 }
 
 export type Caution = 'stale' | 'session'
-export type PlanNote = 'session' | 'weak-market' | 'stale' | null
+export type PlanNote = 'session' | 'weak-market' | 'below-avwap' | 'stale' | null
 
 export interface PlanContext {
   caution: Caution | null
@@ -175,9 +194,10 @@ export interface PlanContext {
 
 // The same stock needs a different answer when the data is old, the volume is partial or the market is weak.
 export function withContext(plan: TradePlan, ctx: PlanContext): { plan: TradePlan; note: PlanNote } {
+  if (plan.reason === 'below-avwap') return { plan, note: 'below-avwap' }
   if (plan.verdict === 'buy' && ctx.caution === 'session') return { plan: { ...plan, verdict: 'confirm' }, note: 'session' }
   if (plan.verdict === 'buy' && ctx.market === 'weak') return { plan: { ...plan, verdict: 'confirm' }, note: 'weak-market' }
-  const hasPrices = plan.verdict === 'buy' || plan.verdict === 'noisy' || plan.verdict === 'confirm' || plan.verdict === 'watch'
+  const hasPrices = plan.verdict === 'buy' || plan.verdict === 'weak-fundamentals' || plan.verdict === 'noisy' || plan.verdict === 'confirm' || plan.verdict === 'watch'
   if (hasPrices && ctx.caution === 'stale') return { plan, note: 'stale' }
   return { plan, note: null }
 }

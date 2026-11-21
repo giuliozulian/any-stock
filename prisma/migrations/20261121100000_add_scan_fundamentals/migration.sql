@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "ScanResult" ADD COLUMN     "avwap" DOUBLE PRECISION,
+ADD COLUMN     "epsGrowthQoq" DOUBLE PRECISION,
+ADD COLUMN     "roe" DOUBLE PRECISION,
+ADD COLUMN     "salesGrowthQoq" DOUBLE PRECISION;

@@ -279,3 +279,69 @@ export function evaluateStock(input: EvaluateInput): Evaluation {
     },
   }
 }
+
+// Bump by hand whenever the rules of evaluateStock or the tone mapping change: the backtest never mixes versions.
+export const RULES_VERSION = 1
+
+export type Tone = 'positive' | 'neutral' | 'negative' | 'unknown'
+
+export function toneOf(label: string): Tone {
+  const l = label.toLowerCase()
+  if (l.includes('non disponibil') || l.includes('nessun dato')) return 'unknown'
+  if (l.includes('negativ') || l.includes('deboli')) return 'negative'
+  if (l.includes('positiv') || l.includes('solidi')) return 'positive'
+  return 'neutral'
+}
+
+// Null when no signal has data.
+export function overallScore(tones: Tone[], position: FairValuePosition | null, newsAdjustment = 0): number | null {
+  const known = tones.filter((t) => t !== 'unknown')
+  if (known.length === 0) return null
+  let score = known.reduce((acc, t) => acc + (t === 'positive' ? 1 : t === 'negative' ? -1 : 0), 0)
+  // Only a reliable range moves the verdict: "unclear" and a missing fair value count for nothing.
+  if (position === 'below') score += 1
+  else if (position === 'above') score -= 1
+  return score + newsAdjustment
+}
+
+export function overallTone(tones: Tone[], position: FairValuePosition | null, newsAdjustment = 0): Tone {
+  const score = overallScore(tones, position, newsAdjustment)
+  if (score === null) return 'unknown'
+  return score >= 2 ? 'positive' : score <= -2 ? 'negative' : 'neutral'
+}
+
+export function fairValueTone(fv: Evaluation['fairValue']): Tone {
+  if (!fv.reliable) return 'unknown'
+  return fv.position === 'below' ? 'positive' : fv.position === 'above' ? 'negative' : fv.position === 'inside' ? 'neutral' : 'unknown'
+}
+
+export function newsTone(n: NewsImpactSummary): Tone {
+  if (n.counted === 0) return 'unknown'
+  return n.adjustment > 0 ? 'positive' : n.adjustment < 0 ? 'negative' : 'neutral'
+}
+
+export interface VerdictTones {
+  overall: Tone
+  score: number | null
+  shortTerm: Tone
+  mediumTerm: Tone
+  longTerm: Tone
+  fairValue: Tone
+  news: Tone
+}
+
+export function verdictTones(e: Evaluation): VerdictTones {
+  const shortTerm = toneOf(e.shortTerm.label)
+  const mediumTerm = toneOf(e.mediumTerm.label)
+  const longTerm = toneOf(e.longTerm.label)
+  const tones = [shortTerm, mediumTerm, longTerm]
+  return {
+    overall: overallTone(tones, e.fairValue.position, e.newsImpact.adjustment),
+    score: overallScore(tones, e.fairValue.position, e.newsImpact.adjustment),
+    shortTerm,
+    mediumTerm,
+    longTerm,
+    fairValue: fairValueTone(e.fairValue),
+    news: newsTone(e.newsImpact),
+  }
+}
